@@ -1023,12 +1023,12 @@
                             // voice navigation — handle "guide me to X" locally before server, like typed sendMessage does
                             var navTargetVoice = maybeNavigateIntent(text);
                             if(navTargetVoice){
-                                addMessage("user", text + (lang && lang!=="en" ? " ["+lang+"]" : ""));
+                                addMessage("user", text + (lang && lang!=="en" && lang!=="auto" && lang!=="" ? " ["+lang+"]" : ""));
                                 messages.push({ role: "user", content: text });
                                 if (loading) loading.remove();
                                 addMessage("assistant", "Opening "+navTargetVoice.replace(".html","")+" for you — taking you there.");
                                 messages.push({ role: "assistant", content: "Opening "+navTargetVoice });
-                                tryBrowserTTS("Opening "+navTargetVoice.replace(".html","")+" for you", lang);
+                                tryBrowserTTS("Opening "+navTargetVoice.replace(".html","")+" for you", (lang && lang!=="auto" ? lang : "en"));
                                 setTimeout(function(){
                                     try{
                                         if(navTargetVoice.indexOf("features")!==-1){
@@ -1046,7 +1046,7 @@
                                 return;
                             }
                             // inject transcript as user message and send on their behalf — Nova AI + OpenAI see it as normal chat in detected language
-                            addMessage("user", text + (lang && lang!=="en" ? " ["+lang+"]" : ""));
+                            addMessage("user", text + (lang && lang!=="en" && lang!=="auto" && lang!=="" ? " ["+lang+"]" : ""));
                             messages.push({ role: "user", content: text });
                             var chatLoading = addMessage("assistant", "...");
                             if (chatLoading) chatLoading.className = "nova-msg nova-loading";
