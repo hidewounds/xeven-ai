@@ -24,17 +24,22 @@ function transcribeParams({ language, model, prompt, wordTimestamps } = {}) {
 }
 
 async function callOpenAIWhisper({ audioBuffer, filename, language, prompt, apiKey, baseUrl }) {
-    const key = apiKey || process.env.OPENAI_API_KEY || require("../../env").ai.openaiApiKey;
+    const key = (apiKey || process.env.OPENAI_API_KEY || require("../../env").ai.openaiApiKey || "").trim();
     const url = (baseUrl || process.env.OPENAI_BASE_URL || require("../../env").ai.openaiBaseUrl || "https://api.openai.com/v1").replace(/\/$/, "") + "/audio/transcriptions";
-    if (!key) throw new Error("OPENAI_API_KEY missing for Whisper");
+    if (!key || key.includes("...") || key.length < 20) throw new Error("OPENAI_API_KEY missing or invalid for Whisper");
     const form = new FormData();
     form.append("file", new Blob([audioBuffer]), filename || "audio.webm");
     form.append("model", "whisper-1");
     if (language && language !== "auto") form.append("language", language);
     if (prompt) form.append("prompt", String(prompt).slice(0, 200));
-    const res = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form });
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 15000);
+    let res;
+    try {
+        res = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form, signal: controller.signal });
+    } finally { clearTimeout(t); }
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error?.message || `Whisper error ${res.status}`);
+    if (!res.ok) throw new Error(data.error?.message || `Whisper error ${res.status}: ${JSON.stringify(data).slice(0, 300)}`);
     return { text: data.text || "", language: data.language || language || "" };
 }
 
@@ -77,6 +82,10 @@ function stubTranscribe({ businessId, customerId, conversationId, language, audi
  */
 async function callSidecar({ sidecarUrl, audioBuffer, filename, params }) {
     if (!sidecarUrl || !audioBuffer) throw new Error("sidecarUrl and audioBuffer required");
+    // Skip sidecar on Vercel when URL is empty or localhost (no sidecar in serverless)
+    if (!sidecarUrl.trim() || (/127\.0\.0\.1|localhost/.test(sidecarUrl) && process.env.VERCEL)) {
+        throw new Error("Sidecar not available in serverless");
+    }
     // Fix filename from mimeType like "audio/webm;codecs=opus" → "audio.webm" not "audio.webm;codecs=opus"
     let safeFilename = filename || "audio.webm";
     if (safeFilename.includes(";")) safeFilename = safeFilename.split(";")[0];
@@ -90,7 +99,12 @@ async function callSidecar({ sidecarUrl, audioBuffer, filename, params }) {
     if (params.prompt) form.append("prompt", params.prompt);
     if (params.wordTimestamps) form.append("word_timestamps", "1");
     const url = `${sidecarUrl.replace(/\/$/, "")}/transcribe`;
-    const res = await fetch(url, { method: "POST", body: form });
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 8000);
+    let res;
+    try {
+        res = await fetch(url, { method: "POST", body: form, signal: controller.signal });
+    } finally { clearTimeout(t); }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || data.detail || `Echo sidecar error ${res.status}: ${JSON.stringify(data).slice(0,300)}`);
     return data;
@@ -252,17 +266,25 @@ function createStreamingSession({ sidecarUrl, businessId, customerId, conversati
 
 /**
  * Check if sidecar is available (HTTP health check).
+ * On Vercel serverless, localhost sidecar never exists — return false immediately without fetch.
  */
 async function checkSidecarHealth(sidecarUrl) {
+    if (!sidecarUrl || !String(sidecarUrl).trim()) return { available: false, reason: "no_url" };
+    if (/127\.0\.0\.1|localhost/.test(String(sidecarUrl)) && process.env.VERCEL) {
+        return { available: false, reason: "serverless_no_localhost" };
+    }
     try {
-        const res = await fetch(`${sidecarUrl.replace(/\/$/, "")}/health`, { method: "GET" });
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 1200);
+        const res = await fetch(`${String(sidecarUrl).replace(/\/$/, "")}/health`, { method: "GET", signal: controller.signal });
+        clearTimeout(t);
         if (res.ok) {
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
             return { available: true, ...data };
         }
-        return { available: false };
-    } catch {
-        return { available: false };
+        return { available: false, status: res.status };
+    } catch (e) {
+        return { available: false, error: e.message };
     }
 }
 

@@ -77,21 +77,28 @@ function stubSynthesize({ businessId, text, params }) {
 }
 
 async function callOpenAITTS({ text, voice, model, apiKey, baseUrl }) {
-    const key = apiKey || process.env.OPENAI_API_KEY || require("../../env").ai.openaiApiKey;
+    const key = (apiKey || process.env.OPENAI_API_KEY || require("../../env").ai.openaiApiKey || "").trim();
     const url = (baseUrl || process.env.OPENAI_BASE_URL || require("../../env").ai.openaiBaseUrl || "https://api.openai.com/v1").replace(/\/$/, "") + "/audio/speech";
-    if (!key) throw new Error("OPENAI_API_KEY missing for TTS");
+    if (!key || key.includes("...") || key.length < 20 || key.includes("placeholder")) throw new Error("OPENAI_API_KEY missing or invalid for TTS");
     const mdl = (model && model.includes("hd")) ? "tts-1-hd" : "tts-1";
     const v = voice && ["alloy","echo","fable","onyx","nova","shimmer"].includes(voice) ? voice : "alloy";
-    const res = await fetch(url, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: mdl, input: String(text).slice(0, 4000), voice: v, response_format: "mp3" }),
-    });
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 15000);
+    let res;
+    try {
+        res = await fetch(url, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ model: mdl, input: String(text).slice(0, 4000), voice: v, response_format: "mp3" }),
+            signal: controller.signal,
+        });
+    } finally { clearTimeout(t); }
     if (!res.ok) {
         const err = await res.text().catch(() => "");
-        throw new Error(`OpenAI TTS error ${res.status}: ${err.slice(0,200)}`);
+        throw new Error(`OpenAI TTS error ${res.status}: ${err.slice(0,300)}`);
     }
     const buf = Buffer.from(await res.arrayBuffer());
+    if (!buf.length) throw new Error("OpenAI TTS returned empty audio");
     return { audioBase64: buf.toString("base64"), format: "mp3", durationMs: Math.round((text.length / 15) * 1000) };
 }
 
@@ -101,7 +108,9 @@ async function callOpenAITTS({ text, voice, model, apiKey, baseUrl }) {
  */
 async function callSidecar({ sidecarUrl, text, params }) {
     if (!sidecarUrl || !text) throw new Error("sidecarUrl and text required");
-    
+    if (!String(sidecarUrl).trim() || (/127\.0\.0\.1|localhost/.test(String(sidecarUrl)) && process.env.VERCEL)) {
+        throw new Error("TTS sidecar not available in serverless");
+    }
     const form = new FormData();
     form.append("text", text);
     if (params.voice) form.append("voice", params.voice);
@@ -113,9 +122,9 @@ async function callSidecar({ sidecarUrl, text, params }) {
     if (params.style !== undefined) form.append("style", String(params.style));
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-        const res = await fetch(`${sidecarUrl.replace(/\/$/, "")}/synthesize`, {
+        const res = await fetch(`${String(sidecarUrl).replace(/\/$/, "")}/synthesize`, {
             method: "POST",
             body: form,
             signal: controller.signal,
@@ -140,8 +149,10 @@ async function synthesize({ businessId, text, params: inputParams, config }) {
     const lang = params.language || "en";
     const model = params.model || "piper";
 
-    // Try sidecar first if configured
-    const sidecarUrl = config?.ttsSidecarUrl || process.env.NOVA_TTS_SIDECAR_URL;
+    // Try sidecar first if configured and not on Vercel serverless
+    const env = require("../../env");
+    const rawSidecar = (config?.ttsSidecarUrl || process.env.NOVA_TTS_SIDECAR_URL || env.echoSidecarUrl || "").trim();
+    const sidecarUrl = rawSidecar; // empty on Vercel means no sidecar
     if (sidecarUrl) {
         try {
             const result = await callSidecar({ sidecarUrl, text: textStr, params });
@@ -155,26 +166,34 @@ async function synthesize({ businessId, text, params: inputParams, config }) {
             // fall through to OpenAI
         }
     }
-    // OpenAI TTS fallback — works on Vercel with OPENAI_API_KEY (no sidecar needed)
-    try {
-        const env = require("../../env");
-        const openaiResult = await callOpenAITTS({
-            text: textStr,
-            voice: params.voice,
-            model: params.model,
-            apiKey: env.ai.openaiApiKey || process.env.OPENAI_API_KEY,
-            baseUrl: env.ai.openaiBaseUrl || process.env.OPENAI_BASE_URL,
-        });
-        const crypto = require("../../lib/crypto");
-        const db = require("../../db").get();
+    // OpenAI TTS fallback — works on Vercel with OPENAI_API_KEY (no sidecar needed) — parity with local sidecar
+    const hasValidKey = (() => {
+        const k = (env.ai.openaiApiKey || "").trim();
+        return k.startsWith("sk-") && k.length > 20 && !k.includes("...") && !k.includes("placeholder");
+    })();
+    if (hasValidKey) {
         try {
-            db().prepare(
-                "INSERT INTO tts_syntheses (synth_id, business_id, text, language, voice, model, audio_base64, format, duration_ms, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
-            ).run(crypto.randomId("tts"), businessId, textStr.slice(0, 100), lang, params.voice || "alloy", openaiResult.format === "mp3" ? "tts-1" : params.model || "openai", openaiResult.audioBase64 || "", openaiResult.format || "mp3", openaiResult.durationMs || 0, Date.now());
-        } catch {}
-        return { ...openaiResult, synthId: `tts_${crypto.randomHex(10)}`, provider: "openai_tts" };
-    } catch (e) {
-        // fall through to stub
+            const openaiResult = await callOpenAITTS({
+                text: textStr,
+                voice: params.voice,
+                model: params.model,
+                apiKey: env.ai.openaiApiKey || process.env.OPENAI_API_KEY,
+                baseUrl: env.ai.openaiBaseUrl || process.env.OPENAI_BASE_URL,
+            });
+            const crypto = require("../../lib/crypto");
+            const db = require("../../db").get();
+            try {
+                db().prepare(
+                    "INSERT INTO tts_syntheses (synth_id, business_id, text, language, voice, model, audio_base64, format, duration_ms, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+                ).run(crypto.randomId("tts"), businessId, textStr.slice(0, 100), lang, params.voice || "alloy", openaiResult.format === "mp3" ? "tts-1" : params.model || "openai", openaiResult.audioBase64 || "", openaiResult.format || "mp3", openaiResult.durationMs || 0, Date.now());
+            } catch {}
+            return { ...openaiResult, synthId: `tts_${crypto.randomHex(10)}`, provider: "openai_tts" };
+        } catch (e) {
+            // fall through to stub, but log for debugging
+            if (env.isProduction) console.warn("openai tts failed, falling back to browser", e.message);
+        }
+    } else if (env.isProduction) {
+        console.warn("TTS: OPENAI_API_KEY not set on Vercel — using browser TTS fallback");
     }
 
     // Fallback to stub

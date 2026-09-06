@@ -21,15 +21,17 @@ router.post("/transcribe", requireScope("echo:transcribe"), express.json({ limit
         const customerId = String(body.customerId || body.customer_id || "anonymous").slice(0, 80);
         const conversationId = body.conversationId ? String(body.conversationId).slice(0, 100) : null;
 
-        // If sidecar URL configured and audio provided, try real transcription
-        const sidecarUrl = env.echoSidecarUrl || (require("../../core/config/service").getConfig(req.nova.businessId).echo?.sidecarUrl);
+        // Parity: local sidecar vs Vercel OpenAI — same UX, different backend
+        const bizSidecar = (() => { try { return require("../../core/config/service").getConfig(req.nova.businessId).echo?.sidecarUrl; } catch { return ""; } })();
+        const sidecarUrl = (bizSidecar || env.echoSidecarUrl || "").trim();
         const hasAudio = body.audioBase64 && typeof body.audioBase64 === "string" && body.audioBase64.length > 20;
 
         if (hasAudio) {
-            // 1. try sidecar if configured
+            // 1. try sidecar if configured and available (local)
             if (sidecarUrl) {
                 try {
                     const buf = Buffer.from(body.audioBase64, "base64");
+                    if (buf.length < 100) throw new Error("audio too small");
                     const { callSidecar } = require("../../core/echo/transcribe");
                     const result = await callSidecar({
                         sidecarUrl,
@@ -37,43 +39,58 @@ router.post("/transcribe", requireScope("echo:transcribe"), express.json({ limit
                         filename: `audio.${(body.mimeType || "webm").split("/")[1] || "webm"}`,
                         params,
                     });
-                    const db = require("../../db").get();
-                    const crypto = require("../../lib/crypto");
-                    const id = `ect_${crypto.randomHex(10)}`;
-                    db().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-                        .run(id, req.nova.businessId, customerId, conversationId, result.language || params.language || "", result.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify(result.segments?.flatMap((s) => s.words || []) || []), params.model || "turbo");
-                    return res.json({ transcriptId: id, text: result.text, language: result.language || params.language, segments: result.segments || [], wordTimestamps: params.wordTimestamps, sidecar: true });
+                    if (result && result.text && result.text.trim()) {
+                        const db = require("../../db").get();
+                        const crypto = require("../../lib/crypto");
+                        const id = `ect_${crypto.randomHex(10)}`;
+                        db().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+                            .run(id, req.nova.businessId, customerId, conversationId, result.language || params.language || "", result.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify(result.segments?.flatMap((s) => s.words || []) || []), params.model || "turbo");
+                        return res.json({ transcriptId: id, text: result.text, language: result.language || params.language, segments: result.segments || [], wordTimestamps: params.wordTimestamps, sidecar: true, via: "sidecar" });
+                    }
                 } catch (e) {
                     req.log && req.log.warn && req.log.warn("echo sidecar failed, trying Whisper", { error: e.message });
                 }
             }
-            // 2. OpenAI Whisper fallback (uses OPENAI_API_KEY, no sidecar needed) — Vercel compatible
-            try {
-                const buf = Buffer.from(body.audioBase64, "base64");
-                const { callOpenAIWhisper } = require("../../core/echo/transcribe");
-                const whisper = await callOpenAIWhisper({
-                    audioBuffer: buf,
-                    filename: `audio.${(body.mimeType || "webm").split("/")[1] || "webm"}`,
-                    language: params.language,
-                    prompt: params.prompt,
-                    apiKey: env.ai.openaiApiKey || process.env.OPENAI_API_KEY,
-                    baseUrl: env.ai.openaiBaseUrl || process.env.OPENAI_BASE_URL,
-                });
-                if (whisper && whisper.text) {
-                    const db = require("../../db").get();
-                    const crypto = require("../../lib/crypto");
-                    const id = `ect_${crypto.randomHex(10)}`;
-                    db().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-                        .run(id, req.nova.businessId, customerId, conversationId, whisper.language || params.language || "", whisper.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify([]), "whisper-1");
-                    return res.json({ transcriptId: id, text: whisper.text, language: whisper.language || params.language, sidecar: false, provider: "openai_whisper" });
+            // 2. OpenAI Whisper fallback — primary for Vercel (no sidecar), same quality as local
+            const hasValidKey = (() => {
+                const k = (env.ai.openaiApiKey || "").trim();
+                return k.startsWith("sk-") && k.length > 20 && !k.includes("...") && !k.includes("placeholder");
+            })();
+            if (hasValidKey) {
+                try {
+                    const buf = Buffer.from(body.audioBase64, "base64");
+                    if (buf.length < 100) throw new Error("audio too small");
+                    const { callOpenAIWhisper } = require("../../core/echo/transcribe");
+                    const whisper = await callOpenAIWhisper({
+                        audioBuffer: buf,
+                        filename: `audio.${(body.mimeType || "webm").split("/")[1] || "webm"}`,
+                        language: params.language,
+                        prompt: params.prompt,
+                        apiKey: env.ai.openaiApiKey || process.env.OPENAI_API_KEY,
+                        baseUrl: env.ai.openaiBaseUrl || process.env.OPENAI_BASE_URL,
+                    });
+                    if (whisper && whisper.text && whisper.text.trim()) {
+                        const db = require("../../db").get();
+                        const crypto = require("../../lib/crypto");
+                        const id = `ect_${crypto.randomHex(10)}`;
+                        db().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+                            .run(id, req.nova.businessId, customerId, conversationId, whisper.language || params.language || "", whisper.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify([]), "whisper-1");
+                        return res.json({ transcriptId: id, text: whisper.text, language: whisper.language || params.language, sidecar: false, provider: "openai_whisper", via: "openai" });
+                    }
+                } catch (e) {
+                    req.log && req.log.warn && req.log.warn("whisper fallback failed", { error: e.message });
                 }
-            } catch (e) {
-                req.log && req.log.warn && req.log.warn("whisper fallback failed", { error: e.message });
+            } else if (env.isProduction) {
+                req.log && req.log.warn && req.log.warn("echo: OPENAI_API_KEY not set on Vercel — transcribe will fallback to client");
             }
         }
 
         const audioMeta = { format: body.mimeType || "webm", bytes: hasAudio ? Buffer.from(body.audioBase64, "base64").length : 0, durationMs: body.durationMs || 0 };
         const stub = stubTranscribe({ businessId: req.nova.businessId, customerId, conversationId, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model });
+        // Parity hint: tell client whether server STT is expected (openai) or must use browser
+        const hasValidKeyEcho = (() => { const k = (env.ai.openaiApiKey || "").trim(); return k.startsWith("sk-") && k.length > 20 && !k.includes("..."); })();
+        if (!sidecarUrl && hasValidKeyEcho) stub.via = "openai";
+        else if (!sidecarUrl) { stub.clientFallback = "browser_stt"; stub.via = "client"; }
         res.json(stub);
     } catch (e) { next(e); }
 });

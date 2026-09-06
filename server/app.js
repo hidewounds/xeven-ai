@@ -145,13 +145,15 @@ function createApp(options = {}) {
         });
     });
 
-    // Echo sidecar health (proxied)
+    // Echo sidecar health (proxied) — parity: local sidecar vs Vercel OpenAI
     app.get("/api/health/echo", async (req, res) => {
         try {
             const echoTranscribe = require("./src/core/echo/transcribe");
-            const sidecarUrl = process.env.ECHO_SIDECAR_URL || "http://127.0.0.1:8765";
-            const health = await echoTranscribe.checkSidecarHealth(sidecarUrl);
-            res.json({ sidecar: health, timestamp: Date.now() });
+            const env = require("./src/env");
+            const sidecarUrl = env.echoSidecarUrl;
+            const health = sidecarUrl ? await echoTranscribe.checkSidecarHealth(sidecarUrl) : { available: false, reason: "serverless", via: "openai_or_browser" };
+            const hasOpenAI = !!(env.ai.openaiApiKey && env.ai.openaiApiKey.trim().startsWith("sk-") && env.ai.openaiApiKey.length > 20);
+            res.json({ sidecar: health, openai: { available: hasOpenAI, via: hasOpenAI ? "openai_whisper" : "browser_stt" }, timestamp: Date.now(), env: env.isProduction ? "production" : "development" });
         } catch (e) {
             res.json({ sidecar: { available: false, error: e.message }, timestamp: Date.now() });
         }

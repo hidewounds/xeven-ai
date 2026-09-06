@@ -145,27 +145,34 @@ router.post("/transcribe", express.json({ limit: "12mb" }), async (req, res, nex
         const prompt = String(body.prompt || fullConfig.echo?.initialPrompt || "").slice(0, 600);
         const params = echoTranscribe ? echoTranscribe.transcribeParams({ language: body.language, model: fullConfig.echo?.model, prompt, wordTimestamps: body.wordTimestamps === true || fullConfig.echo?.wordTimestamps === true }) : { language: body.language || null };
         const audioMeta = { format: body.mimeType || "webm", bytes: body.audioBase64 ? Buffer.from(String(body.audioBase64).slice(0, 20000000), "base64").length : 0, durationMs: body.durationMs || 0 };
-        // For rewired Echo: sidecar is optional (local) — prod Vercel uses browser STT, so return client_fallback immediately when sidecar not available
-        const rawSidecar = fullConfig.echo?.sidecarUrl || require("../../env").echoSidecarUrl || "http://127.0.0.1:8765";
-        const sidecarUrl = String(rawSidecar).trim() || "http://127.0.0.1:8765";
-        const isProd = require("../../env").isProduction;
+        // Echo parity: local uses sidecar (fast, no key), Vercel/prod uses OpenAI Whisper when key is set, else browser STT.
+        // On Vercel, ECHO_SIDECAR_URL is empty by default (see env.js) — skip localhost health check entirely.
+        const env = require("../../env");
+        const rawSidecar = (fullConfig.echo?.sidecarUrl || env.echoSidecarUrl || "").trim();
+        const sidecarUrl = rawSidecar; // empty = no sidecar (Vercel)
+        const isProd = env.isProduction;
         let sidecarAvailable = false;
-        try{
-            const health = await echoTranscribe.checkSidecarHealth(sidecarUrl);
-            sidecarAvailable = !!(health && health.available);
-        }catch(e){ sidecarAvailable = false; }
-        // If no audio, return stub (for health check)
+        if (sidecarUrl) {
+            try{
+                const health = await echoTranscribe.checkSidecarHealth(sidecarUrl);
+                sidecarAvailable = !!(health && health.available);
+            }catch(e){ sidecarAvailable = false; }
+        } else {
+            sidecarAvailable = false; // serverless — no sidecar to check
+        }
+        // If no audio, return stub (for health check) — on prod, hint browser STT
         if (!body.audioBase64) {
             const stub = echoTranscribe ? echoTranscribe.stubTranscribe({ businessId: req.nova.businessId, customerId, conversationId: body.conversationId || null, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model }) : { status: "not_available" };
-            // Add clientFallback hint for prod
-            if(!sidecarAvailable && isProd){
+            if(!sidecarAvailable){
                 stub.clientFallback = "browser_stt";
-                stub.message = "Server STT not available on Vercel — use browser SpeechRecognition";
+                // If OpenAI key is configured, server STT WILL work when audio is sent — this hint is only for empty health-check
+                stub.via = sidecarAvailable ? "sidecar" : (env.ai.openaiApiKey && env.ai.openaiApiKey.trim().length > 20 ? "openai" : "client");
+                if (isProd && !env.ai.openaiApiKey) stub.message = "Server STT uses browser on Vercel (no key) — using browser SpeechRecognition";
             }
             audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { stub: true, sidecarAvailable } });
             return res.json(stub);
         }
-        // 1) try sidecar first (local, fast, no key)
+        // 1) try sidecar first (local, fast, no key) — only if URL configured
         if (sidecarAvailable && sidecarUrl) {
             try {
                 const buf = Buffer.from(body.audioBase64, "base64");
@@ -179,33 +186,42 @@ router.post("/transcribe", express.json({ limit: "12mb" }), async (req, res, nex
                     .run(id, req.nova.businessId, customerId, body.conversationId || null, sideRes.language || params.language || "", sideRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify(sideRes.segments?.flatMap((s) => s.words || []) || []), params.model || "tiny");
                 audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: sideRes.language, via:"sidecar" } });
                 return res.json({ transcriptId: id, text: sideRes.text, language: sideRes.language, segments: sideRes.segments || [], via: "sidecar" });
-            } catch (e) { console.error("sidecar transcribe failed", e.message); /* fall through */ }
+            } catch (e) { console.error("sidecar transcribe failed", e.message); /* fall through to OpenAI */ }
         }
-        // 2) OpenAI Whisper fallback — only if key is valid (prod with key)
-        const hasValidKey = !!(require("../../env").ai.openaiApiKey && require("../../env").ai.openaiApiKey.startsWith("sk-") && !require("../../env").ai.openaiApiKey.includes("..."));
+        // 2) OpenAI Whisper fallback — works on Vercel/serverless with OPENAI_API_KEY (same quality as sidecar, parity with local)
+        const hasValidKey = (() => {
+            const k = (env.ai.openaiApiKey || "").trim();
+            return k.startsWith("sk-") && k.length > 20 && !k.includes("...") && !k.includes("placeholder");
+        })();
         if (hasValidKey) {
             try {
                 const buf = Buffer.from(body.audioBase64, "base64");
+                if (buf.length < 100) throw new Error("audio too small");
                 const mimeBase2 = String(body.mimeType || "audio/webm").split(";")[0];
                 const ext2 = mimeBase2.split("/")[1] || "webm";
                 const openRes = await echoTranscribe.callOpenAIWhisper({ audioBuffer: buf, filename: `audio.${ext2}`, language: params.language, prompt: params.prompt });
-                if (openRes && openRes.text) {
+                if (openRes && openRes.text && openRes.text.trim()) {
                     const crypto = require("../../lib/crypto");
                     const db = require("../../db");
                     const id = `ect_${crypto.randomHex(10)}`;
                     db.get().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
                         .run(id, req.nova.businessId, customerId, body.conversationId || null, openRes.language || params.language || "", openRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", "[]", "whisper-1");
                     audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: openRes.language, via:"openai" } });
-                    return res.json({ transcriptId: id, text: openRes.text, language: openRes.language || params.language, segments: [], via: "openai" });
+                    return res.json({ transcriptId: id, text: openRes.text, language: openRes.language || params.language, segments: [], via: "openai", provider: "openai_whisper" });
                 }
+                // OpenAI returned empty (silence) — fall through to client so widget can try browser STT
+                if (openRes && !openRes.text) console.warn("openai whisper returned empty for", buf.length, "bytes");
             } catch (e) { console.error("openai whisper failed", e.message); /* fall through */ }
+        } else if (isProd) {
+            console.warn("echo transcribe: OPENAI_API_KEY not set on Vercel — falling back to browser STT");
         }
-        // 3) Client fallback — tell widget to use browser STT (wasm / SpeechRecognition)
+        // 3) Client fallback — tell widget to use browser STT (Web Speech / wasm) — guarantees voice works even without key
         const stub2 = echoTranscribe ? echoTranscribe.stubTranscribe({ businessId: req.nova.businessId, customerId, conversationId: body.conversationId || null, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model }) : { status: "not_available" };
         stub2.clientFallback = "browser_stt";
         stub2.via = "client";
         stub2.sidecarAvailable = sidecarAvailable;
-        audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { stub: true, clientFallback:true, sidecarAvailable } });
+        stub2.hasOpenAIKey = hasValidKey;
+        audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { stub: true, clientFallback:true, sidecarAvailable, hasValidKey } });
         res.json(stub2);
     } catch (error) { next(error); }
 });

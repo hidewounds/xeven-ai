@@ -71,8 +71,8 @@ const env = Object.freeze({
     bootstrapSecret: process.env.NOVA_BOOTSTRAP_SECRET || crypto.randomBytes(16).toString("hex"),
 
     // Integration key scopes — integration keys are business-scoped and must allow
-    // the core platform operations used by the SDK and tests (chat, behavior, knowledge CRUD, tts).
-    integrationKeyScopes: (process.env.NOVA_INTEGRATION_KEY_SCOPES || "chat:read,behavior:write,behavior:read,knowledge:read,knowledge:write,tts:synthesize,tts:read").split(",").map(s => s.trim()),
+    // the core platform operations used by the SDK and tests (chat, behavior, knowledge CRUD, tts, echo).
+    integrationKeyScopes: (process.env.NOVA_INTEGRATION_KEY_SCOPES || "chat:read,behavior:write,behavior:read,knowledge:read,knowledge:write,tts:synthesize,tts:read,echo:transcribe,echo:read").split(",").map(s => s.trim()),
 
     // Webhook signing
     webhookSecret: process.env.NOVA_WEBHOOK_SECRET || "",
@@ -95,7 +95,17 @@ const env = Object.freeze({
     pgPassword: process.env.PG_PASSWORD || "",
     pgSsl: process.env.PG_SSL === "true",
 
-    echoSidecarUrl: process.env.ECHO_SIDECAR_URL || process.env.ECHO_SIDECAR || "http://127.0.0.1:8765",
+    echoSidecarUrl: (() => {
+        const u = (process.env.ECHO_SIDECAR_URL || process.env.ECHO_SIDECAR || "").trim();
+        if (!u) {
+            // On Vercel, no localhost sidecar exists — return empty so callers skip sidecar and use OpenAI/browser fallbacks
+            if (process.env.VERCEL) return "";
+            return "http://127.0.0.1:8765";
+        }
+        // Explicit "disabled" or "none" disables sidecar (useful for Vercel)
+        if (/^(none|disabled|off|false)$/i.test(u)) return "";
+        return u;
+    })(),
 });
 
 module.exports = env;

@@ -235,7 +235,7 @@
     // expose for manual refresh
     window.NOVA_APPLY_THEME = applyWidgetTheme;
 
-    // Echo Manager — unified STT/TTS, rewired for 100% guarantee (sidecar local, browser prod)
+    // Echo Manager — unified STT/TTS, parity local (sidecar) vs prod (OpenAI) with browser fallback
     var EchoManager = (function(){
         var sidecarAvailable = null; // null=unknown, true/false
         function isLocalHost(){ return location.hostname==="localhost" || location.hostname==="127.0.0.1"; }
@@ -247,6 +247,8 @@
                     var h2 = await fetch(apiBase + "/api/health/echo").then(function(r){return r.json();}).catch(function(){return null;});
                     if(h2 && h2.sidecar) sidecarAvailable = !!h2.sidecar.available;
                 }
+                // On Vercel, health will be false (no sidecar) — that's expected, prod uses OpenAI
+                if(sidecarAvailable !== true && !isLocalHost()) sidecarAvailable = false;
             }catch(e){ sidecarAvailable = false; }
             return sidecarAvailable;
         }
@@ -591,8 +593,8 @@
                     sidecarAvailable = healthAvail;
                     EchoManager.sidecarAvailable = healthAvail;
                 }catch(e){ sidecarAvailable = false; EchoManager.sidecarAvailable = false; }
-                if(EchoManager.sidecarAvailable===false){
-                    console.log("NOVA Echo sidecar not available — will use browser SpeechRecognition for prod (fully own, no external key)");
+                if(EchoManager.sidecarAvailable===false && !EchoManager.isLocalHost()){
+                    // prod without sidecar — will use OpenAI Whisper via server; browser STT is fallback only
                 }
                 // auto guide ONLY on first login visit — not on every first visit, not on "guide me" chat
                 try {
@@ -938,84 +940,8 @@
             addMessage("assistant", "Voice input not supported in this browser.");
             return;
         }
-        // If sidecar not available on prod Vercel (or unknown but not localhost), use browser STT directly — 100% guarantee, no server/wasm
-        if ((EchoManager.sidecarAvailable === false || (EchoManager.sidecarAvailable === null && !EchoManager.isLocalHost())) && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
-            try{
-                var SR2 = window.SpeechRecognition || window.webkitSpeechRecognition;
-                var rec2 = new SR2();
-                if(!multilanguageEnabled) rec2.lang = "en-US";
-                rec2.interimResults = false;
-                rec2.maxAlternatives = 1;
-                var srLoading2 = addMessage("assistant", "Listening…");
-                if(srLoading2) srLoading2.className = "nova-msg nova-loading";
-                rec2.onresult = async function(ev){
-                    console.log('SR2 onresult fired', ev);
-                    if(srLoading2) srLoading2.remove();
-                    var transcript = ev.results && ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : "";
-                    console.log('SR2 transcript', transcript);
-                    if(!transcript){ addMessage("assistant", "Didn't catch that — please try again or type."); return; }
-                    // handle navigation locally like typed
-                    var navT = maybeNavigateIntent(transcript);
-                    console.log('SR2 navT', navT, 'for transcript', transcript);
-                    if(navT){
-                        console.log('SR2 navigating to', navT, 'messagesEl', !!messagesEl, 'addMessage', typeof addMessage);
-                        var um1 = addMessage("user", transcript);
-                        console.log('SR2 added user message', !!um1, 'messagesEl children', messagesEl ? messagesEl.children.length : 'no el', 'messages len', messages.length);
-                        messages.push({role:"user", content:transcript});
-                        var am1 = addMessage("assistant", "Opening "+navT.replace(".html","")+" for you — taking you there.");
-                        console.log('SR2 added assistant message', !!am1, 'children after', messagesEl ? messagesEl.children.length : 'no el');
-                        messages.push({role:"assistant", content:"Opening "+navT});
-                        tryBrowserTTS("Opening "+navT.replace(".html","")+" for you", "en");
-                        setTimeout(function(){
-                            console.log('SR2 timeout navigating to', navT, 'href before', window.location.href);
-                            try{
-                                var targetUrl = navT;
-                                // Ensure absolute URL for navigation
-                                try{ targetUrl = new URL(navT, window.location.href).href; }catch(e){}
-                                console.log('SR2 navigating to absolute', targetUrl);
-                                window.location.href = targetUrl;
-                                console.log('SR2 href after', window.location.href);
-                                // Fallback: if location didn't change, try location.assign
-                                setTimeout(function(){
-                                    if(window.location.href === targetUrl || window.location.href.includes(navT)){
-                                        console.log('SR2 navigation appears successful');
-                                    } else {
-                                        console.log('SR2 navigation may have been blocked, trying assign');
-                                        try{ window.location.assign(targetUrl); }catch(e){}
-                                    }
-                                }, 100);
-                            }catch(e){ console.log('SR2 nav error', e.message); }
-                        }, 600);
-                        return;
-                    }
-                    console.log('SR2 no nav, going to chat with', transcript);
-                    addMessage("user", transcript);
-                    messages.push({ role: "user", content: transcript });
-                    busy = true; if(sendEl) sendEl.disabled = true;
-                    var cl2 = addMessage("assistant", "...");
-                    if(cl2) cl2.className = "nova-msg nova-loading";
-                    try{
-                        console.log('SR2 calling chat api');
-                        var cd2 = await api("/api/v1/widget/chat", {method:"POST", body:JSON.stringify({customerId:getVisitorId(), conversationId:conversationId, messages:messages.slice(-30)})});
-                        console.log('SR2 chat result', cd2);
-                        if(cl2) cl2.remove();
-                        conversationId = cd2.conversationId || conversationId;
-                        var reply2b=cd2.reply||"";
-                        var navM2 = reply2b.match(/\[NAVIGATE:([^\]]+)\]/);
-                        if(navM2){ var tgt2=navM2[1].trim(); reply2b=reply2b.replace(/\[NAVIGATE:[^\]]+\]/g,"").trim(); if(!reply2b) reply2b="Opening "+tgt2.replace(".html","")+" for you — taking you there."; }
-                        addMessage("assistant", reply2b);
-                        messages.push({role:"assistant", content: reply2b});
-                        if(navM2){ try{ setTimeout(function(){ window.location.href = navM2[1].trim(); },800); }catch{} }
-                        try{ var tts2b=await api("/api/v1/tts/synthesize",{method:"POST", body:JSON.stringify({text:reply2b, language: multilanguageEnabled?"auto":"en"})}).catch(function(){return null}); if(tts2b&&tts2b.audioBase64){ var a2b=new Audio("data:audio/mp3;base64,"+tts2b.audioBase64); a2b.play().catch(function(){ tryBrowserTTS(reply2b, multilanguageEnabled?"auto":"en"); }); } else { tryBrowserTTS(reply2b, multilanguageEnabled?"auto":"en"); } }catch{ tryBrowserTTS(reply2b, "en"); }
-                    } catch(e2){ if(cl2) cl2.remove(); addMessage("assistant", e2.message || "Chat failed."); }
-                    finally{ busy=false; if(sendEl) sendEl.disabled=false; if(inputEl) inputEl.focus(); }
-                };
-                rec2.onerror = function(){ if(srLoading2) srLoading2.remove(); addMessage("assistant", "Voice recognition failed — please type."); };
-                rec2.onend = function(){ if(srLoading2 && srLoading2.parentNode) srLoading2.remove(); };
-                rec2.start();
-                return;
-            }catch(e){}
-        }
+        // Parity: prod and local both use MediaRecorder -> server (sidecar locally, OpenAI on Vercel) -> same UX.
+        // Direct SpeechRecognition bypass is removed — MediaRecorder path handles server + browser fallback uniformly.
         var stream = null;
         try {
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1128,11 +1054,9 @@
                                 method: "POST",
                                 body: JSON.stringify({ customerId: getVisitorId(), conversationId: conversationId, messages: messages.slice(-30) })
                             });
-                            console.log('Widget MediaRecorder chat result', chatData);
                             if (chatLoading) chatLoading.remove();
                             conversationId = chatData.conversationId || conversationId;
                             var reply = chatData.reply || "";
-                            console.log('Widget MediaRecorder reply', reply);
                             // handle server-side navigation [NAVIGATE:features.html] — same as sendMessage
                             var navMatch = reply.match(/\[NAVIGATE:([^\]]+)\]/);
                             if(navMatch){
