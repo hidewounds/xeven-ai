@@ -901,8 +901,9 @@
             addMessage("assistant", "Voice input not supported in this browser.");
             return;
         }
-        // If sidecar not available on prod Vercel, use browser STT directly — 100% guarantee, no server/wasm
-        if (sidecarAvailable === false && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
+        // If sidecar not available on prod Vercel (or unknown but not localhost), use browser STT directly — 100% guarantee, no server/wasm
+        var isLocalHost = location.hostname==="localhost" || location.hostname==="127.0.0.1";
+        if ((sidecarAvailable === false || (sidecarAvailable === null && !isLocalHost)) && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
             try{
                 var SR2 = window.SpeechRecognition || window.webkitSpeechRecognition;
                 var rec2 = new SR2();
