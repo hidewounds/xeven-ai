@@ -295,29 +295,36 @@ async function runChat({ businessId, customerInput, messages, conversationId = n
             !String(result.reply).trim() ||
             /don't have verified|would you like me to connect you to a human|i don't have verified information/i.test(String(result.reply)) ||
             result.__failed;
-        // Unrelated -> failed to fetch as last resort, even if AI hallucinated a success (we override to enforce boundary)
+        // Unrelated -> helpful boundary message (was "failed to fetch" — confusing, looked like network error)
+        // For widget/voice, be more permissive and helpful instead of hard fail
         if (!related) {
-            const failedReply = "failed to fetch";
-            if (activeConversationId) {
-                conversationStore.appendMessage({
+            // Allow short voice transcripts to be treated as related if they look like a real question (not just noise)
+            const isShortVoice = channel === "widget" && lastUserText && lastUserText.trim().length >= 2 && lastUserText.trim().length <= 100;
+            if (isShortVoice && !/^[!.?,;\s]*$/.test(lastUserText)) {
+                // treat as related for widget — let AI try with full context instead of hard fail
+            } else {
+                const failedReply = "I'm here to help with NOVA — ask me about features, pricing, booking, or your business. How can I help?";
+                if (activeConversationId) {
+                    conversationStore.appendMessage({
+                        businessId,
+                        customerId,
+                        conversationId: activeConversationId,
+                        role: "assistant",
+                        content: failedReply,
+                        model: "deterministic:unrelated-post",
+                    });
+                }
+                return {
+                    reply: failedReply,
+                    model: "deterministic:unrelated-post",
+                    provider: "deterministic",
+                    usage: null,
                     businessId,
                     customerId,
                     conversationId: activeConversationId,
-                    role: "assistant",
-                    content: failedReply,
-                    model: "deterministic:unrelated-post",
-                });
+                    memoryOperations,
+                };
             }
-            return {
-                reply: failedReply,
-                model: "deterministic:unrelated-post",
-                provider: "deterministic",
-                usage: null,
-                businessId,
-                customerId,
-                conversationId: activeConversationId,
-                memoryOperations,
-            };
         }
         if (isFallbackReply && related) {
             let handoffReply = null;
