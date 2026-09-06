@@ -543,7 +543,7 @@
         // Widget timeout: chat 20s, transcribe/others 20s — sidecar needs up to 5s for 10s audio on CPU, give headroom
         var isChat = path.indexOf("/chat") !== -1;
         var isTranscribe = path.indexOf("transcribe") !== -1 || path.indexOf("/tts/") !== -1;
-        var timeoutMs = isChat ? 20000 : (isTranscribe ? 20000 : 10000);
+        var timeoutMs = isChat ? 30000 : (isTranscribe ? 30000 : 15000);
         var controller = null;
         var timeoutId = null;
         try {
