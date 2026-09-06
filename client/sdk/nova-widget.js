@@ -450,6 +450,7 @@
     // will be assigned after DOM ready
     var voiceEnabled = false;
     var multilanguageEnabled = false;
+    var sidecarAvailable = null; // null=unknown, true/false — checked via /api/health/echo
 
     setTimeout(function () {
         messagesEl = widget.querySelector("#nova-widget-messages");
@@ -547,6 +548,21 @@
                 multilanguageEnabled = Boolean(data.config.multilanguageEnabled || data.config.addons?.multilanguage);
                 if ((voiceEnabled || multilanguageEnabled) && navigator.mediaDevices && window.MediaRecorder) {
                     if (micEl) micEl.style.display = "inline-block";
+                }
+                // check sidecar health — if prod Vercel has no sidecar, use browser STT directly for 100% guarantee
+                try{
+                    var health = await api("/api/health/echo", {method:"GET"}).catch(function(){ return {sidecar:{available:false}}; });
+                    sidecarAvailable = !!(health && health.sidecar && health.sidecar.available);
+                    // also try direct health if api wrapper fails due to timeout
+                    if(sidecarAvailable===null || sidecarAvailable===undefined){
+                        try{
+                            var h2 = await fetch(apiBase + "/api/health/echo").then(function(r){ return r.json(); }).catch(function(){ return null; });
+                            if(h2 && h2.sidecar) sidecarAvailable = !!h2.sidecar.available;
+                        }catch{}
+                    }
+                }catch(e){ sidecarAvailable = false; }
+                if(sidecarAvailable===false){
+                    console.log("NOVA Echo sidecar not available — will use browser SpeechRecognition for prod");
                 }
                 // auto guide ONLY on first login visit — not on every first visit, not on "guide me" chat
                 try {
@@ -884,6 +900,56 @@
             }
             addMessage("assistant", "Voice input not supported in this browser.");
             return;
+        }
+        // If sidecar not available on prod Vercel, use browser STT directly — 100% guarantee, no server/wasm
+        if (sidecarAvailable === false && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
+            try{
+                var SR2 = window.SpeechRecognition || window.webkitSpeechRecognition;
+                var rec2 = new SR2();
+                rec2.lang = multilanguageEnabled ? "" : "en-US";
+                rec2.interimResults = false;
+                rec2.maxAlternatives = 1;
+                var srLoading2 = addMessage("assistant", "Listening…");
+                if(srLoading2) srLoading2.className = "nova-msg nova-loading";
+                rec2.onresult = async function(ev){
+                    if(srLoading2) srLoading2.remove();
+                    var transcript = ev.results && ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : "";
+                    if(!transcript){ addMessage("assistant", "Didn't catch that — please try again or type."); return; }
+                    // handle navigation locally like typed
+                    var navT = maybeNavigateIntent(transcript);
+                    if(navT){
+                        addMessage("user", transcript);
+                        messages.push({role:"user", content:transcript});
+                        addMessage("assistant", "Opening "+navT.replace(".html","")+" for you — taking you there.");
+                        messages.push({role:"assistant", content:"Opening "+navT});
+                        tryBrowserTTS("Opening "+navT.replace(".html","")+" for you", "en");
+                        setTimeout(function(){ try{ window.location.href = navT; }catch(e){} }, 600);
+                        return;
+                    }
+                    addMessage("user", transcript);
+                    messages.push({ role: "user", content: transcript });
+                    busy = true; if(sendEl) sendEl.disabled = true;
+                    var cl2 = addMessage("assistant", "...");
+                    if(cl2) cl2.className = "nova-msg nova-loading";
+                    try{
+                        var cd2 = await api("/api/v1/widget/chat", {method:"POST", body:JSON.stringify({customerId:getVisitorId(), conversationId:conversationId, messages:messages.slice(-30)})});
+                        if(cl2) cl2.remove();
+                        conversationId = cd2.conversationId || conversationId;
+                        var reply2b=cd2.reply||"";
+                        var navM2 = reply2b.match(/\[NAVIGATE:([^\]]+)\]/);
+                        if(navM2){ var tgt2=navM2[1].trim(); reply2b=reply2b.replace(/\[NAVIGATE:[^\]]+\]/g,"").trim(); if(!reply2b) reply2b="Opening "+tgt2.replace(".html","")+" for you — taking you there."; }
+                        addMessage("assistant", reply2b);
+                        messages.push({role:"assistant", content: reply2b});
+                        if(navM2){ try{ setTimeout(function(){ window.location.href = navM2[1].trim(); },800); }catch{} }
+                        try{ var tts2b=await api("/api/v1/tts/synthesize",{method:"POST", body:JSON.stringify({text:reply2b, language: multilanguageEnabled?"auto":"en"})}).catch(function(){return null}); if(tts2b&&tts2b.audioBase64){ var a2b=new Audio("data:audio/mp3;base64,"+tts2b.audioBase64); a2b.play().catch(function(){ tryBrowserTTS(reply2b, multilanguageEnabled?"auto":"en"); }); } else { tryBrowserTTS(reply2b, multilanguageEnabled?"auto":"en"); } }catch{ tryBrowserTTS(reply2b, "en"); }
+                    } catch(e2){ if(cl2) cl2.remove(); addMessage("assistant", e2.message || "Chat failed."); }
+                    finally{ busy=false; if(sendEl) sendEl.disabled=false; if(inputEl) inputEl.focus(); }
+                };
+                rec2.onerror = function(){ if(srLoading2) srLoading2.remove(); addMessage("assistant", "Voice recognition failed — please type."); };
+                rec2.onend = function(){ if(srLoading2 && srLoading2.parentNode) srLoading2.remove(); };
+                rec2.start();
+                return;
+            }catch(e){}
         }
         var stream = null;
         try {
