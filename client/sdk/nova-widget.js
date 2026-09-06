@@ -951,13 +951,18 @@
                     var navT = maybeNavigateIntent(transcript);
                     console.log('SR2 navT', navT, 'for transcript', transcript);
                     if(navT){
-                        console.log('SR2 navigating to', navT);
-                        addMessage("user", transcript);
+                        console.log('SR2 navigating to', navT, 'messagesEl', !!messagesEl, 'addMessage', typeof addMessage);
+                        var um1 = addMessage("user", transcript);
+                        console.log('SR2 added user message', !!um1, 'messages len', messages.length);
                         messages.push({role:"user", content:transcript});
-                        addMessage("assistant", "Opening "+navT.replace(".html","")+" for you — taking you there.");
+                        var am1 = addMessage("assistant", "Opening "+navT.replace(".html","")+" for you — taking you there.");
+                        console.log('SR2 added assistant message', !!am1);
                         messages.push({role:"assistant", content:"Opening "+navT});
                         tryBrowserTTS("Opening "+navT.replace(".html","")+" for you", "en");
-                        setTimeout(function(){ try{ window.location.href = navT; }catch(e){} }, 600);
+                        setTimeout(function(){
+                            console.log('SR2 timeout navigating to', navT, 'href before', window.location.href);
+                            try{ window.location.href = navT; console.log('SR2 href after', window.location.href); }catch(e){ console.log('SR2 nav error', e.message); }
+                        }, 600);
                         return;
                     }
                     console.log('SR2 no nav, going to chat with', transcript);
