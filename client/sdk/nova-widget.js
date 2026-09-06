@@ -306,7 +306,7 @@
                     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
                     if(!SR){ resolve(""); return; }
                     var rec = new SR();
-                    rec.lang = multilanguageEnabled ? "" : "en-US";
+                    if(!multilanguageEnabled) rec.lang = "en-US";
                     rec.interimResults = false;
                     rec.maxAlternatives = 1;
                     var timeout = setTimeout(function(){ try{ rec.stop(); }catch{} resolve(""); }, 8000);
@@ -896,7 +896,7 @@
                 try {
                     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
                     var rec = new SR();
-                    rec.lang = multilanguageEnabled ? "" : "en-US";
+                    if(!multilanguageEnabled) rec.lang = "en-US";
                     rec.interimResults = false;
                     rec.maxAlternatives = 1;
                     var srLoading = addMessage("assistant", "Listening…");
@@ -936,7 +936,7 @@
             try{
                 var SR2 = window.SpeechRecognition || window.webkitSpeechRecognition;
                 var rec2 = new SR2();
-                rec2.lang = multilanguageEnabled ? "" : "en-US";
+                if(!multilanguageEnabled) rec2.lang = "en-US";
                 rec2.interimResults = false;
                 rec2.maxAlternatives = 1;
                 var srLoading2 = addMessage("assistant", "Listening…");
