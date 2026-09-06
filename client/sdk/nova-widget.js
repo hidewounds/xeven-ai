@@ -303,6 +303,29 @@
     }
     window.NOVA_WASM_TRANSCRIBE = transcribeWithWasm;
 
+    // SpeechRecognition fallback for Vercel prod when sidecar+wasm both unavailable — no download, instant
+    function transcribeWithSpeechRecognitionOnce(){
+        return new Promise(function(resolve){
+            try{
+                var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if(!SR){ resolve(""); return; }
+                var rec = new SR();
+                rec.lang = multilanguageEnabled ? "" : "en-US";
+                rec.interimResults = false;
+                rec.maxAlternatives = 1;
+                var timeout = setTimeout(function(){ try{ rec.stop(); }catch{} resolve(""); }, 8000);
+                rec.onresult = function(ev){
+                    clearTimeout(timeout);
+                    var transcript = ev.results && ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : "";
+                    resolve(transcript ? String(transcript).trim() : "");
+                };
+                rec.onerror = function(){ clearTimeout(timeout); resolve(""); };
+                rec.onend = function(){ clearTimeout(timeout); };
+                rec.start();
+            }catch(e){ resolve(""); }
+        });
+    }
+
     // wav conversion — guarantees sidecar can decode without ffmpeg (webm opus → wav)
     function arrayBufferToBase64(buffer){
         try{
@@ -913,10 +936,9 @@
                             var text = data.text || data.transcript || "";
                             var lang = data.language || tLang || "auto";
                             if (!text) {
-                                // server returned empty (sidecar not available on Vercel or silence) — try browser wasm STT
+                                // server returned empty (sidecar not available on Vercel or silence) — try browser wasm, then SpeechRecognition
                                 var wasmText = "";
                                 try{
-                                    // show warming up briefly while wasm loads (first time ~2-3s)
                                     if(loading) loading.textContent = "Transcribing (browser)…";
                                     wasmText = await transcribeWithWasm(blob);
                                 }catch(e){}
@@ -925,9 +947,20 @@
                                     lang = "en";
                                     if(loading) loading.textContent = "Transcribing…";
                                 } else {
-                                    text = data.message || "Heard you — please type your message while echo warms up.";
-                                    addMessage("assistant", text);
-                                    return;
+                                    // wasm failed or still empty — try native SpeechRecognition as final fallback (no download)
+                                    var srText = "";
+                                    try{
+                                        if(loading) loading.textContent = "Listening (browser)…";
+                                        srText = await transcribeWithSpeechRecognitionOnce();
+                                    }catch(e){}
+                                    if(srText && srText.trim()){
+                                        text = srText.trim();
+                                        lang = "en";
+                                    } else {
+                                        text = data.message || "Voice captured — server STT unavailable. Please type your message or allow mic for browser STT.";
+                                        addMessage("assistant", text);
+                                        return;
+                                    }
                                 }
                             }
                             // voice navigation — handle "guide me to X" locally before server, like typed sendMessage does
@@ -1057,6 +1090,63 @@
                                 } catch(err2){
                                     if(chatLoading2) chatLoading2.remove();
                                     addMessage("assistant", err2.message || "Chat failed.");
+                                }
+                                return;
+                            }
+                            // wasm failed — try native SpeechRecognition as final fallback (no download)
+                            var srText2 = "";
+                            try{
+                                if(loading) loading.textContent = "Listening (browser)…";
+                                srText2 = await transcribeWithSpeechRecognitionOnce();
+                            }catch(ee){}
+                            if(srText2 && srText2.trim()){
+                                if(loading) loading.remove();
+                                var text3 = srText2.trim();
+                                var lang3 = "en";
+                                var navTargetVoice3 = maybeNavigateIntent(text3);
+                                if(navTargetVoice3){
+                                    addMessage("user", text3);
+                                    messages.push({ role: "user", content: text3 });
+                                    addMessage("assistant", "Opening "+navTargetVoice3.replace(".html","")+" for you — taking you there.");
+                                    messages.push({ role: "assistant", content: "Opening "+navTargetVoice3 });
+                                    tryBrowserTTS("Opening "+navTargetVoice3.replace(".html","")+" for you", lang3);
+                                    setTimeout(function(){ try{ window.location.href = navTargetVoice3; }catch(e){} }, 600);
+                                    return;
+                                }
+                                addMessage("user", text3);
+                                messages.push({ role: "user", content: text3 });
+                                var chatLoading3 = addMessage("assistant", "...");
+                                if(chatLoading3) chatLoading3.className = "nova-msg nova-loading";
+                                try{
+                                    var chatData3 = await api("/api/v1/widget/chat", {
+                                        method: "POST",
+                                        body: JSON.stringify({ customerId: getVisitorId(), conversationId: conversationId, messages: messages.slice(-30) })
+                                    });
+                                    if(chatLoading3) chatLoading3.remove();
+                                    conversationId = chatData3.conversationId || conversationId;
+                                    var reply3 = chatData3.reply || "";
+                                    var navMatch3 = reply3.match(/\[NAVIGATE:([^\]]+)\]/);
+                                    if(navMatch3){
+                                        var target3 = navMatch3[1].trim();
+                                        reply3 = reply3.replace(/\[NAVIGATE:[^\]]+\]/g, "").trim();
+                                        if(!reply3) reply3 = "Opening "+target3.replace(".html","")+" for you — taking you there.";
+                                    }
+                                    addMessage("assistant", reply3);
+                                    messages.push({ role: "assistant", content: reply3 });
+                                    if(navMatch3){
+                                        try{ setTimeout(function(){ window.location.href = navMatch3[1].trim(); }, 800); }catch{}
+                                    }
+                                    try{
+                                        var ttsLang3 = lang3;
+                                        var ttsRes3 = await api("/api/v1/tts/synthesize",{method:"POST", body:JSON.stringify({text:reply3, language:ttsLang3})}).catch(function(){return null});
+                                        if(ttsRes3 && ttsRes3.audioBase64){
+                                            var audio3 = new Audio("data:audio/mp3;base64,"+ttsRes3.audioBase64);
+                                            audio3.play().catch(function(){ tryBrowserTTS(reply3, ttsLang3); });
+                                        } else { tryBrowserTTS(reply3, ttsLang3); }
+                                    }catch{ tryBrowserTTS(reply3, lang3); }
+                                } catch(err3){
+                                    if(chatLoading3) chatLoading3.remove();
+                                    addMessage("assistant", err3.message || "Chat failed.");
                                 }
                                 return;
                             }
