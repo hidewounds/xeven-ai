@@ -942,8 +942,10 @@
                 var srLoading2 = addMessage("assistant", "Listening…");
                 if(srLoading2) srLoading2.className = "nova-msg nova-loading";
                 rec2.onresult = async function(ev){
+                    console.log('SR2 onresult fired', ev);
                     if(srLoading2) srLoading2.remove();
                     var transcript = ev.results && ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : "";
+                    console.log('SR2 transcript', transcript);
                     if(!transcript){ addMessage("assistant", "Didn't catch that — please try again or type."); return; }
                     // handle navigation locally like typed
                     var navT = maybeNavigateIntent(transcript);
