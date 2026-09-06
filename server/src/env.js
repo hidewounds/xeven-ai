@@ -95,7 +95,7 @@ const env = Object.freeze({
     pgPassword: process.env.PG_PASSWORD || "",
     pgSsl: process.env.PG_SSL === "true",
 
-    echoSidecarUrl: process.env.ECHO_SIDECAR_URL || process.env.ECHO_SIDECAR || "",
+    echoSidecarUrl: process.env.ECHO_SIDECAR_URL || process.env.ECHO_SIDECAR || "http://127.0.0.1:8765",
 });
 
 module.exports = env;

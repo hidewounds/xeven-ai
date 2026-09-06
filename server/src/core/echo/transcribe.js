@@ -77,16 +77,22 @@ function stubTranscribe({ businessId, customerId, conversationId, language, audi
  */
 async function callSidecar({ sidecarUrl, audioBuffer, filename, params }) {
     if (!sidecarUrl || !audioBuffer) throw new Error("sidecarUrl and audioBuffer required");
+    // Fix filename from mimeType like "audio/webm;codecs=opus" → "audio.webm" not "audio.webm;codecs=opus"
+    let safeFilename = filename || "audio.webm";
+    if (safeFilename.includes(";")) safeFilename = safeFilename.split(";")[0];
+    if (!safeFilename.includes(".")) safeFilename += ".webm";
+    // Ensure proper extension from mime if needed
     const form = new FormData();
-    form.append("file", new Blob([audioBuffer]), filename || "audio.webm");
-    if (params.language) form.append("language", params.language);
+    form.append("file", new Blob([audioBuffer]), safeFilename);
+    // params.language is already normalized (null = auto). Never send "auto" string to sidecar.
+    if (params.language && params.language !== "auto") form.append("language", params.language);
     if (params.model) form.append("model", params.model);
     if (params.prompt) form.append("prompt", params.prompt);
     if (params.wordTimestamps) form.append("word_timestamps", "1");
     const url = `${sidecarUrl.replace(/\/$/, "")}/transcribe`;
     const res = await fetch(url, { method: "POST", body: form });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || `Echo sidecar error ${res.status}`);
+    if (!res.ok) throw new Error(data.error || data.detail || `Echo sidecar error ${res.status}: ${JSON.stringify(data).slice(0,300)}`);
     return data;
 }
 

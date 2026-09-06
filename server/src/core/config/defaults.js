@@ -171,8 +171,8 @@ const DEFAULT_CONFIG = {
     echo: {
         enabled: false,
         defaultLanguage: "en",
-        model: "turbo",
-        sidecarUrl: "",
+        model: "tiny",
+        sidecarUrl: "http://127.0.0.1:8765",
         wordTimestamps: false,
         initialPrompt: "",
     },

@@ -147,10 +147,11 @@ router.post("/transcribe", express.json({ limit: "12mb" }), async (req, res, nex
         const audioMeta = { format: body.mimeType || "webm", bytes: body.audioBase64 ? Buffer.from(String(body.audioBase64).slice(0, 20000000), "base64").length : 0, durationMs: body.durationMs || 0 };
         const result = echoTranscribe ? echoTranscribe.stubTranscribe({ businessId: req.nova.businessId, customerId, conversationId: body.conversationId || null, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model }) : { status: "not_available" };
 
-        // attempt real sidecar if configured and audio present
-        const sidecarUrl = fullConfig.echo?.sidecarUrl || require("../../env").echoSidecarUrl;
+        // attempt real sidecar if configured and audio present — always try local sidecar if env/config empty (dev default)
+        const rawSidecar = fullConfig.echo?.sidecarUrl || require("../../env").echoSidecarUrl || "http://127.0.0.1:8765";
+        const sidecarUrl = String(rawSidecar).trim() || "http://127.0.0.1:8765";
         if (body.audioBase64) {
-            // 1) try sidecar first
+            // 1) try sidecar first (faster-whisper tiny/base, no OpenAI key needed)
             if (sidecarUrl) {
                 try {
                     const buf = Buffer.from(body.audioBase64, "base64");

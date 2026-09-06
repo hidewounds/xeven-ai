@@ -311,26 +311,109 @@ async def transcribe_batch(
     if MODEL is None:
         raise HTTPException(503, "ASR model not loaded")
 
+    # Normalize language: "auto" / "" / "null" means auto-detect (None)
+    if language is not None:
+        lang = str(language).strip().lower()
+        if lang in ("", "auto", "null", "none", "detect"):
+            language = None
+        elif lang not in ("af","am","ar","as","az","ba","be","bg","bn","bo","br","bs","ca","cs","cy","da","de","el","en","es","et","eu","fa","fi","fo","fr","gl","gu","ha","haw","he","hi","hr","ht","hu","hy","id","is","it","ja","jw","ka","kk","km","kn","ko","la","lb","ln","lo","lt","lv","mg","mi","mk","ml","mn","mr","ms","mt","my","ne","nl","nn","no","oc","pa","pl","ps","pt","ro","ru","sa","sd","si","sk","sl","sn","so","sq","sr","su","sv","sw","ta","te","tg","th","tk","tl","tr","tt","uk","ur","uz","vi","yi","yo","zh","yue"):
+            logger.warning(f"Invalid language '{language}' — falling back to auto-detect")
+            language = None
+        else:
+            language = lang
+
     # Read and convert audio
     audio_bytes = await file.read()
+    # Guard against empty upload
+    if not audio_bytes or len(audio_bytes) < 100:
+        raise HTTPException(400, "Empty audio file received — please speak again")
+    audio = None
+    audio_load_error = None
     try:
-        # Try to decode with torchaudio
+        # Try to decode with torchaudio (handles wav, mp3, webm/opus if ffmpeg/torchcodec available)
         import torchaudio
         import io
         waveform, sr = torchaudio.load(io.BytesIO(audio_bytes))
         audio = waveform.mean(dim=0).numpy()  # Mono
         audio = resample_audio(audio, sr)
-    except Exception:
-        # Fallback: assume raw int16 PCM
-        audio = int16_to_float32(audio_bytes)
+    except Exception as e:
+        audio_load_error = str(e)[:400]
+        # Try ffmpeg subprocess as second fallback (handles webm/opus without torchcodec)
+        # ffmpeg is installed via winget (9.0.1) — use it to convert any container to wav/pcm
+        try:
+            import subprocess
+            # quick check if audio looks like a container (not raw PCM)
+            header = audio_bytes[:12]
+            is_container = header.startswith(b"RIFF") or header.startswith(b"\x1a\x45\xdf\xa3") or header.startswith(b"OggS") or header[:4] == b"\x1a\x45\xdf\xa3" or b"webm" in header.lower() or b"opus" in header.lower() or b"ID3" in header[:3]
+            # also try ffmpeg for any non-PCM if torchaudio failed, regardless of header
+            if True:
+                import os as _os
+                ffmpeg_bin = _os.environ.get("FFMPEG_BINARY") or _os.environ.get("FFMPEG_PATH") or "ffmpeg"
+                # also try absolute winGet path if ffmpeg not in PATH
+                if ffmpeg_bin == "ffmpeg":
+                    # probe winGet ffmpeg
+                    win_ff = r"C:\Users\dhana\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-9.0.1-full_build\bin\ffmpeg.exe"
+                    try:
+                        if _os.path.exists(win_ff):
+                            ffmpeg_bin = win_ff
+                    except: pass
+                proc = subprocess.run(
+                    [ffmpeg_bin, "-hide_banner", "-loglevel", "error", "-i", "pipe:0", "-f", "wav", "-ac", "1", "-ar", str(SAMPLE_RATE), "-acodec", "pcm_s16le", "pipe:1"],
+                    input=audio_bytes,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=8,
+                )
+                if proc.returncode == 0 and proc.stdout and len(proc.stdout) > 44:
+                    # parse wav header and extract PCM
+                    wav_data = proc.stdout
+                    # skip 44-byte wav header, convert remaining to float32
+                    pcm_bytes = wav_data[44:]
+                    if len(pcm_bytes) >= 2 and len(pcm_bytes) % 2 == 0:
+                        audio = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+                        audio_load_error = None
+                    else:
+                        raise Exception(f"ffmpeg output too small: {len(pcm_bytes)}")
+                else:
+                    raise Exception(f"ffmpeg failed rc={proc.returncode} stderr={proc.stderr[:200].decode(errors='ignore')}")
+        except Exception as ffmpeg_e:
+            # keep original torchaudio error if ffmpeg also fails, then try PCM fallback
+            if audio_load_error is None:
+                audio_load_error = str(ffmpeg_e)[:300]
+            else:
+                audio_load_error = f"{audio_load_error} | ffmpeg:{str(ffmpeg_e)[:200]}"
+            # Fallback: assume raw int16 PCM only if data looks like PCM (size %2==0 and not container)
+            try:
+                header = audio_bytes[:12]
+                is_container = header.startswith(b"RIFF") or header.startswith(b"\x1a\x45\xdf\xa3") or header[:3] == b"ID3" or header[:2] == b"\xff\xfb" or b"OggS" in header[:8]
+                if is_container:
+                    raise Exception("container detected, not raw PCM")
+            except Exception:
+                pass
+            try:
+                audio = int16_to_float32(audio_bytes)
+            except Exception as e2:
+                raise HTTPException(400, f"Audio decode failed: {audio_load_error} / fallback {str(e2)[:120]}")
+
+    if audio is None or len(audio) < SAMPLE_RATE * 0.3:
+        # too short (<0.3s) — likely silence or click, return empty gracefully instead of 500
+        return JSONResponse({"text": "", "language": language or "en", "language_probability": 0, "duration_ms": int(len(audio or []) / SAMPLE_RATE * 1000) if audio is not None else 0, "model": MODEL_NAME, "note": "audio too short"})
 
     # Transcribe
-    segments, info = MODEL.transcribe(
-        audio,
-        language=language,
-        initial_prompt=prompt if prompt else None,
-        word_timestamps=word_timestamps,
-    )
+    try:
+        segments, info = MODEL.transcribe(
+            audio,
+            language=language,
+            initial_prompt=prompt if prompt else None,
+            word_timestamps=word_timestamps,
+        )
+    except ValueError as ve:
+        # faster-whisper raises ValueError for invalid language code like "auto"
+        if "not a valid language code" in str(ve):
+            logger.warning(f"Invalid language {language} caused ValueError, retrying with auto-detect")
+            segments, info = MODEL.transcribe(audio, language=None, initial_prompt=prompt if prompt else None, word_timestamps=word_timestamps)
+        else:
+            raise
 
     text = " ".join([seg.text for seg in segments]).strip()
 

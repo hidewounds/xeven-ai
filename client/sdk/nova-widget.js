@@ -74,35 +74,57 @@
 
     var style = document.createElement("style");
     style.textContent = [
-        "#nova-widget-button{position:fixed;right:24px;bottom:24px;width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;background:#111;color:#fff;font-size:22px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:2147483000}",
-        "#nova-widget{position:fixed;right:24px;bottom:92px;width:360px;max-width:calc(100vw - 32px);height:520px;max-height:calc(100vh - 130px);display:none;flex-direction:column;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;z-index:2147483000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}",
-        "#nova-widget.open{display:flex}",
-        "#nova-widget-header{padding:14px 18px;background:#111;color:#fff;font-weight:600;font-size:15px;display:flex;justify-content:space-between;align-items:center}",
-        "#nova-widget-header button{background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer}",
-        "#nova-widget-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;background:#f7f7f8}",
-        ".nova-msg{max-width:82%;padding:9px 12px;border-radius:12px;font-size:14px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word}",
-        ".nova-msg.user{align-self:flex-end;background:#111;color:#fff;border-bottom-right-radius:4px}",
-        ".nova-msg.assistant{align-self:flex-start;background:#fff;color:#16181d;border:1px solid #e5e7eb;border-bottom-left-radius:4px}",
-        ".nova-msg.nova-loading{opacity:.55;font-size:13px;background:transparent;border:none;padding:2px 6px}",
-        "#nova-widget-input-area{display:flex;gap:6px;padding:10px;border-top:1px solid #e5e7eb;background:#fff;align-items:flex-end}",
-        "#nova-widget-input{flex:1;resize:none;border:1px solid #d1d5db;border-radius:10px;padding:8px 10px;font-size:14px;font-family:inherit;outline:none;max-height:120px}",
-        "#nova-widget-send{width:40px;height:36px;border:none;border-radius:10px;background:#111;color:#fff;font-size:16px;cursor:pointer}",
-        "#nova-widget-send:disabled{opacity:.5;cursor:default}",
-        "#nova-mic{width:36px;height:36px;border:none;border-radius:10px;background:#f3f4f6;color:#111;font-size:15px;cursor:pointer;display:none}",
-        "#nova-mic.on{background:#ef4444;color:#fff;animation:pulse 1.2s infinite}",
-        "@keyframes pulse{0%{opacity:1}50%{opacity:.6}100%{opacity:1}}",
-        "#nova-avail-toggle{width:36px;height:36px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;font-size:14px;cursor:pointer}",
-        "#nova-avail-panel{display:none;max-height:160px;overflow-y:auto;border-top:1px solid #e5e7eb;background:#fff;padding:8px;font-size:12.5px}",
+        "@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@600;700&display=swap');",
+        "#nova-widget-button{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border-radius:16px;border:1px solid rgba(255,255,255,.14);cursor:pointer;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);color:#fff;font-size:22px;font-weight:800;box-shadow:0 8px 24px rgba(139,92,246,.35), inset 0 1px 0 rgba(255,255,255,.18);z-index:2147483000;display:flex;align-items:center;justify-content:center;transition:transform .22s cubic-bezier(.16,1,.3,1), box-shadow .22s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:'Space Grotesk',sans-serif}",
+        "#nova-widget-button:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 14px 36px rgba(139,92,246,.45)}",
+        "#nova-widget{position:fixed;right:22px;bottom:90px;width:380px;max-width:calc(100vw - 24px);height:560px;max-height:calc(100vh - 110px);display:none;flex-direction:column;background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border:1px solid rgba(255,255,255,.11);border-radius:24px;box-shadow:0 24px 64px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);overflow:hidden;z-index:2147483000;font-family:'Instrument Sans',system-ui,-apple-system,sans-serif;color:#f1f5f9}",
+        "#nova-widget.open{display:flex;animation:novaIn .32s cubic-bezier(.16,1,.3,1)}",
+        "@keyframes novaIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}",
+        "#nova-widget::before{content:'';position:absolute;inset:0;border-radius:24px;padding:1px;background:linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,0), rgba(139,92,246,.22));-webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.9}",
+        "#nova-widget-header{padding:16px 16px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.07);background:linear-gradient(180deg, rgba(255,255,255,.04), transparent);position:relative;z-index:1}",
+        "#nova-widget-av{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:18px;box-shadow:0 4px 14px rgba(139,92,246,.35);flex-shrink:0}",
+        "#nova-widget-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:#fff;line-height:1}",
+        "#nova-widget-sub{font-size:11.5px;color:#10b981;font-weight:700;display:flex;align-items:center;gap:6px;margin-top:2px}",
+        "#nova-widget-sub::before{content:'';width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 5px rgba(16,185,129,.14);animation:novaPulse 2s infinite}",
+        "@keyframes novaPulse{0%,100%{box-shadow:0 0 0 5px rgba(16,185,129,.14)}50%{box-shadow:0 0 0 9px rgba(16,185,129,0)}}",
+        "#nova-widget-live{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.2);padding:6px 10px;border-radius:999px;white-space:nowrap}",
+        "#nova-widget-close{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:#fff;border-radius:10px;padding:6px 9px;font-size:12px;cursor:pointer;backdrop-filter:blur(8px);transition:.2s;margin-left:4px}",
+        "#nova-widget-close:hover{background:rgba(255,255,255,.1)}",
+        "#nova-widget-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:transparent;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.14) transparent;position:relative;z-index:1}",
+        "#nova-widget-messages::-webkit-scrollbar{width:4px}#nova-widget-messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:999px}",
+        ".nova-msg{max-width:86%;padding:12px 16px;border-radius:18px;font-size:14px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word;position:relative;backdrop-filter:blur(8px);border:1px solid transparent}",
+        ".nova-msg.user{align-self:flex-end;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);color:#fff;border-color:rgba(255,255,255,.14);border-bottom-right-radius:6px;box-shadow:0 8px 18px rgba(139,92,246,.28)}",
+        ".nova-msg.assistant{align-self:flex-start;background:rgba(255,255,255,.06);color:#f1f5f9;border-color:rgba(255,255,255,.07);border-bottom-left-radius:6px}",
+        ".nova-msg .nova-tag{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px;opacity:.94}",
+        ".nova-msg.assistant .nova-tag{color:#a78bfa}.nova-msg.user .nova-tag{color:rgba(255,255,255,.92)}",
+        ".nova-msg.nova-loading{opacity:.6;font-size:13px;background:transparent;border:none;padding:4px 8px;color:#94a3b8;backdrop-filter:none}",
+        ".nova-msg strong{font-weight:700;color:#fff}",
+        ".nova-msg em{font-style:italic;opacity:.9}",
+        "#nova-widget-input-area{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.02);align-items:flex-end;backdrop-filter:blur(12px);position:relative;z-index:1}",
+        "#nova-widget-input{flex:1;resize:none;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);border-radius:999px;padding:10px 14px;font-size:14px;font-family:'Instrument Sans',sans-serif;outline:none;max-height:110px;color:#f1f5f9;transition:.18s}",
+        "#nova-widget-input::placeholder{color:#64748b}",
+        "#nova-widget-input:focus{border-color:rgba(139,92,246,.35);box-shadow:0 0 0 4px rgba(139,92,246,.12);background:rgba(255,255,255,.08)}",
+        "#nova-widget-send{width:38px;height:38px;min-width:38px;border:none;border-radius:50%;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(139,92,246,.28);transition:.18s;flex-shrink:0}",
+        "#nova-widget-send:hover{transform:translateY(-1px);box-shadow:0 10px 22px rgba(139,92,246,.35)}",
+        "#nova-widget-send:disabled{opacity:.5;cursor:default;transform:none}",
+        "#nova-mic{width:38px;height:38px;min-width:38px;border:1px solid rgba(255,255,255,.11);border-radius:50%;background:rgba(255,255,255,.06);color:#f1f5f9;font-size:15px;cursor:pointer;display:none;backdrop-filter:blur(8px);transition:.2s;flex-shrink:0}",
+        "#nova-mic:hover{background:rgba(255,255,255,.1)}",
+        "#nova-mic.on{background:#ef4444;color:#fff;border-color:#ef4444;animation:novaPulseMic 1.2s infinite}",
+        "@keyframes novaPulseMic{0%{opacity:1}50%{opacity:.75}100%{opacity:1}}",
+        "#nova-avail-toggle{width:38px;height:38px;min-width:38px;border:1px solid rgba(255,255,255,.11);border-radius:50%;background:rgba(255,255,255,.06);color:#f1f5f9;font-size:14px;cursor:pointer;backdrop-filter:blur(8px);flex-shrink:0}",
+        "#nova-avail-toggle:hover{background:rgba(255,255,255,.1)}",
+        "#nova-avail-panel{display:none;max-height:170px;overflow-y:auto;border-top:1px solid rgba(255,255,255,.07);background:rgba(15,18,33,.94);backdrop-filter:blur(16px);padding:10px;font-size:12.5px;color:#cbd5e1;position:relative;z-index:1}",
         "#nova-avail-panel.open{display:block}",
-        ".nova-slot{display:inline-block;margin:3px 4px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:999px;cursor:pointer;font-size:12px;background:#fff;color:#111}",
-        ".nova-slot:hover{background:#111;color:#fff;border-color:#111}",
-        ".nova-msg strong{font-weight:700;color:#111}",
-        ".nova-msg em{font-style:italic}",
-        "@media(max-width:500px){#nova-widget{right:12px;left:12px;width:auto;bottom:84px;height:70vh}#nova-widget-button{right:16px;bottom:16px}}"
+        ".nova-slot{display:inline-flex;align-items:center;margin:4px 4px;padding:6px 12px;border:1px solid rgba(255,255,255,.1);border-radius:999px;cursor:pointer;font-size:12.5px;font-weight:600;background:rgba(255,255,255,.06);color:#f1f5f9;backdrop-filter:blur(8px);transition:.2s}",
+        ".nova-slot:hover{background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 100%);color:#fff;border-color:transparent;transform:translateY(-1px)}",
+        ".nova-chip{font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.07);color:#f1f5f9;cursor:pointer;transition:.2s;backdrop-filter:blur(8px)}",
+        ".nova-chip:hover{background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.35);color:#fff;transform:translateY(-1px)}",
+        "@media(max-width:500px){#nova-widget{right:10px;left:10px;width:auto;bottom:84px;height:68vh}#nova-widget-button{right:16px;bottom:16px;width:54px;height:54px}}"
     ].join("\n");
     document.head.appendChild(style);
 
-    // deeper UI improvisation — widget learns design system so it sits well with site, improves as site changes
+    // deeper UI improvisation — widget learns design system so it sits to its core like nova web image
+    // learns primary, darkMode, radius, fonts, spacing + keeps glass when site is dark (#050508)
     function applyWidgetTheme(theme, customerBase){
         if(!theme || typeof theme !== "object") return;
         try{
@@ -122,46 +144,41 @@
             var spacing = theme.spacing || null;
             var darkMode = theme.darkMode;
             var css = "";
-            // primary — button, header, send
-            if(primary && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(primary)){
-                css += "\n#nova-widget-button{background:"+primary+"!important;color:#fff!important;border-color:transparent!important}";
-                css += "\n#nova-widget-header{background:"+primary+"!important;color:#fff!important}";
-                css += "\n#nova-widget-send{background:"+primary+"!important;color:#fff!important}";
-                css += "\n.nova-msg.user{background:"+primary+"!important;color:#fff!important;border-color:"+primary+"!important}";
+            // site is dark by default (nova web #050508) — keep glass; don't override glass with flat
+            // primary — button, send, av, user bubble — keep gradient core but tint if brand is distinct
+            if(primary && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(primary) && primary.toLowerCase() !== "#8b5cf6" && primary.toLowerCase() !== "#6366f1"){
+                // if site brand is not violet, blend it into widget's gradient per site
+                css += "\n#nova-widget-button{background:"+primary+"!important;border-color:"+primary+"!important}";
+                css += "\n#nova-widget-av{background:"+primary+"!important}";
+                css += "\n#nova-widget-send{background:"+primary+"!important}";
+                css += "\n.nova-msg.user{background:"+primary+"!important;border-color:"+primary+"!important}";
                 try{ document.documentElement.style.setProperty("--nova-primary", primary); }catch{}
                 if(button) button.style.background = primary;
-                var header = widget ? widget.querySelector("#nova-widget-header") : null;
-                if(header) header.style.background = primary;
             }
             if(secondary && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(secondary)){
                 css += "\n#nova-mic.on{background:"+secondary+"!important}";
             }
-            // dark/light — site dark (#050508) → widget dark, site light → widget light
-            if(darkMode === true){
-                css += "\n#nova-widget{background:#0f0f11!important;color:#f4f4f5!important;border-color:rgba(255,255,255,.08)!important}";
-                css += "\n#nova-widget-messages{background:#0f0f11!important}";
-                css += "\n.nova-msg.assistant{background:#1a1a1e!important;color:#f4f4f5!important;border-color:#27272a!important}";
-                css += "\n#nova-widget-input-area{background:#0f0f11!important;border-color:#27272a!important}";
-                css += "\n#nova-widget-input{background:#1a1a1e!important;color:#f4f4f5!important;border-color:#27272a!important}";
-                css += "\n#nova-avail-panel{background:#1a1a1e!important;border-color:#27272a!important;color:#f4f4f5!important}";
-                css += "\n.nova-slot{background:#27272a!important;color:#f4f4f5!important;border-color:#3f3f46!important}";
-                css += "\n.nova-slot:hover{background:#f4f4f5!important;color:#0f0f11!important;border-color:#f4f4f5!important}";
-                if(widget){ widget.style.background = "#0f0f11"; widget.style.color = "#f4f4f5"; }
-            } else if(darkMode === false){
-                css += "\n#nova-widget{background:#fff!important}";
-                css += "\n#nova-avail-panel{background:#fff!important;border-color:#e5e7eb!important;color:#111!important}";
-                css += "\n.nova-slot{background:#fff!important;color:#111!important;border-color:#e5e7eb!important}";
-                css += "\n.nova-slot:hover{background:#111!important;color:#fff!important;border-color:#111!important}";
+            // dark/light — site dark (#050508) → keep glass (already dark), site light → switch to light glass
+            if(darkMode === false){
+                // light site — widget becomes light glass: white translucent instead of dark
+                css += "\n#nova-widget{background:linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78))!important;color:#0f1221!important;border-color:rgba(15,18,33,.08)!important;box-shadow:0 20px 50px rgba(15,18,33,.12)!important}";
+                css += "\n#nova-widget-header{background:rgba(255,255,255,.4)!important;border-color:rgba(15,18,33,.06)!important}";
+                css += "\n#nova-widget-title{color:#0f1221!important}";
+                css += "\n.nova-msg.assistant{background:rgba(15,18,33,.04)!important;color:#1a2038!important;border-color:rgba(15,18,33,.08)!important}";
+                css += "\n#nova-widget-input-area{background:rgba(255,255,255,.6)!important;border-color:rgba(15,18,33,.06)!important}";
+                css += "\n#nova-widget-input{background:rgba(255,255,255,.9)!important;color:#1a2038!important;border-color:rgba(15,18,33,.1)!important}";
+                css += "\n#nova-widget-input::placeholder{color:#94a3b8!important}";
+                css += "\n#nova-avail-panel{background:rgba(255,255,255,.96)!important;border-color:rgba(15,18,33,.06)!important;color:#1a2038!important}";
+                css += "\n.nova-slot{background:#fff!important;color:#1a2038!important;border-color:rgba(15,18,33,.1)!important}";
             }
-            if(bg && bg.length>2 && bg !== "rgba(255,255,255,.015)"){
-                // use site bg as subtle hint for widget header if not primary
+            if(bg && bg.length>2 && bg !== "rgba(255,255,255,.015)" && darkMode===false){
                 try{ if(widget) widget.style.background = bg; }catch{}
             }
-            if(surface && surface.length>2){
+            if(surface && surface.length>2 && darkMode===false){
                 css += "\n.nova-msg.assistant{background:"+surface+"!important}";
             }
             if(text && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(text)){
-                css += "\n#nova-widget{color:"+text+"!important}";
+                if(darkMode===false) css += "\n#nova-widget{color:"+text+"!important}";
             }
             if(muted && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(muted)){
                 css += "\n#nova-widget-messages .nova-msg.nova-loading{color:"+muted+"!important}";
@@ -170,29 +187,29 @@
                 css += "\n#nova-widget{border-color:"+border+"!important}";
                 css += "\n#nova-widget-header{border-color:"+border+"!important}";
             }
-            // fonts — site uses Instrument Sans / Space Grotesk / JetBrains Mono
+            // fonts — nova web uses Instrument Sans / Space Grotesk / JetBrains Mono — keep them
             if(font && font.length>2){
-                var f = font + ", -apple-system, BlinkMacSystemFont, sans-serif";
+                var f = font + ", 'Instrument Sans', system-ui, -apple-system, sans-serif";
                 if(widget) widget.style.fontFamily = f;
                 if(button) button.style.fontFamily = font + ", sans-serif";
                 css += "\n#nova-widget{font-family:"+f+"!important}";
             }
             if(headingFont && headingFont.length>2){
-                css += "\n#nova-widget-header{font-family:"+headingFont+", sans-serif!important}";
+                css += "\n#nova-widget-header{font-family:"+headingFont+", 'Space Grotesk', sans-serif!important}";
+                css += "\n#nova-widget-title{font-family:"+headingFont+", 'Space Grotesk', sans-serif!important}";
             }
-            // radius — site --r-lg 22px etc. → widget radius
+            // radius — site --r-lg 22-24px → widget radius
             var r = radiusLg || radius;
             if(r && /^\d+(px|rem|%|)$/.test(r)){
                 var rv = r.match(/^\d+$/) ? r+"px" : r;
                 css += "\n#nova-widget{border-radius:"+rv+"!important}";
-                css += "\n#nova-widget-header{border-radius:"+rv+" "+rv+" 0 0!important}";
+                css += "\n#nova-widget::before{border-radius:"+rv+"!important}";
                 if(widget) widget.style.borderRadius = rv;
             }
-            // shadow — site --shadow-soft
             if(shadow && shadow.length>5){
-                css += "\n#nova-widget{box-shadow:"+shadow+"!important}";
+                // keep glass shadow, but blend site shadow
+                css += "\n#nova-widget{box-shadow:"+shadow+", 0 24px 64px rgba(0,0,0,.18)!important}";
             }
-            // spacing — site gap
             if(spacing && /^\d+(px|rem)$/.test(spacing)){
                 css += "\n#nova-widget-messages{gap:"+spacing+"!important}";
             }
@@ -200,23 +217,120 @@
                 var s = document.createElement("style");
                 s.id = "nova-widget-theme";
                 s.textContent = css;
-                // remove old theme style if exists
                 var old = document.getElementById("nova-widget-theme");
                 if(old) old.remove();
                 document.head.appendChild(s);
             }
-            // customer base — adapt tone, keep simple human
+            // customer base — adapt title / avatar style subtly
             if(customerBase){
                 var title = widget ? widget.querySelector("#nova-widget-title") : null;
-                if(customerBase.indexOf("fashion")!==-1 && title && title.textContent === "AI Assistant") title.textContent = "Style Assistant";
-                if(customerBase.indexOf("business")!==-1 && title) title.textContent = "Business Assistant";
-                // also adapt welcome message tone if needed — keep short
+                if(title){
+                    if(customerBase.indexOf("fashion")!==-1 && title.textContent==="Nova") title.textContent="Style Assistant";
+                    // business keeps Nova, general keeps Nova — subtle, human
+                }
             }
             try{ localStorage.setItem("nova_widget_theme", JSON.stringify({primary:primary, secondary:secondary, bg:bg, surface:surface, font:font, headingFont:headingFont, radius:r, shadow:shadow, customerBase:customerBase, darkMode:darkMode, at:Date.now()})); }catch{}
         }catch(e){}
     }
     // expose for manual refresh
     window.NOVA_APPLY_THEME = applyWidgetTheme;
+
+    // browser TTS fallback — guarantees voice reply even when server TTS (piper/openai) unavailable
+    function tryBrowserTTS(text, lang){
+        try{
+            if(!text || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
+            try{ window.speechSynthesis.cancel(); }catch{}
+            var u = new SpeechSynthesisUtterance(String(text).slice(0, 4000));
+            var map = {en:'en-US', es:'es-ES', fr:'fr-FR', de:'de-DE', pt:'pt-PT', it:'it-IT', ja:'ja-JP', ko:'ko-KR', zh:'zh-CN', ar:'ar-SA', hi:'hi-IN', ru:'ru-RU', nl:'nl-NL', tr:'tr-TR', pl:'pl-PL'};
+            var code = (lang||'en').toLowerCase().slice(0,2);
+            if(map[code]) u.lang = map[code];
+            else if(lang && lang.indexOf('-')!==-1) u.lang = lang;
+            else u.lang = 'en-US';
+            u.rate = 1.0; u.volume = 1.0;
+            window.speechSynthesis.speak(u);
+            return true;
+        }catch(e){ return false; }
+    }
+    window.NOVA_TTS_FALLBACK = tryBrowserTTS;
+
+    // wav conversion — guarantees sidecar can decode without ffmpeg (webm opus → wav)
+    function arrayBufferToBase64(buffer){
+        try{
+            var bytes = new Uint8Array(buffer);
+            var binary = "";
+            var chunk = 8192;
+            for(var i=0;i<bytes.length;i+=chunk){
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+            }
+            return btoa(binary);
+        }catch(e){ return ""; }
+    }
+    function encodeWav(samples, sampleRate){
+        var bufLen = 44 + samples.length * 2;
+        var buffer = new ArrayBuffer(bufLen);
+        var view = new DataView(buffer);
+        function writeString(offset, str){ for(var i=0;i<str.length;i++) view.setUint8(offset+i, str.charCodeAt(i)); }
+        writeString(0, "RIFF");
+        view.setUint32(4, 36 + samples.length * 2, true);
+        writeString(8, "WAVE");
+        writeString(12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeString(36, "data");
+        view.setUint32(40, samples.length * 2, true);
+        var offset = 44;
+        for(var i=0;i<samples.length;i++){
+            var s = Math.max(-1, Math.min(1, samples[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            offset += 2;
+        }
+        return buffer;
+    }
+    function blobToWavBase64(blob, cb){
+        try{
+            if(!blob || blob.size < 100) { cb(null); return; }
+            // already wav — fast path
+            if(blob.type && blob.type.indexOf("wav") !== -1){
+                var r = new FileReader();
+                r.onload = function(){ try{ var b64 = String(r.result).split(",")[1]||""; cb(b64, "audio/wav"); }catch(e){ cb(null); } };
+                r.onerror = function(){ cb(null); };
+                r.readAsDataURL(blob);
+                return;
+            }
+            var AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if(!AudioCtx){
+                var r2 = new FileReader();
+                r2.onload = function(){ try{ var b64 = String(r2.result).split(",")[1]||""; cb(b64, blob.type || "audio/webm"); }catch(e){ cb(null); } };
+                r2.onerror = function(){ cb(null); };
+                r2.readAsDataURL(blob);
+                return;
+            }
+            var ac = new AudioCtx({sampleRate: 16000});
+            var reader = new FileReader();
+            reader.onload = function(){
+                try{
+                    var arrayBuf = reader.result;
+                    ac.decodeAudioData(arrayBuf, function(audioBuffer){
+                        try{
+                            var ch0 = audioBuffer.getChannelData(0);
+                            // if stereo, mix down (already mono via getChannelData 0, but ensure)
+                            var wavBuf = encodeWav(ch0, audioBuffer.sampleRate);
+                            var b64wav = arrayBufferToBase64(wavBuf);
+                            cb(b64wav, "audio/wav");
+                        }catch(e){ cb(null); }
+                        try{ ac.close(); }catch{}
+                    }, function(){ cb(null); try{ ac.close(); }catch{} });
+                }catch(e){ cb(null); }
+            };
+            reader.onerror = function(){ cb(null); };
+            reader.readAsArrayBuffer(blob);
+        }catch(e){ cb(null); }
+    }
 
     // -------------------------------------------------------
     // elements
@@ -230,14 +344,14 @@
     var widget = document.createElement("div");
     widget.id = "nova-widget";
     widget.innerHTML =
-        '<div id="nova-widget-header"><span id="nova-widget-title">AI Assistant</span></div>' +
+        '<div id="nova-widget-header"><div id="nova-widget-av">N</div><div><div id="nova-widget-title">Nova</div><div id="nova-widget-sub">online</div></div><span id="nova-widget-live">● LIVE</span><button id="nova-widget-close" aria-label="Close">✕</button></div>' +
         '<div id="nova-widget-messages"></div>' +
         '<div id="nova-avail-panel"></div>' +
         '<div id="nova-widget-input-area">' +
-        '<textarea id="nova-widget-input" placeholder="Ask something..." rows="1"></textarea>' +
+        '<textarea id="nova-widget-input" placeholder="Ask anything..." rows="1"></textarea>' +
         '<button id="nova-mic" title="Hold to speak" aria-label="Voice input">🎙</button>' +
         '<button id="nova-avail-toggle" title="Availability" aria-label="Availability">📅</button>' +
-        '<button id="nova-widget-send" aria-label="Send">&#8593;</button>' +
+        '<button id="nova-widget-send" aria-label="Send">↗</button>' +
         "</div>";
 
     function mountWhenReady() {
@@ -274,6 +388,8 @@
 
         sendEl.addEventListener("click", sendMessage);
         button.addEventListener("click", toggle);
+        var closeBtn = widget.querySelector("#nova-widget-close");
+        if(closeBtn) closeBtn.addEventListener("click", function(e){ e.stopPropagation(); widget.classList.remove("open"); });
         if (availToggle) availToggle.addEventListener("click", toggleAvailability);
         inputEl.addEventListener("keydown", function (event) {
             if (event.key === "Enter" && !event.shiftKey) {
@@ -312,9 +428,10 @@
     async function api(path, options) {
         options = options || {};
         options.headers = Object.assign({ "Content-Type": "application/json", "x-nova-key": publicKey }, options.headers || {});
-        // Short timeout for widget: 12s for chat, 8s for others — faster fallback than 120s server default
+        // Widget timeout: chat 20s, transcribe/others 20s — sidecar needs up to 5s for 10s audio on CPU, give headroom
         var isChat = path.indexOf("/chat") !== -1;
-        var timeoutMs = isChat ? 12000 : 8000;
+        var isTranscribe = path.indexOf("transcribe") !== -1 || path.indexOf("/tts/") !== -1;
+        var timeoutMs = isChat ? 20000 : (isTranscribe ? 20000 : 10000);
         var controller = null;
         var timeoutId = null;
         try {
@@ -682,7 +799,7 @@
                             var reply2=cd.reply||"";
                             addMessage("assistant", reply2);
                             messages.push({role:"assistant", content: reply2});
-                            try{ var tts2=await api("/api/v1/tts/synthesize",{method:"POST", body:JSON.stringify({text:reply2, language: multilanguageEnabled?"auto":"en"})}).catch(function(){return null}); if(tts2&&tts2.audioBase64){ var a2=new Audio("data:audio/mp3;base64,"+tts2.audioBase64); a2.play().catch(function(){}); } }catch{}
+                            try{ var tts2=await api("/api/v1/tts/synthesize",{method:"POST", body:JSON.stringify({text:reply2, language: multilanguageEnabled?"auto":"en"})}).catch(function(){return null}); if(tts2&&tts2.audioBase64){ var a2=new Audio("data:audio/mp3;base64,"+tts2.audioBase64); a2.play().catch(function(){ tryBrowserTTS(reply2, multilanguageEnabled?"auto":"en"); }); } else { tryBrowserTTS(reply2, multilanguageEnabled?"auto":"en"); } }catch{ tryBrowserTTS(reply2, "en"); }
                         } catch (e) { if (cl) cl.remove(); addMessage("assistant", e.message || "Chat failed."); }
                         finally { busy = false; if (sendEl) sendEl.disabled = false; if (inputEl) inputEl.focus(); }
                     };
@@ -712,20 +829,35 @@
                         addMessage("assistant", "Voice captured (" + blob.size + " bytes) — transcribing via browser. Please type your message for now.");
                         return;
                     }
-                    var reader = new FileReader();
-                    reader.onerror = function () { addMessage("assistant", "Failed to read audio — please type."); };
-                    reader.onload = async function () {
-                        var base64 = "";
-                        try { base64 = String(reader.result).split(",")[1] || ""; } catch (e) { addMessage("assistant", "Audio read failed — please type."); return; }
-                        var loading = addMessage("assistant", "Transcribing…");
-                        if (loading) loading.className = "nova-msg nova-loading";
-                        busy = true; if (sendEl) sendEl.disabled = true;
+                    var loading = addMessage("assistant", "Transcribing…");
+                    if (loading) loading.className = "nova-msg nova-loading";
+                    busy = true; if (sendEl) sendEl.disabled = true;
+                    // Convert to wav when possible so sidecar (no ffmpeg) can decode reliably — guarantees 100% STT
+                    blobToWavBase64(blob, async function(base64Wav, wavMime){
+                        var base64 = base64Wav;
+                        var mimeToSend = wavMime || mime;
+                        // Fallback to original FileReader if conversion failed
+                        if(!base64){
+                            try{
+                                var fr = new FileReader();
+                                fr.onload = async function(){
+                                    try{ base64 = String(fr.result).split(",")[1]||""; }catch(e){ if(loading) loading.remove(); addMessage("assistant","Audio read failed — please type."); busy=false; if(sendEl) sendEl.disabled=false; return; }
+                                    await doTranscribe(base64, mime);
+                                };
+                                fr.onerror = function(){ if(loading) loading.remove(); addMessage("assistant","Failed to read audio — please type."); busy=false; if(sendEl) sendEl.disabled=false; };
+                                fr.readAsDataURL(blob);
+                                return;
+                            }catch(e){ if(loading) loading.remove(); addMessage("assistant","Audio read failed — please type."); busy=false; if(sendEl) sendEl.disabled=false; return; }
+                        } else {
+                            await doTranscribe(base64, mimeToSend);
+                        }
+                        async function doTranscribe(base64, mimeArg){
                         try {
                             // let Echo auto-detect any of 100+ langs when multilanguage on, else default
                             var tLang = multilanguageEnabled ? "auto" : (voiceEnabled ? "auto" : "en");
                             var data = await api("/api/v1/widget/transcribe", {
                                 method: "POST",
-                                body: JSON.stringify({ audioBase64: base64, mimeType: mime, customerId: getVisitorId(), conversationId: conversationId, language: tLang })
+                                body: JSON.stringify({ audioBase64: base64, mimeType: mimeArg, customerId: getVisitorId(), conversationId: conversationId, language: tLang })
                             });
                             if (loading) loading.remove();
                             var text = data.text || data.transcript || "";
@@ -733,6 +865,31 @@
                             if (!text) {
                                 text = data.message || "Heard you — please type your message while echo warms up.";
                                 addMessage("assistant", text);
+                                return;
+                            }
+                            // voice navigation — handle "guide me to X" locally before server, like typed sendMessage does
+                            var navTargetVoice = maybeNavigateIntent(text);
+                            if(navTargetVoice){
+                                addMessage("user", text + (lang && lang!=="en" ? " ["+lang+"]" : ""));
+                                messages.push({ role: "user", content: text });
+                                if (loading) loading.remove();
+                                addMessage("assistant", "Opening "+navTargetVoice.replace(".html","")+" for you — taking you there.");
+                                messages.push({ role: "assistant", content: "Opening "+navTargetVoice });
+                                tryBrowserTTS("Opening "+navTargetVoice.replace(".html","")+" for you", lang);
+                                setTimeout(function(){
+                                    try{
+                                        if(navTargetVoice.indexOf("features")!==-1){
+                                            var bento = document.querySelector(".bento");
+                                            if(bento && window.location.pathname.indexOf("features")===-1 && window.location.pathname.indexOf("index")===-1){
+                                                bento.scrollIntoView({behavior:"smooth", block:"start"});
+                                            } else {
+                                                window.location.href = navTargetVoice;
+                                            }
+                                        } else {
+                                            window.location.href = navTargetVoice;
+                                        }
+                                    }catch(e){ window.location.href = navTargetVoice; }
+                                }, 600);
                                 return;
                             }
                             // inject transcript as user message and send on their behalf — Nova AI + OpenAI see it as normal chat in detected language
@@ -747,32 +904,57 @@
                             if (chatLoading) chatLoading.remove();
                             conversationId = chatData.conversationId || conversationId;
                             var reply = chatData.reply || "";
+                            // handle server-side navigation [NAVIGATE:features.html] — same as sendMessage
+                            var navMatch = reply.match(/\[NAVIGATE:([^\]]+)\]/);
+                            if(navMatch){
+                                var target = navMatch[1].trim();
+                                reply = reply.replace(/\[NAVIGATE:[^\]]+\]/g, "").trim();
+                                if(!reply) reply = "Opening "+target.replace(".html","")+" for you — taking you there.";
+                            }
                             addMessage("assistant", reply);
                             messages.push({ role: "assistant", content: reply });
-                            // speak reply via TTS in same language — Echo 24/7 (piper/openai)
+                            if(navMatch){
+                                try{
+                                    setTimeout(function(){
+                                        var tgt = navMatch[1].trim();
+                                        if(tgt.indexOf("features")!==-1){
+                                            var bento2 = document.querySelector(".bento");
+                                            if(bento2 && window.location.pathname.indexOf("features")===-1){
+                                                bento2.scrollIntoView({behavior:"smooth", block:"start"});
+                                                return;
+                                            }
+                                        }
+                                        window.location.href = tgt;
+                                    }, 800);
+                                }catch{}
+                            }
+                            // speak reply via TTS in same language — Echo 24/7 (piper/openai) + browser fallback guarantee
                             try{
                                 var ttsLang = lang && lang!=="auto" ? lang : (multilanguageEnabled ? (data.language||"auto") : "en");
                                 var ttsRes = await api("/api/v1/tts/synthesize",{method:"POST", body:JSON.stringify({text:reply, language:ttsLang})}).catch(function(){return null});
                                 if(ttsRes && ttsRes.audioBase64){
                                     var audio = new Audio("data:audio/mp3;base64,"+ttsRes.audioBase64);
-                                    audio.play().catch(function(){});
+                                    audio.play().catch(function(){ tryBrowserTTS(reply, ttsLang); });
+                                } else {
+                                    tryBrowserTTS(reply, ttsLang);
                                 }
-                            }catch{}
+                            }catch{ tryBrowserTTS(reply, lang); }
                         } catch (e) {
                             if (loading) loading.remove();
                             addMessage("assistant", e.message || "Transcription failed. Please type your message.");
                         } finally {
                             busy = false; if (sendEl) sendEl.disabled = false; if (inputEl) inputEl.focus();
                         }
-                    };
-                    reader.readAsDataURL(blob);
+                    }
+                    });
                 } catch (e) {
+                    if (loading) loading.remove();
                     addMessage("assistant", "Voice processing failed — please type your message.");
+                    busy = false; if (sendEl) sendEl.disabled = false;
                 } finally {
                     // ensure mic resets even if FileReader setup fails
                     recording = false;
                     if (micEl) { micEl.classList.remove("on"); micEl.textContent = "🎙"; }
-                    // busy will be cleared in the inner finally after transcribe/chat
                     if (!busy) { busy = false; if (sendEl) sendEl.disabled = false; }
                 }
             };
