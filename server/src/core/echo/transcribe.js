@@ -46,8 +46,13 @@ async function callOpenAIWhisper({ audioBuffer, filename, language, prompt, apiK
 async function callHuggingFaceWhisper({ audioBuffer, filename, language, hfToken }) {
     const key = (hfToken || process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN || process.env.HF_API_TOKEN || require("../../env").hfToken || "").trim();
     if (!key || key.length < 10) throw new Error("HF_TOKEN missing for Whisper");
-    // HF inference: try router (new) then legacy; tiny is faster for Vercel 10s limit
-    const candidates = ["openai/whisper-tiny", "openai/whisper-large-v3"];
+    // HF inference: try multiple models that are known to be hosted on hf-inference
+    const candidates = [
+        "openai/whisper-large-v3-turbo",
+        "openai/whisper-large-v3",
+        "distil-whisper/distil-large-v3",
+        "facebook/wav2vec2-large-960h-lv60-self",
+    ];
     const ext = (filename || "audio.wav").split(".").pop().toLowerCase();
     const ctype = ext === "wav" ? "audio/wav" : ext === "mp3" ? "audio/mpeg" : ext === "webm" ? "audio/webm" : "audio/wav";
     let lastErr = null;
@@ -74,25 +79,31 @@ async function callHuggingFaceWhisper({ audioBuffer, filename, language, hfToken
                 let data;
                 try { data = JSON.parse(textBody); } catch { data = { text: textBody }; }
                 if (!res.ok) {
-                    const msg = data.error || data.warning || textBody.slice(0, 400);
-                    // 503 = loading, try next url/model
+                    const msg = data.error || data.warning || textBody.slice(0, 500);
                     if (res.status === 503 && msg.toLowerCase().includes("loading")) {
-                        lastErr = new Error(`HF ${model} loading: ${msg}`);
+                        lastErr = new Error(`HF ${model} loading: ${msg.slice(0,200)}`);
                         continue;
                     }
-                    throw new Error(`HF Whisper error ${res.status} ${model} ${url}: ${msg}`);
+                    // 400 model not supported -> try next model
+                    if (res.status === 400 && msg.toLowerCase().includes("not supported")) {
+                        lastErr = new Error(`HF ${model} not supported`);
+                        break; // try next model
+                    }
+                    throw new Error(`HF Whisper error ${res.status} ${model}: ${msg.slice(0,300)}`);
                 }
                 const text = data.text || data.generated_text || (Array.isArray(data) && data[0]?.generated_text) || (Array.isArray(data) && data[0]?.text) || textBody || "";
                 if (String(text).trim()) return { text: String(text).trim(), language: language || "" };
-                lastErr = new Error(`HF ${model} empty response`);
+                lastErr = new Error(`HF ${model} empty response ${textBody.slice(0,200)}`);
             } catch (e) {
                 clearTimeout(t);
                 lastErr = e;
-                if (String(e.message).includes("fetch failed") || String(e.message).includes("aborted")) {
-                    // network, try next url
+                if (String(e.message).includes("fetch failed") || String(e.message).includes("aborted") || String(e.cause || "").includes("fetch")) {
                     continue;
                 }
-                throw e;
+                // For 400 not supported we already handled, otherwise try next url
+                if (String(e.message).includes("not supported")) break;
+                // don't throw, try next url/model
+                continue;
             }
         }
     }
