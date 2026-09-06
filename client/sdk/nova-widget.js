@@ -692,13 +692,20 @@
         return escaped;
     }
     function addMessage(role, content) {
-        if (!messagesEl) return;
+        if (!messagesEl) {
+            try{ messagesEl = widget.querySelector("#nova-widget-messages"); }catch(e){}
+            if (!messagesEl) {
+                console.warn("NOVA Widget: messagesEl not ready");
+                return null;
+            }
+        }
         var element = document.createElement("div");
         element.className = "nova-msg " + role;
-        // Render markdown bold/italic as HTML (already escaped), keep pre-wrap for line breaks
         element.innerHTML = formatMessage(content);
-        messagesEl.appendChild(element);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+        try{
+            messagesEl.appendChild(element);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }catch(e){ console.warn("NOVA addMessage failed", e); }
         return element;
     }
 
