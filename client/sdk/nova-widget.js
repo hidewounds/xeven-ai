@@ -235,96 +235,132 @@
     // expose for manual refresh
     window.NOVA_APPLY_THEME = applyWidgetTheme;
 
-    // browser TTS fallback — guarantees voice reply even when server TTS (piper/openai) unavailable
-    function tryBrowserTTS(text, lang){
-        try{
-            if(!text || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
-            try{ window.speechSynthesis.cancel(); }catch{}
-            var u = new SpeechSynthesisUtterance(String(text).slice(0, 4000));
-            var map = {en:'en-US', es:'es-ES', fr:'fr-FR', de:'de-DE', pt:'pt-PT', it:'it-IT', ja:'ja-JP', ko:'ko-KR', zh:'zh-CN', ar:'ar-SA', hi:'hi-IN', ru:'ru-RU', nl:'nl-NL', tr:'tr-TR', pl:'pl-PL'};
-            var code = (lang||'en').toLowerCase().slice(0,2);
-            if(map[code]) u.lang = map[code];
-            else if(lang && lang.indexOf('-')!==-1) u.lang = lang;
-            else u.lang = 'en-US';
-            u.rate = 1.0; u.volume = 1.0;
-            window.speechSynthesis.speak(u);
-            return true;
-        }catch(e){ return false; }
-    }
-    window.NOVA_TTS_FALLBACK = tryBrowserTTS;
-
-    // whisper.wasm via transformers.js — pure browser STT, no sidecar/key needed (for Vercel prod)
-    var wasmTranscriber = null;
-    var wasmLoading = null;
-    async function loadWasmTranscriber(){
-        if(wasmTranscriber) return wasmTranscriber;
-        if(wasmLoading) return wasmLoading;
-        wasmLoading = (async function(){
+    // Echo Manager — unified STT/TTS, rewired for 100% guarantee (sidecar local, browser prod)
+    var EchoManager = (function(){
+        var sidecarAvailable = null; // null=unknown, true/false
+        function isLocalHost(){ return location.hostname==="localhost" || location.hostname==="127.0.0.1"; }
+        async function checkHealth(){
             try{
-                // transformers.min.js is UMD, not ESM — load via script tag, not import()
-                if(!window.transformers?.pipeline){
-                    await new Promise(function(res, rej){
-                        var s=document.createElement('script');
-                        s.src='https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
-                        s.onload=res; s.onerror=function(){ rej(new Error('failed to load transformers')); }; document.head.appendChild(s);
-                    });
+                var h = await api("/api/health/echo", {method:"GET"}).catch(function(){ return null; });
+                if(h && h.sidecar) sidecarAvailable = !!h.sidecar.available;
+                else {
+                    var h2 = await fetch(apiBase + "/api/health/echo").then(function(r){return r.json();}).catch(function(){return null;});
+                    if(h2 && h2.sidecar) sidecarAvailable = !!h2.sidecar.available;
                 }
-                var pipeline = window.transformers?.pipeline || window.pipeline;
-                if(!pipeline) throw new Error('pipeline not found after script load');
-                // Use tiny.en for English; fallback to tiny for multilingual if needed
-                var modelId = multilanguageEnabled ? 'Xenova/whisper-tiny' : 'Xenova/whisper-tiny.en';
-                wasmTranscriber = await pipeline('automatic-speech-recognition', modelId);
-                return wasmTranscriber;
-            } catch(e){
-                console.warn('wasm load failed', e);
-                wasmLoading = null;
-                throw e;
-            }
-        })();
-        return wasmLoading;
-    }
-    async function transcribeWithWasm(blob){
-        try{
-            var transcriber = await loadWasmTranscriber();
-            var arrayBuffer = await blob.arrayBuffer();
-            // decode via AudioContext to get Float32 at 16kHz (browser can decode webm opus)
-            var AudioCtx = window.AudioContext || window.webkitAudioContext;
-            var ac = new AudioCtx({sampleRate: 16000});
-            var audioBuffer = await ac.decodeAudioData(arrayBuffer.slice(0));
-            var float32 = audioBuffer.getChannelData(0);
-            // transformers expects Float32Array at 16kHz
-            var result = await transcriber(float32);
-            try{ ac.close(); }catch{}
-            return result && result.text ? String(result.text).trim() : "";
-        } catch(e){
-            console.warn('wasm transcribe failed', e);
-            return "";
+            }catch(e){ sidecarAvailable = false; }
+            return sidecarAvailable;
         }
-    }
-    window.NOVA_WASM_TRANSCRIBE = transcribeWithWasm;
-
-    // SpeechRecognition fallback for Vercel prod when sidecar+wasm both unavailable — no download, instant
-    function transcribeWithSpeechRecognitionOnce(){
-        return new Promise(function(resolve){
+        function tryBrowserTTS(text, lang){
             try{
-                var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-                if(!SR){ resolve(""); return; }
-                var rec = new SR();
-                rec.lang = multilanguageEnabled ? "" : "en-US";
-                rec.interimResults = false;
-                rec.maxAlternatives = 1;
-                var timeout = setTimeout(function(){ try{ rec.stop(); }catch{} resolve(""); }, 8000);
-                rec.onresult = function(ev){
-                    clearTimeout(timeout);
-                    var transcript = ev.results && ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : "";
-                    resolve(transcript ? String(transcript).trim() : "");
-                };
-                rec.onerror = function(){ clearTimeout(timeout); resolve(""); };
-                rec.onend = function(){ clearTimeout(timeout); };
-                rec.start();
-            }catch(e){ resolve(""); }
-        });
-    }
+                if(!text || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
+                try{ window.speechSynthesis.cancel(); }catch{}
+                var u = new SpeechSynthesisUtterance(String(text).slice(0, 4000));
+                var map = {en:'en-US', es:'es-ES', fr:'fr-FR', de:'de-DE', pt:'pt-PT', it:'it-IT', ja:'ja-JP', ko:'ko-KR', zh:'zh-CN', ar:'ar-SA', hi:'hi-IN', ru:'ru-RU', nl:'nl-NL', tr:'tr-TR', pl:'pl-PL'};
+                var code = (lang||'en').toLowerCase().slice(0,2);
+                if(map[code]) u.lang = map[code];
+                else if(lang && lang.indexOf('-')!==-1) u.lang = lang;
+                else u.lang = 'en-US';
+                u.rate = 1.0; u.volume = 1.0;
+                window.speechSynthesis.speak(u);
+                return true;
+            }catch(e){ return false; }
+        }
+        async function speakViaServer(text, lang){
+            try{
+                var r = await api("/api/v1/tts/synthesize",{method:"POST", body:JSON.stringify({text:text, language:lang})}).catch(function(){return null;});
+                if(r && r.audioBase64){
+                    var audio = new Audio("data:audio/mp3;base64,"+r.audioBase64);
+                    await audio.play().catch(function(){ throw new Error('play failed'); });
+                    return true;
+                }
+            }catch(e){}
+            return false;
+        }
+        async function speak(text, lang){
+            if(!text) return false;
+            // try server first (piper/openai), then browser
+            if(await speakViaServer(text, lang)) return true;
+            return tryBrowserTTS(text, lang);
+        }
+        // STT helpers
+        async function transcribeViaSidecar(blob, lang){
+            try{
+                var base64 = await new Promise(function(res, rej){
+                    blobToWavBase64(blob, function(b64, mime){
+                        if(b64) res({b64:b64, mime:mime});
+                        else {
+                            var r=new FileReader();
+                            r.onload=function(){ try{ res({b64:String(r.result).split(",")[1]||"", mime:blob.type}); }catch(e){ rej(e); } };
+                            r.onerror=rej;
+                            r.readAsDataURL(blob);
+                        }
+                    });
+                });
+                // actually blobToWavBase64 callback is async, simpler: use wav conversion then call api
+                return null; // placeholder — real sidecar transcribe is done via api in startMic, not here
+            }catch(e){ return null; }
+        }
+        function transcribeViaWebSpeech(){
+            return new Promise(function(resolve){
+                try{
+                    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    if(!SR){ resolve(""); return; }
+                    var rec = new SR();
+                    rec.lang = multilanguageEnabled ? "" : "en-US";
+                    rec.interimResults = false;
+                    rec.maxAlternatives = 1;
+                    var timeout = setTimeout(function(){ try{ rec.stop(); }catch{} resolve(""); }, 8000);
+                    rec.onresult = function(ev){
+                        clearTimeout(timeout);
+                        var transcript = ev.results && ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : "";
+                        resolve(transcript ? String(transcript).trim() : "");
+                    };
+                    rec.onerror = function(){ clearTimeout(timeout); resolve(""); };
+                    rec.onend = function(){ clearTimeout(timeout); };
+                    rec.start();
+                }catch(e){ resolve(""); }
+            });
+        }
+        return {
+            get sidecarAvailable(){ return sidecarAvailable; },
+            set sidecarAvailable(v){ sidecarAvailable = v; },
+            isLocalHost: isLocalHost,
+            checkHealth: checkHealth,
+            tryBrowserTTS: tryBrowserTTS,
+            speak: speak,
+            transcribeViaWebSpeech: transcribeViaWebSpeech,
+            // wasm still available as fallback, but WebSpeech is primary for prod (no download)
+            transcribeWithWasm: async function(blob){
+                try{
+                    if(!window.transformers?.pipeline){
+                        await new Promise(function(res, rej){
+                            var s=document.createElement('script');
+                            s.src='https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
+                            s.onload=res; s.onerror=function(){ rej(new Error('failed to load transformers')); }; document.head.appendChild(s);
+                        });
+                    }
+                    var pipeline = window.transformers?.pipeline || window.pipeline;
+                    if(!pipeline) throw new Error('pipeline not found');
+                    var modelId = multilanguageEnabled ? 'Xenova/whisper-tiny' : 'Xenova/whisper-tiny.en';
+                    var transcriber = await pipeline('automatic-speech-recognition', modelId);
+                    var arrayBuffer = await blob.arrayBuffer();
+                    var AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    var ac = new AudioCtx({sampleRate: 16000});
+                    var audioBuffer = await ac.decodeAudioData(arrayBuffer.slice(0));
+                    var float32 = audioBuffer.getChannelData(0);
+                    var result = await transcriber(float32);
+                    try{ ac.close(); }catch{}
+                    return result && result.text ? String(result.text).trim() : "";
+                }catch(e){ console.warn('wasm failed', e); return ""; }
+            }
+        };
+    })();
+    function tryBrowserTTS(text, lang){ return EchoManager.tryBrowserTTS(text, lang); }
+    var transcribeWithWasm = EchoManager.transcribeWithWasm;
+    function transcribeWithSpeechRecognitionOnce(){ return EchoManager.transcribeViaWebSpeech(); }
+    window.NOVA_ECHO = EchoManager;
+    window.NOVA_TTS_FALLBACK = tryBrowserTTS;
+    window.NOVA_WASM_TRANSCRIBE = transcribeWithWasm;
 
     // wav conversion — guarantees sidecar can decode without ffmpeg (webm opus → wav)
     function arrayBufferToBase64(buffer){
@@ -549,20 +585,14 @@
                 if ((voiceEnabled || multilanguageEnabled) && navigator.mediaDevices && window.MediaRecorder) {
                     if (micEl) micEl.style.display = "inline-block";
                 }
-                // check sidecar health — if prod Vercel has no sidecar, use browser STT directly for 100% guarantee
+                // check sidecar health via EchoManager — if prod Vercel has no sidecar, use browser STT directly
                 try{
-                    var health = await api("/api/health/echo", {method:"GET"}).catch(function(){ return {sidecar:{available:false}}; });
-                    sidecarAvailable = !!(health && health.sidecar && health.sidecar.available);
-                    // also try direct health if api wrapper fails due to timeout
-                    if(sidecarAvailable===null || sidecarAvailable===undefined){
-                        try{
-                            var h2 = await fetch(apiBase + "/api/health/echo").then(function(r){ return r.json(); }).catch(function(){ return null; });
-                            if(h2 && h2.sidecar) sidecarAvailable = !!h2.sidecar.available;
-                        }catch{}
-                    }
-                }catch(e){ sidecarAvailable = false; }
-                if(sidecarAvailable===false){
-                    console.log("NOVA Echo sidecar not available — will use browser SpeechRecognition for prod");
+                    var healthAvail = await EchoManager.checkHealth();
+                    sidecarAvailable = healthAvail;
+                    EchoManager.sidecarAvailable = healthAvail;
+                }catch(e){ sidecarAvailable = false; EchoManager.sidecarAvailable = false; }
+                if(EchoManager.sidecarAvailable===false){
+                    console.log("NOVA Echo sidecar not available — will use browser SpeechRecognition for prod (fully own, no external key)");
                 }
                 // auto guide ONLY on first login visit — not on every first visit, not on "guide me" chat
                 try {
@@ -902,8 +932,7 @@
             return;
         }
         // If sidecar not available on prod Vercel (or unknown but not localhost), use browser STT directly — 100% guarantee, no server/wasm
-        var isLocalHost = location.hostname==="localhost" || location.hostname==="127.0.0.1";
-        if ((sidecarAvailable === false || (sidecarAvailable === null && !isLocalHost)) && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
+        if ((EchoManager.sidecarAvailable === false || (EchoManager.sidecarAvailable === null && !EchoManager.isLocalHost())) && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
             try{
                 var SR2 = window.SpeechRecognition || window.webkitSpeechRecognition;
                 var rec2 = new SR2();

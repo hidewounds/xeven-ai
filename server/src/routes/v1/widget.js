@@ -145,30 +145,50 @@ router.post("/transcribe", express.json({ limit: "12mb" }), async (req, res, nex
         const prompt = String(body.prompt || fullConfig.echo?.initialPrompt || "").slice(0, 600);
         const params = echoTranscribe ? echoTranscribe.transcribeParams({ language: body.language, model: fullConfig.echo?.model, prompt, wordTimestamps: body.wordTimestamps === true || fullConfig.echo?.wordTimestamps === true }) : { language: body.language || null };
         const audioMeta = { format: body.mimeType || "webm", bytes: body.audioBase64 ? Buffer.from(String(body.audioBase64).slice(0, 20000000), "base64").length : 0, durationMs: body.durationMs || 0 };
-        const result = echoTranscribe ? echoTranscribe.stubTranscribe({ businessId: req.nova.businessId, customerId, conversationId: body.conversationId || null, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model }) : { status: "not_available" };
-
-        // attempt real sidecar if configured and audio present — always try local sidecar if env/config empty (dev default)
+        // For rewired Echo: sidecar is optional (local) — prod Vercel uses browser STT, so return client_fallback immediately when sidecar not available
         const rawSidecar = fullConfig.echo?.sidecarUrl || require("../../env").echoSidecarUrl || "http://127.0.0.1:8765";
         const sidecarUrl = String(rawSidecar).trim() || "http://127.0.0.1:8765";
-        if (body.audioBase64) {
-            // 1) try sidecar first (faster-whisper tiny/base, no OpenAI key needed)
-            if (sidecarUrl) {
-                try {
-                    const buf = Buffer.from(body.audioBase64, "base64");
-                    const sideRes = await echoTranscribe.callSidecar({ sidecarUrl, audioBuffer: buf, filename: `audio.${(body.mimeType||"webm").split("/")[1]||"webm"}`, params });
-                    const crypto = require("../../lib/crypto");
-                    const db = require("../../db");
-                    const id = `ect_${crypto.randomHex(10)}`;
-                    db.get().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-                        .run(id, req.nova.businessId, customerId, body.conversationId || null, sideRes.language || params.language || "", sideRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify(sideRes.segments?.flatMap((s) => s.words || []) || []), params.model || "turbo");
-                    audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: sideRes.language, via:"sidecar" } });
-                    return res.json({ transcriptId: id, text: sideRes.text, language: sideRes.language, segments: sideRes.segments || [] });
-                } catch (e) { console.error("sidecar transcribe failed", e.message); /* fall through to OpenAI */ }
+        const isProd = require("../../env").isProduction;
+        let sidecarAvailable = false;
+        try{
+            const health = await echoTranscribe.checkSidecarHealth(sidecarUrl);
+            sidecarAvailable = !!(health && health.available);
+        }catch(e){ sidecarAvailable = false; }
+        // If no audio, return stub (for health check)
+        if (!body.audioBase64) {
+            const stub = echoTranscribe ? echoTranscribe.stubTranscribe({ businessId: req.nova.businessId, customerId, conversationId: body.conversationId || null, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model }) : { status: "not_available" };
+            // Add clientFallback hint for prod
+            if(!sidecarAvailable && isProd){
+                stub.clientFallback = "browser_stt";
+                stub.message = "Server STT not available on Vercel — use browser SpeechRecognition";
             }
-            // 2) OpenAI Whisper fallback — works without sidecar, 100+ langs, 24/7
+            audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { stub: true, sidecarAvailable } });
+            return res.json(stub);
+        }
+        // 1) try sidecar first (local, fast, no key)
+        if (sidecarAvailable && sidecarUrl) {
             try {
                 const buf = Buffer.from(body.audioBase64, "base64");
-                const openRes = await echoTranscribe.callOpenAIWhisper({ audioBuffer: buf, filename: `audio.${(body.mimeType||"webm").split("/")[1]||"webm"}`, language: params.language, prompt: params.prompt });
+                const mimeBase = String(body.mimeType || "audio/webm").split(";")[0];
+                const ext = mimeBase.split("/")[1] || "webm";
+                const sideRes = await echoTranscribe.callSidecar({ sidecarUrl, audioBuffer: buf, filename: `audio.${ext}`, params });
+                const crypto = require("../../lib/crypto");
+                const db = require("../../db");
+                const id = `ect_${crypto.randomHex(10)}`;
+                db.get().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+                    .run(id, req.nova.businessId, customerId, body.conversationId || null, sideRes.language || params.language || "", sideRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify(sideRes.segments?.flatMap((s) => s.words || []) || []), params.model || "tiny");
+                audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: sideRes.language, via:"sidecar" } });
+                return res.json({ transcriptId: id, text: sideRes.text, language: sideRes.language, segments: sideRes.segments || [], via: "sidecar" });
+            } catch (e) { console.error("sidecar transcribe failed", e.message); /* fall through */ }
+        }
+        // 2) OpenAI Whisper fallback — only if key is valid (prod with key)
+        const hasValidKey = !!(require("../../env").ai.openaiApiKey && require("../../env").ai.openaiApiKey.startsWith("sk-") && !require("../../env").ai.openaiApiKey.includes("..."));
+        if (hasValidKey) {
+            try {
+                const buf = Buffer.from(body.audioBase64, "base64");
+                const mimeBase2 = String(body.mimeType || "audio/webm").split(";")[0];
+                const ext2 = mimeBase2.split("/")[1] || "webm";
+                const openRes = await echoTranscribe.callOpenAIWhisper({ audioBuffer: buf, filename: `audio.${ext2}`, language: params.language, prompt: params.prompt });
                 if (openRes && openRes.text) {
                     const crypto = require("../../lib/crypto");
                     const db = require("../../db");
@@ -176,12 +196,17 @@ router.post("/transcribe", express.json({ limit: "12mb" }), async (req, res, nex
                     db.get().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
                         .run(id, req.nova.businessId, customerId, body.conversationId || null, openRes.language || params.language || "", openRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", "[]", "whisper-1");
                     audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: openRes.language, via:"openai" } });
-                    return res.json({ transcriptId: id, text: openRes.text, language: openRes.language || params.language, segments: [] });
+                    return res.json({ transcriptId: id, text: openRes.text, language: openRes.language || params.language, segments: [], via: "openai" });
                 }
-            } catch (e) { /* fall through to stub */ }
+            } catch (e) { console.error("openai whisper failed", e.message); /* fall through */ }
         }
-        audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { stub: true } });
-        res.json(result);
+        // 3) Client fallback — tell widget to use browser STT (wasm / SpeechRecognition)
+        const stub2 = echoTranscribe ? echoTranscribe.stubTranscribe({ businessId: req.nova.businessId, customerId, conversationId: body.conversationId || null, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model }) : { status: "not_available" };
+        stub2.clientFallback = "browser_stt";
+        stub2.via = "client";
+        stub2.sidecarAvailable = sidecarAvailable;
+        audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { stub: true, clientFallback:true, sidecarAvailable } });
+        res.json(stub2);
     } catch (error) { next(error); }
 });
 

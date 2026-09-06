@@ -45,10 +45,14 @@ router.post("/synthesize", requireScope("tts:synthesize"), express.json({ limit:
             text: body.text,
             params,
             config: {
-                ttsSidecarUrl: config.echo?.ttsSidecarUrl || env.NOVA_TTS_SIDECAR_URL,
+                ttsSidecarUrl: config.echo?.ttsSidecarUrl || env.NOVA_TTS_SIDECAR_URL || env.echoSidecarUrl,
             },
         });
-
+        // For rewired Echo: if server TTS returns no audio (no sidecar/key on Vercel), tell client to use browser TTS
+        if(!result.audioBase64 && result.status === "pending_provider"){
+            result.clientFallback = "browser_tts";
+            result.message = result.message || "Server TTS not available — browser will speak";
+        }
         res.json(result);
     } catch (e) {
         next(e);
