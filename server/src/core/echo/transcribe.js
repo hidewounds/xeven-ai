@@ -46,35 +46,57 @@ async function callOpenAIWhisper({ audioBuffer, filename, language, prompt, apiK
 async function callHuggingFaceWhisper({ audioBuffer, filename, language, hfToken }) {
     const key = (hfToken || process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN || process.env.HF_API_TOKEN || require("../../env").hfToken || "").trim();
     if (!key || key.length < 10) throw new Error("HF_TOKEN missing for Whisper");
-    // HF inference: openai/whisper-large-v3 is most accurate, also tiny for speed
-    const model = "openai/whisper-large-v3";
-    const url = `https://api-inference.huggingface.co/models/${model}`;
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 15000);
-    let res;
-    try {
-        // HF expects raw bytes, not multipart — send as binary with audio/* content-type
-        const ext = (filename || "audio.wav").split(".").pop().toLowerCase();
-        const ctype = ext === "wav" ? "audio/wav" : ext === "mp3" ? "audio/mpeg" : ext === "webm" ? "audio/webm" : "audio/wav";
-        res = await fetch(url, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${key}`,
-                "Content-Type": ctype,
-            },
-            body: audioBuffer,
-            signal: controller.signal,
-        });
-    } finally { clearTimeout(t); }
-    const data = await res.json().catch(async () => ({ text: await res.text().catch(() => "") }));
-    if (!res.ok) {
-        const msg = data.error || data.warning || JSON.stringify(data).slice(0, 400);
-        throw new Error(`HF Whisper error ${res.status}: ${msg}`);
+    // HF inference: try router (new) then legacy; tiny is faster for Vercel 10s limit
+    const candidates = ["openai/whisper-tiny", "openai/whisper-large-v3"];
+    const ext = (filename || "audio.wav").split(".").pop().toLowerCase();
+    const ctype = ext === "wav" ? "audio/wav" : ext === "mp3" ? "audio/mpeg" : ext === "webm" ? "audio/webm" : "audio/wav";
+    let lastErr = null;
+    for (const model of candidates) {
+        const urls = [
+            `https://router.huggingface.co/hf-inference/models/${model}`,
+            `https://api-inference.huggingface.co/models/${model}`,
+        ];
+        for (const url of urls) {
+            const controller = new AbortController();
+            const t = setTimeout(() => controller.abort(), 12000);
+            try {
+                const res = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${key}`,
+                        "Content-Type": ctype,
+                    },
+                    body: audioBuffer,
+                    signal: controller.signal,
+                });
+                clearTimeout(t);
+                const textBody = await res.text().catch(() => "");
+                let data;
+                try { data = JSON.parse(textBody); } catch { data = { text: textBody }; }
+                if (!res.ok) {
+                    const msg = data.error || data.warning || textBody.slice(0, 400);
+                    // 503 = loading, try next url/model
+                    if (res.status === 503 && msg.toLowerCase().includes("loading")) {
+                        lastErr = new Error(`HF ${model} loading: ${msg}`);
+                        continue;
+                    }
+                    throw new Error(`HF Whisper error ${res.status} ${model} ${url}: ${msg}`);
+                }
+                const text = data.text || data.generated_text || (Array.isArray(data) && data[0]?.generated_text) || (Array.isArray(data) && data[0]?.text) || textBody || "";
+                if (String(text).trim()) return { text: String(text).trim(), language: language || "" };
+                lastErr = new Error(`HF ${model} empty response`);
+            } catch (e) {
+                clearTimeout(t);
+                lastErr = e;
+                if (String(e.message).includes("fetch failed") || String(e.message).includes("aborted")) {
+                    // network, try next url
+                    continue;
+                }
+                throw e;
+            }
+        }
     }
-    // HF returns {text: "..."} or [{generated_text: "..."}] depending on model
-    const text = data.text || data.generated_text || (Array.isArray(data) && data[0]?.generated_text) || (Array.isArray(data) && data[0]?.text) || "";
-    if (!text && data.error) throw new Error(data.error);
-    return { text: String(text).trim(), language: language || "" };
+    throw lastErr || new Error("HF Whisper all models failed");
 }
 
 /**
