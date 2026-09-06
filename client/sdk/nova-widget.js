@@ -949,7 +949,9 @@
                     if(!transcript){ addMessage("assistant", "Didn't catch that — please try again or type."); return; }
                     // handle navigation locally like typed
                     var navT = maybeNavigateIntent(transcript);
+                    console.log('SR2 navT', navT, 'for transcript', transcript);
                     if(navT){
+                        console.log('SR2 navigating to', navT);
                         addMessage("user", transcript);
                         messages.push({role:"user", content:transcript});
                         addMessage("assistant", "Opening "+navT.replace(".html","")+" for you — taking you there.");
@@ -958,13 +960,16 @@
                         setTimeout(function(){ try{ window.location.href = navT; }catch(e){} }, 600);
                         return;
                     }
+                    console.log('SR2 no nav, going to chat with', transcript);
                     addMessage("user", transcript);
                     messages.push({ role: "user", content: transcript });
                     busy = true; if(sendEl) sendEl.disabled = true;
                     var cl2 = addMessage("assistant", "...");
                     if(cl2) cl2.className = "nova-msg nova-loading";
                     try{
+                        console.log('SR2 calling chat api');
                         var cd2 = await api("/api/v1/widget/chat", {method:"POST", body:JSON.stringify({customerId:getVisitorId(), conversationId:conversationId, messages:messages.slice(-30)})});
+                        console.log('SR2 chat result', cd2);
                         if(cl2) cl2.remove();
                         conversationId = cd2.conversationId || conversationId;
                         var reply2b=cd2.reply||"";
