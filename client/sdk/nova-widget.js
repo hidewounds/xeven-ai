@@ -1128,9 +1128,11 @@
                                 method: "POST",
                                 body: JSON.stringify({ customerId: getVisitorId(), conversationId: conversationId, messages: messages.slice(-30) })
                             });
+                            console.log('Widget MediaRecorder chat result', chatData);
                             if (chatLoading) chatLoading.remove();
                             conversationId = chatData.conversationId || conversationId;
                             var reply = chatData.reply || "";
+                            console.log('Widget MediaRecorder reply', reply);
                             // handle server-side navigation [NAVIGATE:features.html] — same as sendMessage
                             var navMatch = reply.match(/\[NAVIGATE:([^\]]+)\]/);
                             if(navMatch){
@@ -1144,14 +1146,9 @@
                                 try{
                                     setTimeout(function(){
                                         var tgt = navMatch[1].trim();
-                                        if(tgt.indexOf("features")!==-1){
-                                            var bento2 = document.querySelector(".bento");
-                                            if(bento2 && window.location.pathname.indexOf("features")===-1){
-                                                bento2.scrollIntoView({behavior:"smooth", block:"start"});
-                                                return;
-                                            }
-                                        }
-                                        window.location.href = tgt;
+                                        var absTgt = tgt;
+                                        try{ absTgt = new URL(tgt, window.location.href).href; }catch(e){}
+                                        window.location.href = absTgt;
                                     }, 800);
                                 }catch{}
                             }
