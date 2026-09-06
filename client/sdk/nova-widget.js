@@ -261,21 +261,19 @@
         if(wasmLoading) return wasmLoading;
         wasmLoading = (async function(){
             try{
-                // dynamic import from CDN — cached after first load (~30MB tiny)
-                var mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js');
-                // transformers exposes pipeline via default or named export depending on build
-                var pipeline = mod.pipeline || (mod.default && mod.default.pipeline) || window.transformers?.pipeline;
-                if(!pipeline){
-                    // fallback: load via script tag
+                // transformers.min.js is UMD, not ESM — load via script tag, not import()
+                if(!window.transformers?.pipeline){
                     await new Promise(function(res, rej){
                         var s=document.createElement('script');
                         s.src='https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
-                        s.onload=res; s.onerror=rej; document.head.appendChild(s);
+                        s.onload=res; s.onerror=function(){ rej(new Error('failed to load transformers')); }; document.head.appendChild(s);
                     });
-                    pipeline = window.transformers?.pipeline || window.pipeline;
                 }
-                if(!pipeline) throw new Error('pipeline not found');
-                wasmTranscriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
+                var pipeline = window.transformers?.pipeline || window.pipeline;
+                if(!pipeline) throw new Error('pipeline not found after script load');
+                // Use tiny.en for English; fallback to tiny for multilingual if needed
+                var modelId = multilanguageEnabled ? 'Xenova/whisper-tiny' : 'Xenova/whisper-tiny.en';
+                wasmTranscriber = await pipeline('automatic-speech-recognition', modelId);
                 return wasmTranscriber;
             } catch(e){
                 console.warn('wasm load failed', e);
