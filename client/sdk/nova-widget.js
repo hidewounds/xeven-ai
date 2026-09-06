@@ -717,20 +717,25 @@
         return false;
     }
     function maybeNavigateIntent(text){
-        var t = String(text||"").toLowerCase();
-        var m = t.match(/guide me to (?:the )?(\w+)/);
+        var t = String(text||"").toLowerCase().trim();
+        // normalize: remove punctuation except spaces
+        var tn = t.replace(/[.,!?]/g, " ").replace(/\s+/g, " ");
+        var target = null;
+        // patterns: take me to, go to, navigate to, show me, guide me to, open
+        var m = tn.match(/(?:take me to|go to|navigate to|show me|guide me to|open)\s+(?:the\s+)?(pricing|features?|home|checkout|login|price|pricing page|features page)/);
         if(m){
-            var target = (m[1]||"").toLowerCase();
-            var map = { features:"features.html", pricing:"pricing.html", home:"index.html", checkout:"checkout.html", login:"login.html", featureshtml:"features.html" };
+            target = (m[1]||"").toLowerCase().replace(/\s+page$/, "");
+            var map = { features:"features.html", feature:"features.html", pricing:"pricing.html", price:"pricing.html", home:"index.html", checkout:"checkout.html", login:"login.html" };
             if(map[target]) return map[target];
-            // also handle "features section" -> features.html
             if(target==="features" || target==="feature") return "features.html";
             if(target==="pricing" || target==="price") return "pricing.html";
-            return null;
         }
+        // direct "pricing" or "features" alone when user says "take me to pricing" variations already handled, but also handle "go pricing"
+        if(/(?:take|go|navigate|show|open).*(pricing|price)/.test(tn) && tn.indexOf("pricing")!==-1) return "pricing.html";
+        if(/(?:take|go|navigate|show|open).*(feature)/.test(tn) && tn.indexOf("feature")!==-1) return "features.html";
         // also handle direct "open features" etc.
-        if(/open (features|pricing|home)/.test(t)){
-            var mm = t.match(/open (features|pricing|home)/);
+        if(/open (features|pricing|home)/.test(tn)){
+            var mm = tn.match(/open (features|pricing|home)/);
             var tgt = mm?mm[1]:"";
             if(tgt==="features") return "features.html";
             if(tgt==="pricing") return "pricing.html";
@@ -759,19 +764,9 @@
             messages.push({ role: "assistant", content: "Opening "+navTarget });
             setTimeout(function(){
                 try{
-                    // if same page section, scroll; else navigate
-                    if(navTarget.indexOf("features")!==-1){
-                        // if on index, scroll to bento, else go to features.html
-                        var bento = document.querySelector(".bento");
-                        if(bento && window.location.pathname.indexOf("features")===-1 && window.location.pathname.indexOf("index")!==-1){
-                            bento.scrollIntoView({behavior:"smooth", block:"start"});
-                        } else {
-                            window.location.href = navTarget;
-                        }
-                    } else {
-                        window.location.href = navTarget;
-                    }
-                } catch(e){ window.location.href = navTarget; }
+                    // always navigate to requested page (don't scroll on home)
+                    window.location.href = navTarget;
+                }catch(e){ window.location.href = navTarget; }
             }, 600);
             return;
         }
@@ -812,13 +807,6 @@
                 try{
                     setTimeout(function(){
                         var tgt = navMatch[1].trim();
-                        if(tgt.indexOf("features")!==-1){
-                            var bento = document.querySelector(".bento");
-                            if(bento && window.location.pathname.indexOf("features")===-1){
-                                bento.scrollIntoView({behavior:"smooth", block:"start"});
-                                return;
-                            }
-                        }
                         window.location.href = tgt;
                     }, 800);
                 } catch{}
@@ -1029,20 +1017,7 @@
                                 addMessage("assistant", "Opening "+navTargetVoice.replace(".html","")+" for you — taking you there.");
                                 messages.push({ role: "assistant", content: "Opening "+navTargetVoice });
                                 tryBrowserTTS("Opening "+navTargetVoice.replace(".html","")+" for you", (lang && lang!=="auto" ? lang : "en"));
-                                setTimeout(function(){
-                                    try{
-                                        if(navTargetVoice.indexOf("features")!==-1){
-                                            var bento = document.querySelector(".bento");
-                                            if(bento && window.location.pathname.indexOf("features")===-1 && window.location.pathname.indexOf("index")===-1){
-                                                bento.scrollIntoView({behavior:"smooth", block:"start"});
-                                            } else {
-                                                window.location.href = navTargetVoice;
-                                            }
-                                        } else {
-                                            window.location.href = navTargetVoice;
-                                        }
-                                    }catch(e){ window.location.href = navTargetVoice; }
-                                }, 600);
+                                setTimeout(function(){ try{ window.location.href = navTargetVoice; }catch(e){ window.location.href = navTargetVoice; } }, 600);
                                 return;
                             }
                             // inject transcript as user message and send on their behalf — Nova AI + OpenAI see it as normal chat in detected language

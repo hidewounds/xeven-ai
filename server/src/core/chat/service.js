@@ -39,6 +39,20 @@ function isGreeting(text) {
     return false;
 }
 
+function isNavigationIntent(text) {
+    if (!text || typeof text !== "string") return null;
+    const t = text.toLowerCase().trim().replace(/[.,!?]/g, " ").replace(/\s+/g, " ");
+    const m = t.match(/(?:take me to|go to|navigate to|show me|guide me to|open)\s+(?:the\s+)?(pricing|features?|home|checkout|login|price|pricing page|features page)/);
+    if (m) {
+        let target = (m[1] || "").toLowerCase().replace(/\s+page$/, "");
+        const map = { features: "features.html", feature: "features.html", pricing: "pricing.html", price: "pricing.html", home: "index.html", checkout: "checkout.html", login: "login.html" };
+        if (map[target]) return map[target];
+    }
+    if (/(?:take|go|navigate|show|open).*(pricing|price)/.test(t) && t.includes("pricing")) return "pricing.html";
+    if (/(?:take|go|navigate|show|open).*(feature)/.test(t) && t.includes("feature")) return "features.html";
+    return null;
+}
+
 function isBusinessRelated(query, knowledge, config) {
     if (!query || typeof query !== "string") return false;
     const q = query.toLowerCase();
@@ -216,6 +230,32 @@ async function runChat({ businessId, customerInput, messages, conversationId = n
         return {
             reply: greetingReply,
             model: "deterministic:greeting",
+            provider: "deterministic",
+            usage: null,
+            businessId,
+            customerId,
+            conversationId: activeConversationId,
+            memoryOperations,
+        };
+    }
+
+    // Deterministic navigation — handle "take me to pricing/features" etc. without AI (both voice and chat)
+    const navTarget = isNavigationIntent(lastUserText);
+    if (navTarget) {
+        const navReply = `Opening ${navTarget.replace(".html", "")} for you — taking you there. [NAVIGATE:${navTarget}]`;
+        if (activeConversationId) {
+            conversationStore.appendMessage({
+                businessId,
+                customerId,
+                conversationId: activeConversationId,
+                role: "assistant",
+                content: navReply,
+                model: "deterministic:navigation",
+            });
+        }
+        return {
+            reply: navReply,
+            model: "deterministic:navigation",
             provider: "deterministic",
             usage: null,
             businessId,
