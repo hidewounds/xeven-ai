@@ -209,19 +209,40 @@ router.post("/transcribe", express.json({ limit: "12mb" }), async (req, res, nex
                     audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: openRes.language, via:"openai" } });
                     return res.json({ transcriptId: id, text: openRes.text, language: openRes.language || params.language, segments: [], via: "openai", provider: "openai_whisper" });
                 }
-                // OpenAI returned empty (silence) — fall through to client so widget can try browser STT
+                // OpenAI returned empty (silence) — fall through to next fallback
                 if (openRes && !openRes.text) console.warn("openai whisper returned empty for", buf.length, "bytes");
-            } catch (e) { console.error("openai whisper failed", e.message); /* fall through */ }
+            } catch (e) { console.error("openai whisper failed", e.message); /* fall through to HF */ }
         } else if (isProd) {
-            console.warn("echo transcribe: OPENAI_API_KEY not set on Vercel — falling back to browser STT");
+            console.warn("echo transcribe: OPENAI_API_KEY not set on Vercel — trying HF");
         }
-        // 3) Client fallback — tell widget to use browser STT (Web Speech / wasm) — guarantees voice works even without key
+        // 2b) HuggingFace Whisper fallback — works on Vercel with HF_TOKEN (no OpenAI needed, free tier)
+        const hasHfKey = !!((env.hfToken || process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN || "").trim());
+        if (hasHfKey) {
+            try {
+                const buf = Buffer.from(body.audioBase64, "base64");
+                if (buf.length < 100) throw new Error("audio too small");
+                const mimeBase3 = String(body.mimeType || "audio/webm").split(";")[0];
+                const ext3 = mimeBase3.split("/")[1] || "webm";
+                const hfRes = await echoTranscribe.callHuggingFaceWhisper({ audioBuffer: buf, filename: `audio.${ext3}`, language: params.language, hfToken: env.hfToken || process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN });
+                if (hfRes && hfRes.text && hfRes.text.trim()) {
+                    const crypto = require("../../lib/crypto");
+                    const db = require("../../db");
+                    const id = `ect_${crypto.randomHex(10)}`;
+                    db.get().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+                        .run(id, req.nova.businessId, customerId, body.conversationId || null, hfRes.language || params.language || "", hfRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", "[]", env.hfWhisperModel || "openai/whisper-large-v3");
+                    audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: hfRes.language, via:"huggingface" } });
+                    return res.json({ transcriptId: id, text: hfRes.text, language: hfRes.language || params.language, segments: [], via: "huggingface", provider: "hf_whisper" });
+                }
+            } catch (e) { console.error("hf whisper failed", e.message); /* fall through */ }
+        }
+        // 3) Client fallback — tell widget to use browser STT (Web Speech / wasm) — Option 3, 100% guarantee, no keys needed
         const stub2 = echoTranscribe ? echoTranscribe.stubTranscribe({ businessId: req.nova.businessId, customerId, conversationId: body.conversationId || null, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model }) : { status: "not_available" };
         stub2.clientFallback = "browser_stt";
         stub2.via = "client";
         stub2.sidecarAvailable = sidecarAvailable;
         stub2.hasOpenAIKey = hasValidKey;
-        audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { stub: true, clientFallback:true, sidecarAvailable, hasValidKey } });
+        stub2.hasHfKey = hasHfKey;
+        audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { stub: true, clientFallback:true, sidecarAvailable, hasValidKey, hasHfKey } });
         res.json(stub2);
     } catch (error) { next(error); }
 });

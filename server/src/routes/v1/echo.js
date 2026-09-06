@@ -81,15 +81,37 @@ router.post("/transcribe", requireScope("echo:transcribe"), express.json({ limit
                     req.log && req.log.warn && req.log.warn("whisper fallback failed", { error: e.message });
                 }
             } else if (env.isProduction) {
-                req.log && req.log.warn && req.log.warn("echo: OPENAI_API_KEY not set on Vercel — transcribe will fallback to client");
+                req.log && req.log.warn && req.log.warn("echo: OPENAI_API_KEY not set on Vercel — trying HF");
+            }
+            // 2b. HuggingFace Whisper fallback — works with HF_TOKEN (free, no OpenAI needed)
+            const hasHfKey = !!((env.hfToken || process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN || "").trim());
+            if (hasHfKey) {
+                try {
+                    const buf = Buffer.from(body.audioBase64, "base64");
+                    if (buf.length < 100) throw new Error("audio too small");
+                    const ext = (body.mimeType || "webm").split(";")[0].split("/")[1] || "webm";
+                    const { callHuggingFaceWhisper } = require("../../core/echo/transcribe");
+                    const hfRes = await callHuggingFaceWhisper({ audioBuffer: buf, filename: `audio.${ext}`, language: params.language, hfToken: env.hfToken || process.env.HF_TOKEN });
+                    if (hfRes && hfRes.text && hfRes.text.trim()) {
+                        const db = require("../../db").get();
+                        const crypto = require("../../lib/crypto");
+                        const id = `ect_${crypto.randomHex(10)}`;
+                        db().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+                            .run(id, req.nova.businessId, customerId, conversationId, hfRes.language || params.language || "", hfRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify([]), env.hfWhisperModel || "openai/whisper-large-v3");
+                        return res.json({ transcriptId: id, text: hfRes.text, language: hfRes.language || params.language, sidecar: false, provider: "hf_whisper", via: "huggingface" });
+                    }
+                } catch (e) {
+                    req.log && req.log.warn && req.log.warn("hf whisper failed", { error: e.message });
+                }
             }
         }
 
         const audioMeta = { format: body.mimeType || "webm", bytes: hasAudio ? Buffer.from(body.audioBase64, "base64").length : 0, durationMs: body.durationMs || 0 };
         const stub = stubTranscribe({ businessId: req.nova.businessId, customerId, conversationId, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model });
-        // Parity hint: tell client whether server STT is expected (openai) or must use browser
+        // Parity hint: tell client whether server STT is expected (openai/hf) or must use browser — Option 3
         const hasValidKeyEcho = (() => { const k = (env.ai.openaiApiKey || "").trim(); return k.startsWith("sk-") && k.length > 20 && !k.includes("..."); })();
-        if (!sidecarUrl && hasValidKeyEcho) stub.via = "openai";
+        const hasHfKeyEcho = !!((env.hfToken || process.env.HF_TOKEN || "").trim());
+        if (!sidecarUrl && (hasValidKeyEcho || hasHfKeyEcho)) stub.via = hasValidKeyEcho ? "openai" : "huggingface";
         else if (!sidecarUrl) { stub.clientFallback = "browser_stt"; stub.via = "client"; }
         res.json(stub);
     } catch (e) { next(e); }

@@ -145,15 +145,20 @@ function createApp(options = {}) {
         });
     });
 
-    // Echo sidecar health (proxied) — parity: local sidecar vs Vercel OpenAI
+    // Echo sidecar health (proxied) — parity: local sidecar vs Vercel OpenAI/HF/browser
     app.get("/api/health/echo", async (req, res) => {
         try {
             const echoTranscribe = require("./src/core/echo/transcribe");
             const env = require("./src/env");
             const sidecarUrl = env.echoSidecarUrl;
-            const health = sidecarUrl ? await echoTranscribe.checkSidecarHealth(sidecarUrl) : { available: false, reason: "serverless", via: "openai_or_browser" };
-            const hasOpenAI = !!(env.ai.openaiApiKey && env.ai.openaiApiKey.trim().startsWith("sk-") && env.ai.openaiApiKey.length > 20);
-            res.json({ sidecar: health, openai: { available: hasOpenAI, via: hasOpenAI ? "openai_whisper" : "browser_stt" }, timestamp: Date.now(), env: env.isProduction ? "production" : "development" });
+            const health = sidecarUrl ? await echoTranscribe.checkSidecarHealth(sidecarUrl) : { available: false, reason: "serverless", via: "openai_hf_browser" };
+            const hasOpenAI = !!(env.ai.openaiApiKey && env.ai.openaiApiKey.trim().startsWith("sk-") && env.ai.openaiApiKey.length > 20 && !env.ai.openaiApiKey.includes("..."));
+            const hasHf = !!((env.hfToken || process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN || "").trim());
+            let via = "browser_stt";
+            if (hasOpenAI) via = "openai_whisper";
+            else if (hasHf) via = "huggingface_whisper";
+            else if (health.available) via = "sidecar";
+            res.json({ sidecar: health, openai: { available: hasOpenAI, via: hasOpenAI ? "openai_whisper" : via }, huggingface: { available: hasHf, via: hasHf ? "huggingface_whisper" : via, model: env.hfWhisperModel }, browser: { via: "browser_stt", note: "Option 3: 100% guarantee via Web Speech API" }, timestamp: Date.now(), env: env.isProduction ? "production" : "development" });
         } catch (e) {
             res.json({ sidecar: { available: false, error: e.message }, timestamp: Date.now() });
         }

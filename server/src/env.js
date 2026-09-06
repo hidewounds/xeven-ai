@@ -95,10 +95,13 @@ const env = Object.freeze({
     pgPassword: process.env.PG_PASSWORD || "",
     pgSsl: process.env.PG_SSL === "true",
 
+    hfToken: (process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN || process.env.HF_API_TOKEN || "").trim(),
+    hfWhisperModel: (process.env.HF_WHISPER_MODEL || "openai/whisper-large-v3").trim(),
+
     echoSidecarUrl: (() => {
         const u = (process.env.ECHO_SIDECAR_URL || process.env.ECHO_SIDECAR || "").trim();
         if (!u) {
-            // On Vercel, no localhost sidecar exists — return empty so callers skip sidecar and use OpenAI/browser fallbacks
+            // On Vercel, no localhost sidecar exists — return empty so callers skip sidecar and use OpenAI/HF/browser fallbacks
             if (process.env.VERCEL) return "";
             return "http://127.0.0.1:8765";
         }
