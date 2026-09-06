@@ -960,15 +960,31 @@
                     if(navT){
                         console.log('SR2 navigating to', navT, 'messagesEl', !!messagesEl, 'addMessage', typeof addMessage);
                         var um1 = addMessage("user", transcript);
-                        console.log('SR2 added user message', !!um1, 'messages len', messages.length);
+                        console.log('SR2 added user message', !!um1, 'messagesEl children', messagesEl ? messagesEl.children.length : 'no el', 'messages len', messages.length);
                         messages.push({role:"user", content:transcript});
                         var am1 = addMessage("assistant", "Opening "+navT.replace(".html","")+" for you — taking you there.");
-                        console.log('SR2 added assistant message', !!am1);
+                        console.log('SR2 added assistant message', !!am1, 'children after', messagesEl ? messagesEl.children.length : 'no el');
                         messages.push({role:"assistant", content:"Opening "+navT});
                         tryBrowserTTS("Opening "+navT.replace(".html","")+" for you", "en");
                         setTimeout(function(){
                             console.log('SR2 timeout navigating to', navT, 'href before', window.location.href);
-                            try{ window.location.href = navT; console.log('SR2 href after', window.location.href); }catch(e){ console.log('SR2 nav error', e.message); }
+                            try{
+                                var targetUrl = navT;
+                                // Ensure absolute URL for navigation
+                                try{ targetUrl = new URL(navT, window.location.href).href; }catch(e){}
+                                console.log('SR2 navigating to absolute', targetUrl);
+                                window.location.href = targetUrl;
+                                console.log('SR2 href after', window.location.href);
+                                // Fallback: if location didn't change, try location.assign
+                                setTimeout(function(){
+                                    if(window.location.href === targetUrl || window.location.href.includes(navT)){
+                                        console.log('SR2 navigation appears successful');
+                                    } else {
+                                        console.log('SR2 navigation may have been blocked, trying assign');
+                                        try{ window.location.assign(targetUrl); }catch(e){}
+                                    }
+                                }, 100);
+                            }catch(e){ console.log('SR2 nav error', e.message); }
                         }, 600);
                         return;
                     }
