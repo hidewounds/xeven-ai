@@ -253,6 +253,58 @@
     }
     window.NOVA_TTS_FALLBACK = tryBrowserTTS;
 
+    // whisper.wasm via transformers.js — pure browser STT, no sidecar/key needed (for Vercel prod)
+    var wasmTranscriber = null;
+    var wasmLoading = null;
+    async function loadWasmTranscriber(){
+        if(wasmTranscriber) return wasmTranscriber;
+        if(wasmLoading) return wasmLoading;
+        wasmLoading = (async function(){
+            try{
+                // dynamic import from CDN — cached after first load (~30MB tiny)
+                var mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js');
+                // transformers exposes pipeline via default or named export depending on build
+                var pipeline = mod.pipeline || (mod.default && mod.default.pipeline) || window.transformers?.pipeline;
+                if(!pipeline){
+                    // fallback: load via script tag
+                    await new Promise(function(res, rej){
+                        var s=document.createElement('script');
+                        s.src='https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
+                        s.onload=res; s.onerror=rej; document.head.appendChild(s);
+                    });
+                    pipeline = window.transformers?.pipeline || window.pipeline;
+                }
+                if(!pipeline) throw new Error('pipeline not found');
+                wasmTranscriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
+                return wasmTranscriber;
+            } catch(e){
+                console.warn('wasm load failed', e);
+                wasmLoading = null;
+                throw e;
+            }
+        })();
+        return wasmLoading;
+    }
+    async function transcribeWithWasm(blob){
+        try{
+            var transcriber = await loadWasmTranscriber();
+            var arrayBuffer = await blob.arrayBuffer();
+            // decode via AudioContext to get Float32 at 16kHz (browser can decode webm opus)
+            var AudioCtx = window.AudioContext || window.webkitAudioContext;
+            var ac = new AudioCtx({sampleRate: 16000});
+            var audioBuffer = await ac.decodeAudioData(arrayBuffer.slice(0));
+            var float32 = audioBuffer.getChannelData(0);
+            // transformers expects Float32Array at 16kHz
+            var result = await transcriber(float32);
+            try{ ac.close(); }catch{}
+            return result && result.text ? String(result.text).trim() : "";
+        } catch(e){
+            console.warn('wasm transcribe failed', e);
+            return "";
+        }
+    }
+    window.NOVA_WASM_TRANSCRIBE = transcribeWithWasm;
+
     // wav conversion — guarantees sidecar can decode without ffmpeg (webm opus → wav)
     function arrayBufferToBase64(buffer){
         try{
@@ -863,9 +915,22 @@
                             var text = data.text || data.transcript || "";
                             var lang = data.language || tLang || "auto";
                             if (!text) {
-                                text = data.message || "Heard you — please type your message while echo warms up.";
-                                addMessage("assistant", text);
-                                return;
+                                // server returned empty (sidecar not available on Vercel or silence) — try browser wasm STT
+                                var wasmText = "";
+                                try{
+                                    // show warming up briefly while wasm loads (first time ~2-3s)
+                                    if(loading) loading.textContent = "Transcribing (browser)…";
+                                    wasmText = await transcribeWithWasm(blob);
+                                }catch(e){}
+                                if(wasmText && wasmText.trim()){
+                                    text = wasmText.trim();
+                                    lang = "en";
+                                    if(loading) loading.textContent = "Transcribing…";
+                                } else {
+                                    text = data.message || "Heard you — please type your message while echo warms up.";
+                                    addMessage("assistant", text);
+                                    return;
+                                }
                             }
                             // voice navigation — handle "guide me to X" locally before server, like typed sendMessage does
                             var navTargetVoice = maybeNavigateIntent(text);
@@ -940,6 +1005,63 @@
                                 }
                             }catch{ tryBrowserTTS(reply, lang); }
                         } catch (e) {
+                            // Server transcribe failed (timeout / network) — try browser wasm STT
+                            var wasmText2 = "";
+                            try{
+                                if(loading) loading.textContent = "Transcribing (browser)…";
+                                wasmText2 = await transcribeWithWasm(blob);
+                            }catch(ee){}
+                            if(wasmText2 && wasmText2.trim()){
+                                if(loading) loading.remove();
+                                var text2 = wasmText2.trim();
+                                var lang2 = "en";
+                                var navTargetVoice2 = maybeNavigateIntent(text2);
+                                if(navTargetVoice2){
+                                    addMessage("user", text2);
+                                    messages.push({ role: "user", content: text2 });
+                                    addMessage("assistant", "Opening "+navTargetVoice2.replace(".html","")+" for you — taking you there.");
+                                    messages.push({ role: "assistant", content: "Opening "+navTargetVoice2 });
+                                    tryBrowserTTS("Opening "+navTargetVoice2.replace(".html","")+" for you", lang2);
+                                    setTimeout(function(){ try{ window.location.href = navTargetVoice2; }catch(e){} }, 600);
+                                    return;
+                                }
+                                addMessage("user", text2);
+                                messages.push({ role: "user", content: text2 });
+                                var chatLoading2 = addMessage("assistant", "...");
+                                if(chatLoading2) chatLoading2.className = "nova-msg nova-loading";
+                                try{
+                                    var chatData2 = await api("/api/v1/widget/chat", {
+                                        method: "POST",
+                                        body: JSON.stringify({ customerId: getVisitorId(), conversationId: conversationId, messages: messages.slice(-30) })
+                                    });
+                                    if(chatLoading2) chatLoading2.remove();
+                                    conversationId = chatData2.conversationId || conversationId;
+                                    var reply2 = chatData2.reply || "";
+                                    var navMatch2 = reply2.match(/\[NAVIGATE:([^\]]+)\]/);
+                                    if(navMatch2){
+                                        var target2 = navMatch2[1].trim();
+                                        reply2 = reply2.replace(/\[NAVIGATE:[^\]]+\]/g, "").trim();
+                                        if(!reply2) reply2 = "Opening "+target2.replace(".html","")+" for you — taking you there.";
+                                    }
+                                    addMessage("assistant", reply2);
+                                    messages.push({ role: "assistant", content: reply2 });
+                                    if(navMatch2){
+                                        try{ setTimeout(function(){ window.location.href = navMatch2[1].trim(); }, 800); }catch{}
+                                    }
+                                    try{
+                                        var ttsLang2 = lang2 && lang2!=="auto" ? lang2 : "en";
+                                        var ttsRes2 = await api("/api/v1/tts/synthesize",{method:"POST", body:JSON.stringify({text:reply2, language:ttsLang2})}).catch(function(){return null});
+                                        if(ttsRes2 && ttsRes2.audioBase64){
+                                            var audio2 = new Audio("data:audio/mp3;base64,"+ttsRes2.audioBase64);
+                                            audio2.play().catch(function(){ tryBrowserTTS(reply2, ttsLang2); });
+                                        } else { tryBrowserTTS(reply2, ttsLang2); }
+                                    }catch{ tryBrowserTTS(reply2, lang2); }
+                                } catch(err2){
+                                    if(chatLoading2) chatLoading2.remove();
+                                    addMessage("assistant", err2.message || "Chat failed.");
+                                }
+                                return;
+                            }
                             if (loading) loading.remove();
                             addMessage("assistant", e.message || "Transcription failed. Please type your message.");
                         } finally {
