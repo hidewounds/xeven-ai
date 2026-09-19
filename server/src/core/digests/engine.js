@@ -4,11 +4,11 @@
  * Owner weekly digest — every week from Monday DIGEST_HOUR (local server
  * time), businesses with the founder-enabled `weekly_digest` capability get
  * ONE email recapping THEIR week: chats, leads, attributed purchases and the
- * follow-up emails NOVA sent on their behalf.
+ * follow-up emails XEVEN sent on their behalf.
  *
  * Rules inherited from the rest of the growth suite:
  *   - capability is founder-controlled (flags: weekly_digest, default OFF)
- *   - mail leaves through the BUSINESS's own SMTP identity, never NOVA's
+ *   - mail leaves through the BUSINESS's own SMTP identity, never XEVEN's
  *   - one send per calendar week, deduped in portal_settings.digest_last_sent_week
  *   - if the machine was down Monday morning it catches up on the first tick
  */

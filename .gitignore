@@ -9,4 +9,4 @@ training/checkpoint-*.json
 echo/__pycache__
 echo/.venv
 .vercel
-.vercel
+backup*/

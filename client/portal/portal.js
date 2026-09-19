@@ -1,8 +1,8 @@
 "use strict";
-// NOVA Business Portal — Premium SaaS — calm, intelligent, trustworthy
+// XEVEN Business Portal — Premium SaaS — calm, intelligent, trustworthy
 (function(){
   const API_ORIGIN = location.origin;
-  let TOKEN = sessionStorage.getItem("nova_portal_token") || "";
+  let TOKEN = sessionStorage.getItem("xeven_portal_token") || "";
   let ME = null;
   let CURRENT = "overview";
   let CACHE = { knowledge:[], customers:[], conversations:[], followups:[], behaviours:{rules:[]}, chrono:null, voice:null, addons:[] };
@@ -10,15 +10,32 @@
   const esc = v => String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
   const show = (el,on)=>{ if(!el) return; el.classList.toggle("hidden", !on); };
   function toast(m){ const el=$("toast"); if(!el) return; el.textContent=m; el.classList.remove("hidden"); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.add("hidden"), 3200); }
+  function useCookie(){ try{ return sessionStorage.getItem("xeven_portal_cookie")==="1"; }catch(e){ return false; } }
+  function setCookieMode(on){ try{ if(on) sessionStorage.setItem("xeven_portal_cookie","1"); else sessionStorage.removeItem("xeven_portal_cookie"); }catch(e){} }
+  let _csrf=null;
+  async function ensurePortalCsrf(){
+    if(_csrf) return _csrf;
+    try{
+      const h={}; if(TOKEN&&!useCookie()) h.authorization="Bearer "+TOKEN;
+      const r=await fetch(API_ORIGIN+"/api/portal/csrf-token",{headers:h,credentials:"same-origin"});
+      if(!r.ok) return null;
+      const d=await r.json(); _csrf=d.csrf_token||null; return _csrf;
+    }catch(e){ return null; }
+  }
   async function api(method, path, body){
-    const res = await fetch(API_ORIGIN + "/api/portal" + path, {
-      method, headers: { "content-type":"application/json", ...(TOKEN?{authorization:"Bearer "+TOKEN}:{}) },
-      body: body?JSON.stringify(body):undefined
-    });
+    const headers = { "content-type":"application/json" };
+    if(TOKEN&&!useCookie()) headers.authorization="Bearer "+TOKEN;
+    const opts = { method, headers, credentials:"same-origin" };
+    if(body!==undefined) opts.body=JSON.stringify(body);
+    if(useCookie()&&["POST","PUT","PATCH","DELETE"].indexOf(String(method).toUpperCase())!==-1&&path!=="/auth/login"&&path!=="/auth/logout"){
+      const tok=await ensurePortalCsrf(); if(tok) opts.headers["x-csrf-token"]=tok;
+    }
+    const res = await fetch(API_ORIGIN + "/api/portal" + path, opts);
     const data = await res.json().catch(()=>({}));
+    if(res.status===401){ clearPortalLocal(); throw new Error(data.error?.message || "Session expired"); }
     if(!res.ok) throw new Error(data.error?.message || ("HTTP "+res.status));
     const newTok = res.headers.get("X-Portal-Token-Refresh");
-    if(newTok){ TOKEN=newTok; sessionStorage.setItem("nova_portal_token", TOKEN); }
+    if(newTok){ TOKEN=newTok; try{ sessionStorage.setItem("xeven_portal_token", TOKEN); }catch(e){} }
     return data;
   }
   function skeleton(rows=3){ let h=""; for(let i=0;i<rows;i++) h+='<div class="skeleton" style="height:14px;margin:8px 0;width:'+(68+Math.random()*27)+'%"></div>'; return '<div class="card"><div style="padding:4px 0">'+h+'</div></div>'; }
@@ -43,11 +60,40 @@
     const e=$("liEmail"), p=$("liPass"), m=$("loginMsg");
     try{
       const r = await api("POST","/auth/login",{email:e.value.trim(), password:p.value});
-      TOKEN=r.token; sessionStorage.setItem("nova_portal_token", TOKEN);
+      if(r.cookieAuth){ setCookieMode(true); TOKEN=""; try{ sessionStorage.removeItem("xeven_portal_token"); }catch(_){} }
+      else { setCookieMode(false); TOKEN=r.token; try{ sessionStorage.setItem("xeven_portal_token", TOKEN); }catch(_){} }
       ME=await api("GET","/me"); enter();
     }catch(err){ const el=m; el.textContent=err.message; el.className="msg bad"; el.style.display="block"; setTimeout(()=>el.className="msg",4000); }
   };
-  window.logout = function(){ sessionStorage.removeItem("nova_portal_token"); location.reload(); };
+  function clearPortalLocal(){ setCookieMode(false); _csrf=null; TOKEN=""; try{ sessionStorage.removeItem("xeven_portal_token"); }catch(e){} }
+  window.logout = async function(){
+    try{
+      var h={"content-type":"application/json"};
+      if(TOKEN&&!useCookie()) h.authorization="Bearer "+TOKEN;
+      if(useCookie()){
+        var tok=await ensurePortalCsrf(); if(tok) h["x-csrf-token"]=tok;
+      }
+      await fetch(API_ORIGIN+"/api/portal/auth/logout",{method:"POST",headers:h,credentials:"same-origin"}).catch(function(){});
+    }catch(e){}
+    clearPortalLocal(); location.reload();
+  };
+  // Delegated actions for buttons/rows carrying server- or user-controlled ids.
+  // data-id values are HTML-escaped once at render; dataset decodes them back
+  // exactly once — no JS-string interpolation, no breakout vector.
+  document.addEventListener("click", function(e){
+    const b=e.target&&e.target.closest?e.target.closest("[data-act]"):null; if(!b) return;
+    const act=b.getAttribute("data-act"), id=b.getAttribute("data-id")||"";
+    if(act==="open-customer"&&window.openCustomer) window.openCustomer(id);
+    else if(act==="delete-knowledge"&&window.deleteKnowledge) window.deleteKnowledge(id);
+    else if(act==="delete-behavior"&&window.deleteBehavior) window.deleteBehavior(id);
+    else if(act==="delete-override"&&window.deleteOverride) window.deleteOverride(id);
+    else if(act==="toggle-addon"&&window.toggleAddon) window.toggleAddon(id, b.getAttribute("data-on")==="1");
+    else if(act==="open-conv"&&window.openConv) window.openConv(id);
+    else if(act==="go-tab-portal"){
+      var tab=b.getAttribute("data-tab")||""; if(!tab) return;
+      try{ if(window.selectTab) window.selectTab(tab); else if(typeof selectTab==="function") selectTab(tab); }catch(e){}
+    }
+  });
   // --- Nav --- (Voice + Schedule moved to AI — they ARE the AI's voice & time brain)
   const NAV = [
     {group:"HOME", items:[{id:"overview", label:"Overview", icon:"◉"}]},
@@ -64,7 +110,7 @@
     behaviors:"Behaviour overrides — trigger → pattern. Not in Agent, not duplicated.",
     memory:"Memory config — not live data. Live memories are in Customers → View.",
     customers:"People — single source for memories & conversations (no duplication).",
-    conversations:"All threads — what NOVA said. Per-customer signals are in Customers → View.",
+    conversations:"All threads — what XEVEN said. Per-customer signals are in Customers → View.",
     followups:"Cart/lead jobs — scheduled → sent. Needs SMTP in Preferences.",
     website:"Crawl your site to generate knowledge — then review in Knowledge.",
     voice:"Voice — phone-ready. Sidecar health shown, not duplicated in Overview.",
@@ -148,17 +194,17 @@
       try{ const k = await api("GET","/knowledge"); kCount = (k.items||k.total||0); if(Array.isArray(k.items)) kCount=k.items.length; else if(typeof k.total==="number") kCount=k.total; }catch{}
       // health
       const health=[
-        {k:"NOVA status", v:"Operational", s:"ok", d:"Unified brain • 6 patterns • "+esc(ME.plan||"launch")},
+        {k:"XEVEN status", v:"Operational", s:"ok", d:"Unified brain • 6 patterns • "+esc(ME.plan||"launch")},
         {k:"Knowledge", v: kCount>0?"Synced":"Not configured", s: kCount>0?"ok":"neutral", d: kCount+" indexed • grounded answers"},
         {k:"Customers", v: customerCount>0?"Active":"No customers", s: customerCount>0?"ok":"neutral", d: customerCount+" customers • "+convCount+" conversations"},
         {k:"Channels", v:"Operational", s:"ok", d:"Widget + Voice ready"},
       ];
       const attention=[];
-      if(kCount===0) attention.push({t:"Website knowledge hasn't synced", d:"Connect your website or add knowledge so NOVA can answer.", tab:"knowledge", cta:"Fix"});
-      try{ const s=ME.settings||{}; if(!s.businessHours) attention.push({t:"Business hours aren't configured", d:"Let NOVA know when you're open.", tab:"business", cta:"Configure"}); }catch{}
-      if(attention.length===0 && customerCount===0) attention.push({t:"No conversations yet", d:"Install the snippet and NOVA will start capturing.", tab:"integrations", cta:"View"});
+      if(kCount===0) attention.push({t:"Website knowledge hasn't synced", d:"Connect your website or add knowledge so XEVEN can answer.", tab:"knowledge", cta:"Fix"});
+      try{ const s=ME.settings||{}; if(!s.businessHours) attention.push({t:"Business hours aren't configured", d:"Let XEVEN know when you're open.", tab:"business", cta:"Configure"}); }catch{}
+      if(attention.length===0 && customerCount===0) attention.push({t:"No conversations yet", d:"Install the snippet and XEVEN will start capturing.", tab:"integrations", cta:"View"});
       let html='';
-      html+='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><span class="pill" style="background:var(--surface)"><span class="dot ok"></span> NOVA ● Online</span><span class="muted xs">Last updated just now</span></div>';
+      html+='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><span class="pill" style="background:var(--surface)"><span class="dot ok"></span> XEVEN ● Online</span><span class="muted xs">Last updated just now</span></div>';
       html+='<div class="card" style="background:linear-gradient(180deg,var(--surface) 0%, var(--surface-2) 100%)"><div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between"><div><h2 style="font-size:18px;margin:0">Good evening, '+esc((ME.business?.name||"there"))+'</h2><p class="muted" style="margin:4px 0 0">Here\'s how your AI is performing.</p></div><span class="pill" style="background:var(--surface)">'+esc(ME.plan||"launch")+' • unified</span></div></div>';
       html+='<div class="grid">';
       const wk = [
@@ -176,10 +222,10 @@
       html+='</div></div>';
       if(attention.length){
         html+='<div class="card" style="border-color:var(--warn-border);background:var(--warn-bg)"><h3 style="color:#92400e">Attention required</h3>';
-        attention.forEach(a=>{ html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(245,158,11,.14)"><div><b style="font-weight:500">'+esc(a.t)+'</b><div class="muted xs">'+esc(a.d)+'</div></div><button class="btn ghost small" onclick="selectTab(\''+a.tab+'\')">'+esc(a.cta)+'</button></div>'; });
+        attention.forEach(a=>{ html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(245,158,11,.14)"><div><b style="font-weight:500">'+esc(a.t)+'</b><div class="muted xs">'+esc(a.d)+'</div></div><button class="btn ghost small" data-act="go-tab-portal" data-tab="'+esc(a.tab)+'">'+esc(a.cta)+'</button></div>'; });
         html+='</div>';
       } else {
-        html+='<div class="card"><h3>All clear</h3><p class="muted" style="margin:0">No issues. NOVA is healthy and serving.</p></div>';
+        html+='<div class="card"><h3>All clear</h3><p class="muted" style="margin:0">No issues. XEVEN is healthy and serving.</p></div>';
       }
       // Recent activity — latest conversations, not duplicate counts
       try{
@@ -191,7 +237,7 @@
           html+='<div class="table-wrap"><table><thead><tr><th>Customer</th><th>Messages</th><th>Updated</th><th></th></tr></thead><tbody>';
           recent.forEach(c=>{
             const cust=esc(c.customer_id||c.customerId||"—"); const mid=esc(c.conversation_id||c.conversationId||"—"); const cnt=esc(String(c.message_count||c.messageCount||0)); const upd=c.updated_at?new Date(c.updated_at).toLocaleString():"—";
-            html+='<tr><td><b>'+cust+'</b><div class="mono xs" style="color:var(--mut-2)">'+mid+'</div></td><td>'+cnt+'</td><td class="muted xs">'+upd+'</td><td><button class="btn ghost small" onclick="selectTab(\'conversations\')">Open</button></td></tr>';
+            html+='<tr><td><b>'+cust+'</b><div class="mono xs" style="color:var(--mut-2)">'+mid+'</div></td><td>'+cnt+'</td><td class="muted xs">'+upd+'</td><td><button class="btn ghost small" data-act="go-tab-portal" data-tab="conversations">Open</button></td></tr>';
           });
           html+='</tbody></table></div>';
         }
@@ -215,11 +261,11 @@
       const channels = [];
       try{ const adds=await api("GET","/addons"); CACHE.addons=adds.addons||[]; adds.addons?.forEach(ad=>{ if(ad.enabled) channels.push(ad.meta?.label||ad.key); }); }catch{}
       let html='';
-      html+='<div class="card"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;justify-content:space-between"><div><h2 style="font-size:18px">NOVA Agent</h2><p class="muted" style="margin:4px 0 0">Your AI employee for '+esc(me.business.name||"your business")+'.</p><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><span class="pill"><span class="dot ok"></span> Active</span><span class="pill">Unified brain</span><span class="pill">'+esc(plan)+'</span></div></div><span class="status ok"><span class="dot ok"></span> Online</span></div></div>';
+      html+='<div class="card"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;justify-content:space-between"><div><h2 style="font-size:18px">XEVEN Agent</h2><p class="muted" style="margin:4px 0 0">Your AI employee for '+esc(me.business.name||"your business")+'.</p><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><span class="pill"><span class="dot ok"></span> Active</span><span class="pill">Unified brain</span><span class="pill">'+esc(plan)+'</span></div></div><span class="status ok"><span class="dot ok"></span> Online</span></div></div>';
       html+='<div class="split">';
       html+='<div>';
       // Identity — distinct from Business contact (owner critique: not duplicate)
-      html+='<div class="card"><h3>Identity</h3><div class="grid" style="grid-template-columns:1fr 1fr;gap:10px"><div><label>Agent name<input id="agName" value="'+esc(a.name||"NOVA")+'"></label></div><div><label>Role<input value="Unified brain" disabled style="background:var(--bg-subtle)"></label></div></div><label>What NOVA tells customers — AI description<textarea id="agDesc" placeholder="We are NOVA Style — shoes for everyday movement...">'+esc(a.businessDescription||a.business_description||"")+'</textarea></label><div class="muted xs" style="margin-top:6px">This is AI voice. Contact/hours/address live in <a href="#" onclick="selectTab(\'business\');return false" style="color:var(--violet-2);font-weight:600">Business</a> — separate.</div></div>';
+      html+='<div class="card"><h3>Identity</h3><div class="grid" style="grid-template-columns:1fr 1fr;gap:10px"><div><label>Agent name<input id="agName" value="'+esc(a.name||"XEVEN")+'"></label></div><div><label>Role<input value="Unified brain" disabled style="background:var(--bg-subtle)"></label></div></div><label>What XEVEN tells customers — AI description<textarea id="agDesc" placeholder="We are XEVEN Style — shoes for everyday movement...">'+esc(a.businessDescription||a.business_description||"")+'</textarea></label><div class="muted xs" style="margin-top:6px">This is AI voice. Contact/hours/address live in <a href="#" data-act="go-tab-portal" data-tab="business" style="color:var(--violet-2);font-weight:600">Business</a> — separate.</div></div>';
       // Personality
       html+='<div class="card"><h3>Personality</h3><div class="grid" style="grid-template-columns:1fr 1fr;gap:10px"><div><label>Tone<input id="agTone" value="'+esc(a.tone||"")+'" placeholder="friendly and helpful"></label></div><div><label>Personality<input id="agPersonality" value="'+esc(a.personality||"")+'" placeholder="friendly and practical"></label></div></div><div class="muted xs">Tone shapes every reply — keep it short and human.</div></div>';
       // Instructions
@@ -227,7 +273,7 @@
       html+='<div class="row" style="margin:14px 0"><button class="btn primary" id="saveAgentBtn" onclick="saveAgent()">Save agent</button><span class="muted xs">Live in &lt;1s</span><span id="agentMsg" class="muted xs"></span></div>';
       html+='</div>';
       // Right preview — clean, no duplicate summary
-      html+='<div><div class="preview" style="position:sticky;top:68px"><div class="preview-head"><b>NOVA</b><span class="pill" style="font-size:10px"><span class="dot ok"></span> Online</span></div><div class="preview-body" id="agentPreviewBody"><div class="bubble bot">Hi! I\'m '+esc(a.name||"NOVA")+' — ask me anything about '+esc(me.business.name||"your business")+'.</div></div><div class="preview-foot"><input id="agentPreviewInput" placeholder="Ask NOVA anything..." onkeydown="if(event.key===\'Enter\') sendAgentPreview()"><button class="btn primary small" onclick="sendAgentPreview()">Send</button></div></div></div>';
+      html+='<div><div class="preview" style="position:sticky;top:68px"><div class="preview-head"><b>XEVEN</b><span class="pill" style="font-size:10px"><span class="dot ok"></span> Online</span></div><div class="preview-body" id="agentPreviewBody"><div class="bubble bot">Hi! I\'m '+esc(a.name||"XEVEN")+' — ask me anything about '+esc(me.business.name||"your business")+'.</div></div><div class="preview-foot"><input id="agentPreviewInput" placeholder="Ask XEVEN anything..." onkeydown="if(event.key===\'Enter\') sendAgentPreview()"><button class="btn primary small" onclick="sendAgentPreview()">Send</button></div></div></div>';
       html+='</div>';
       pane.innerHTML=html;
       // view-only lock — founder controls edit_tone
@@ -276,7 +322,7 @@
       items.forEach(k=>{ const t=k.knowledge_type||k.knowledgeType||"faq"; byType[t]=(byType[t]||0)+1; });
       const websiteItem = items.find(k=> (k.title||"").toLowerCase().includes("http") || (k.knowledge_type||"")==="document" ) || null;
       let html='';
-      html+='<div class="card"><div class="card-head"><div><h2 style="font-size:16px">Knowledge</h2><p class="muted" style="margin:4px 0 0;font-size:13px">Everything NOVA knows about your business.</p></div><button class="btn primary small" onclick="document.getElementById(\'knTitle\')?.focus()">+ Add knowledge</button></div>';
+      html+='<div class="card"><div class="card-head"><div><h2 style="font-size:16px">Knowledge</h2><p class="muted" style="margin:4px 0 0;font-size:13px">Everything XEVEN knows about your business.</p></div><button class="btn primary small" onclick="document.getElementById(\'knTitle\')?.focus()">+ Add knowledge</button></div>';
       html+='<div class="grid"><div class="kpi"><div class="n">'+items.length+'</div><div class="l">Total chunks</div><div class="trend"><span class="dot ok"></span> Synced</div></div><div class="kpi"><div class="n">'+(byType.faq||0)+'</div><div class="l">FAQ</div></div><div class="kpi"><div class="n">'+(byType.policy||0)+'</div><div class="l">Policy</div></div><div class="kpi"><div class="n">'+(byType.product||0)+'</div><div class="l">Product</div></div></div>';
       html+='<div class="divider"></div>';
       // Add form
@@ -285,17 +331,17 @@
       // Sources by type
       html+='<div class="card"><h3>Sources</h3>';
       if(!items.length){
-        html+=emptyState("No knowledge yet.", "Connect your website or upload your business documents so NOVA can start learning.", "+ Add knowledge", "document.getElementById('knTitle').focus()");
+        html+=emptyState("No knowledge yet.", "Connect your website or upload your business documents so XEVEN can start learning.", "+ Add knowledge", "document.getElementById('knTitle').focus()");
       } else {
         html+='<div class="table-wrap"><table><thead><tr><th>Title</th><th>Type</th><th>Content</th><th>Status</th><th></th></tr></thead><tbody>';
-        items.forEach(k=>{ html+='<tr><td><b>'+esc(k.title)+'</b></td><td><span class="pill" style="font-size:10px">'+esc(k.knowledge_type||"faq")+'</span></td><td style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc((k.content||"").slice(0,100))+'</td><td><span class="status ok"><span class="dot ok"></span> Synced</span></td><td><button class="btn ghost small" onclick="deleteKnowledge(\''+esc(k.knowledge_id)+'\')">Remove</button></td></tr>'; });
+        items.forEach(k=>{ html+='<tr><td><b>'+esc(k.title)+'</b></td><td><span class="pill" style="font-size:10px">'+esc(k.knowledge_type||"faq")+'</span></td><td style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc((k.content||"").slice(0,100))+'</td><td><span class="status ok"><span class="dot ok"></span> Synced</span></td><td><button class="btn ghost small" data-act="delete-knowledge" data-id="'+esc(k.knowledge_id)+'">Remove</button></td></tr>'; });
         html+='</tbody></table></div>';
       }
       html+='</div>';
       // Bulk import
       html+='<div class="card"><h3>Bulk import</h3><p class="muted xs" style="margin:0 0 8px">Paste CSV <code>title,type,content</code> per line, or JSON array. Max 50.</p><textarea id="knBulk" placeholder="Return policy,policy,Free 30-day returns..."></textarea><div class="row" style="margin-top:8px"><button class="btn ghost small" onclick="bulkKnowledge()">Import bulk</button><input type="file" id="knBulkFile" accept=".csv,.json,.txt" style="width:auto"></div><div id="knBulkMsg" class="msg"></div></div>';
       // Search preview
-      html+='<div class="card"><h3>Search preview <span class="muted xs" style="font-weight:400">— how NOVA retrieves</span></h3><div class="row"><input id="knSearchQ" placeholder="Try: do you ship to Canada?" style="flex:1"><button class="btn ghost small" onclick="searchKnowledge()">Search</button></div><div id="knSearchResults" style="margin-top:12px"></div></div>';
+      html+='<div class="card"><h3>Search preview <span class="muted xs" style="font-weight:400">— how XEVEN retrieves</span></h3><div class="row"><input id="knSearchQ" placeholder="Try: do you ship to Canada?" style="flex:1"><button class="btn ghost small" onclick="searchKnowledge()">Search</button></div><div id="knSearchResults" style="margin-top:12px"></div></div>';
       pane.innerHTML=html;
       // view-only lock for delete (portal can view, not erase — affects grounded answers)
       try{
@@ -333,7 +379,7 @@
   window.searchKnowledge = async function(){
     const q=$("knSearchQ")?.value.trim(); const el=$("knSearchResults"); if(!el) return; if(!q){ el.innerHTML='<span class="muted">Enter a query</span>'; return; }
     el.innerHTML='<div class="skeleton" style="height:60px"></div>';
-    try{ const d=await api("GET","/knowledge/search?q="+encodeURIComponent(q)); if(!d.items||!d.items.length){ el.innerHTML=emptyState("No matches", 'NOVA would answer from fallback: "'+q+'"', "", ""); return; } el.innerHTML=d.items.map(k=>'<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px;background:var(--surface)"><b>'+esc(k.title)+'</b> <span class="pill" style="font-size:10px;float:right">'+esc(k.knowledge_type||"")+'</span><div class="muted" style="margin-top:6px;font-size:13px;line-height:1.5">'+esc((k.content||"").slice(0,180))+'…</div><div class="muted xs" style="margin-top:6px">Relevance '+esc(String(k.relevanceScore||"—"))+' • Retrieved for prompt</div></div>').join(""); }catch(e){ el.innerHTML=errorState(e.message); }
+    try{ const d=await api("GET","/knowledge/search?q="+encodeURIComponent(q)); if(!d.items||!d.items.length){ el.innerHTML=emptyState("No matches", 'XEVEN would answer from fallback: "'+q+'"', "", ""); return; } el.innerHTML=d.items.map(k=>'<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px;background:var(--surface)"><b>'+esc(k.title)+'</b> <span class="pill" style="font-size:10px;float:right">'+esc(k.knowledge_type||"")+'</span><div class="muted" style="margin-top:6px;font-size:13px;line-height:1.5">'+esc((k.content||"").slice(0,180))+'…</div><div class="muted xs" style="margin-top:6px">Relevance '+esc(String(k.relevanceScore||"—"))+' • Retrieved for prompt</div></div>').join(""); }catch(e){ el.innerHTML=errorState(e.message); }
   };
   // --- Behaviors ---
   async function loadBehaviors(){
@@ -344,19 +390,19 @@
       const ab=d.agentBehaviour||{rules:[]}; const rules=ab.rules||[]; CACHE.behaviours=ab;
       const plan=d.plan||ME.plan||"launch"; const max=ab.maxRules ?? 0;
       let html='';
-      html+='<div class="card"><div class="card-head"><div><h2 style="font-size:16px">Behaviors</h2><p class="muted" style="margin:4px 0 0">How NOVA acts — cards for non-technical control, advanced inside.</p></div><span class="pill">'+esc(plan)+' • '+(max===Infinity||max===null?'∞':max+' max')+'</span></div><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px"><div class="kpi" style="padding:12px"><div class="n" style="font-size:16px">'+(max===Infinity||max===null?'∞':max)+'</div><div class="l">Limit</div></div><div class="kpi" style="padding:12px"><div class="n" style="font-size:16px">'+rules.length+'</div><div class="l">Active</div></div><div class="kpi" style="padding:12px"><div class="n" style="font-size:16px">'+(max===Infinity||max===null?'∞':Math.max(0,max-rules.length))+'</div><div class="l">Remaining</div></div></div></div>';
+      html+='<div class="card"><div class="card-head"><div><h2 style="font-size:16px">Behaviors</h2><p class="muted" style="margin:4px 0 0">How XEVEN acts — cards for non-technical control, advanced inside.</p></div><span class="pill">'+esc(plan)+' • '+(max===Infinity||max===null?'∞':max+' max')+'</span></div><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px"><div class="kpi" style="padding:12px"><div class="n" style="font-size:16px">'+(max===Infinity||max===null?'∞':max)+'</div><div class="l">Limit</div></div><div class="kpi" style="padding:12px"><div class="n" style="font-size:16px">'+rules.length+'</div><div class="l">Active</div></div><div class="kpi" style="padding:12px"><div class="n" style="font-size:16px">'+(max===Infinity||max===null?'∞':Math.max(0,max-rules.length))+'</div><div class="l">Remaining</div></div></div></div>';
       html+='<div class="card"><h3>Active behaviors</h3>';
       if(!rules.length){
         html+=emptyState("No custom behaviors yet.", "Add a behavior below — it goes live instantly and blends 10% when triggered.", "", "");
       } else {
         html+='<div class="list-cards">';
         rules.forEach(r=>{
-          html+='<div class="behavior-card"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px"><div><b>'+esc(r.name)+'</b> <span class="status ok" style="margin-left:6px;font-size:10px">● Active</span><div class="muted" style="margin-top:6px;font-size:13px;line-height:1.5">'+esc((r.instructions||r.tone||"Helps customers").slice(0,120))+'</div><div class="muted xs" style="margin-top:8px">Trigger: <code class="key" style="padding:2px 6px">'+esc(r.trigger)+'</code> • '+esc(r.primaryPattern||r.pattern||"general")+' • '+esc(r.triggerType||"keyword")+'</div></div><button class="btn ghost small" style="color:var(--bad);border-color:var(--bad-border)" onclick="deleteBehavior(\''+esc(r.id)+'\')">Remove</button></div></div>';
+          html+='<div class="behavior-card"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px"><div><b>'+esc(r.name)+'</b> <span class="status ok" style="margin-left:6px;font-size:10px">● Active</span><div class="muted" style="margin-top:6px;font-size:13px;line-height:1.5">'+esc((r.instructions||r.tone||"Helps customers").slice(0,120))+'</div><div class="muted xs" style="margin-top:8px">Trigger: <code class="key" style="padding:2px 6px">'+esc(r.trigger)+'</code> • '+esc(r.primaryPattern||r.pattern||"general")+' • '+esc(r.triggerType||"keyword")+'</div></div><button class="btn ghost small" style="color:var(--bad);border-color:var(--bad-border)" data-act="delete-behavior" data-id="'+esc(r.id)+'">Remove</button></div></div>';
         });
         html+='</div>';
       }
       html+='</div>';
-      html+='<div class="card"><h3>Create behavior</h3><p class="muted" style="margin:0 0 12px">Define when NOVA leans into a pattern — trigger, tone, and priority.</p><div class="row"><div><label>Rule name<input id="cbName" placeholder="VIP Refund Handling"></label></div><div><label>Trigger<input id="cbTrigger" placeholder="refund, complaint, angry"></label></div></div><div class="row"><div><label>Pattern<select id="cbPattern"><option value="customer_support">Customer Support</option><option value="sales">Sales</option><option value="shopping_assistant">Shopping</option><option value="product_advisor">Product Advisor</option><option value="lead_qualification">Lead Qualification</option><option value="general_assistant">General</option></select></label></div><div><label>Type<select id="cbTriggerType"><option value="keyword">keyword</option><option value="situation">situation</option><option value="regex">regex</option></select></label></div><div><label>Priority<input id="cbPriority" type="number" value="5"></label></div></div><div class="row"><div><label>Tone<input id="cbTone" placeholder="empathetic, concise"></label></div><div><label>Weight<input id="cbBoost" type="number" value="1.5" step="0.1"></label></div></div><label>Instructions<textarea id="cbInstructions" placeholder="Always ask order ID first..."></textarea></label><div class="row" style="margin-top:12px"><button class="btn primary" id="cbCreateBtn" onclick="addBehavior()">+ Create behavior</button><span id="cbMsg" class="muted xs"></span></div></div>';
+      html+='<div class="card"><h3>Create behavior</h3><p class="muted" style="margin:0 0 12px">Define when XEVEN leans into a pattern — trigger, tone, and priority.</p><div class="row"><div><label>Rule name<input id="cbName" placeholder="VIP Refund Handling"></label></div><div><label>Trigger<input id="cbTrigger" placeholder="refund, complaint, angry"></label></div></div><div class="row"><div><label>Pattern<select id="cbPattern"><option value="customer_support">Customer Support</option><option value="sales">Sales</option><option value="shopping_assistant">Shopping</option><option value="product_advisor">Product Advisor</option><option value="lead_qualification">Lead Qualification</option><option value="general_assistant">General</option></select></label></div><div><label>Type<select id="cbTriggerType"><option value="keyword">keyword</option><option value="situation">situation</option><option value="regex">regex</option></select></label></div><div><label>Priority<input id="cbPriority" type="number" value="5"></label></div></div><div class="row"><div><label>Tone<input id="cbTone" placeholder="empathetic, concise"></label></div><div><label>Weight<input id="cbBoost" type="number" value="1.5" step="0.1"></label></div></div><label>Instructions<textarea id="cbInstructions" placeholder="Always ask order ID first..."></textarea></label><div class="row" style="margin-top:12px"><button class="btn primary" id="cbCreateBtn" onclick="addBehavior()">+ Create behavior</button><span id="cbMsg" class="muted xs"></span></div></div>';
       pane.innerHTML=html;
       // view-only lock — behaviours affect agent, portal views only
       try{
@@ -385,17 +431,17 @@
       const stableFields = ME?.assistant ? [{key:"name",desc:"Name"}, {key:"location",desc:"Location"}, {key:"occupation",desc:"Occupation"}, {key:"shoe_size",desc:"Shoe size"}, {key:"shoe_preference",desc:"Shoe preference"}, {key:"clothing_size",desc:"Clothing size"}] : [];
       // Try to fetch customers to show memory counts via admin? Portal doesn't have memory endpoint, so show config
       let html='';
-      html+='<div class="card"><div class="card-head"><div><h2 style="font-size:16px">NOVA Memory</h2><p class="muted" style="margin:4px 0 0">NOVA can remember useful details about your customers.</p></div><span class="status ok"><span class="dot ok"></span> Enabled</span></div>';
+      html+='<div class="card"><div class="card-head"><div><h2 style="font-size:16px">XEVEN Memory</h2><p class="muted" style="margin:4px 0 0">XEVEN can remember useful details about your customers.</p></div><span class="status ok"><span class="dot ok"></span> Enabled</span></div>';
       html+='<div class="grid"><div class="kpi"><div class="n">Explicit</div><div class="l">Origin</div><div class="trend">Human-provided</div></div><div class="kpi"><div class="n">Inferred</div><div class="l">Behavioral</div><div class="trend">Signals</div></div><div class="kpi"><div class="n">GDPR</div><div class="l">Ready</div><div class="trend">Forget supported</div></div></div>';
-      html+='<p class="muted" style="margin:12px 0 0;line-height:1.6">Memory is customer-scoped and explicit by default. Customers can say <code class="key" style="padding:2px 6px">forget my shoe size</code> and NOVA deletes immediately.</p>';
-      html+='<div class="section-label">What NOVA remembers</div><div style="display:flex;gap:8px;flex-wrap:wrap">';
+      html+='<p class="muted" style="margin:12px 0 0;line-height:1.6">Memory is customer-scoped and explicit by default. Customers can say <code class="key" style="padding:2px 6px">forget my shoe size</code> and XEVEN deletes immediately.</p>';
+      html+='<div class="section-label">What XEVEN remembers</div><div style="display:flex;gap:8px;flex-wrap:wrap">';
       stableFields.forEach(f=>{ html+='<span class="pill">'+esc(f.key)+'</span>'; });
       html+='</div>';
       html+='</div>';
       // Example — single, not duplicating Customers
       html+='<div class="card"><h3>Example — how it looks per customer</h3>';
       html+='<div style="border:1px solid var(--line);border-radius:10px;padding:16px;background:var(--surface-2)"><div style="display:flex;justify-content:space-between;align-items:flex-start"><b>JOHN SMITH</b><span class="status ok">Explicit</span></div><div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:12px"><div><div class="muted xs" style="text-transform:uppercase;letter-spacing:.06em">Personal</div><div style="margin-top:6px;font-size:13px;line-height:1.6">Name: John Smith<br>Location: London</div></div><div><div class="muted xs" style="text-transform:uppercase;letter-spacing:.06em">Preferences</div><div style="margin-top:6px;font-size:13px;line-height:1.6">Shoe size: 10<br>Shoe preference: Minimal</div></div></div><div class="muted xs" style="margin-top:10px">Source: Conversation · Aug 29</div></div>';
-      html+='<p class="muted xs" style="margin-top:10px">Live data is in <a href="#" onclick="selectTab(\'customers\');return false" style="color:var(--violet-2);font-weight:600">Customers → View</a> — single source, no duplication.</p></div>';
+      html+='<p class="muted xs" style="margin-top:10px">Live data is in <a href="#" data-act="go-tab-portal" data-tab="customers" style="color:var(--violet-2);font-weight:600">Customers → View</a> — single source, no duplication.</p></div>';
       pane.innerHTML=html;
     }catch(e){ pane.innerHTML=errorState(e.message, "loadMemory()"); }
   }
@@ -419,12 +465,12 @@
   };
   function renderCustomerTable(list){
     const el=$("custTable"); if(!el) return;
-    if(!list.length){ el.innerHTML=emptyState("No customers yet.", "When customers start talking to NOVA, they will appear here.", "", ""); return; }
+    if(!list.length){ el.innerHTML=emptyState("No customers yet.", "When customers start talking to XEVEN, they will appear here.", "", ""); return; }
     let html='<div class="table-wrap"><table><thead><tr><th>Customer</th><th>Contact</th><th>Conversations</th><th>Last active</th><th></th></tr></thead><tbody>';
     list.forEach(c=>{
       const id=esc(c.customerId||c.customer_id||"—"); const name=esc(c.name||"—"); const email=esc(c.email||"—"); const created=c.createdAt?new Date(c.createdAt).toLocaleDateString():"—";
       const count = c.conversationCount||c.conversations||"—";
-      html+='<tr style="cursor:pointer" onclick="openCustomer(\''+id+'\')"><td><b>'+(name!=="—"?name:id)+'</b><div class="muted xs">'+id+'</div></td><td>'+email+'</td><td>'+count+'</td><td class="muted xs">'+created+'</td><td><span class="pill" style="font-size:10px;background:var(--warn-bg);border-color:var(--warn-border);color:#92400e">View only</span></td></tr>';
+      html+='<tr style="cursor:pointer" data-act="open-customer" data-id="'+esc(String(c.customerId||c.customer_id||""))+'"><td><b>'+(name!=="—"?name:id)+'</b><div class="muted xs">'+id+'</div></td><td>'+email+'</td><td>'+count+'</td><td class="muted xs">'+created+'</td><td><span class="pill" style="font-size:10px;background:var(--warn-bg);border-color:var(--warn-border);color:#92400e">View only</span></td></tr>';
     });
     html+='</tbody></table></div><div class="muted xs" style="margin-top:8px">'+list.length+' customers • Tap a row to view profile • <span style="color:var(--warn)">Erase is view only — contact admin (affects follow-ups)</span></div>';
     el.innerHTML=html;
@@ -460,12 +506,12 @@
       const list=d.conversations||[];
       CACHE.conversations=list;
       if(!list.length){
-        pane.innerHTML='<div class="card"><h3>Conversations</h3>'+emptyState("No conversations yet.", "When customers start talking to NOVA, their conversations will appear here.", "", "")+'</div>'; return;
+        pane.innerHTML='<div class="card"><h3>Conversations</h3>'+emptyState("No conversations yet.", "When customers start talking to XEVEN, their conversations will appear here.", "", "")+'</div>'; return;
       }
       let html='<div class="card"><div class="card-head"><h3>Conversations</h3><div class="row" style="gap:8px;flex:0 0 auto"><input id="convSearch" placeholder="Search customer or ID..." style="width:220px" oninput="filterConvs()"><button class="btn ghost small" onclick="loadConversations()">Refresh</button></div></div>';
       html+='<div style="display:grid;grid-template-columns:320px 1fr;gap:14px;min-height:420px">';
       html+='<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)"><div style="padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between"><b style="font-size:13px">Customers</b><span class="pill" style="font-size:11px">'+list.length+' total</span></div><div id="convList" style="max-height:520px;overflow:auto"></div></div>';
-      html+='<div style="border:1px solid var(--line);border-radius:10px;background:var(--surface);display:flex;flex-direction:column"><div id="convDetailHead" style="padding:14px 16px;border-bottom:1px solid var(--line)"><span class="muted">Select a conversation</span></div><div id="convDetailBody" style="flex:1;padding:16px;overflow:auto;min-height:200px" class="muted">—</div><div style="padding:10px 12px;border-top:1px solid var(--line);display:flex;gap:8px"><input id="convReply" placeholder="Reply as NOVA (test)..." style="flex:1" onkeydown="if(event.key===\'Enter\') sendConvReply()"><button class="btn ghost small" onclick="sendConvReply()">Send</button></div></div>';
+      html+='<div style="border:1px solid var(--line);border-radius:10px;background:var(--surface);display:flex;flex-direction:column"><div id="convDetailHead" style="padding:14px 16px;border-bottom:1px solid var(--line)"><span class="muted">Select a conversation</span></div><div id="convDetailBody" style="flex:1;padding:16px;overflow:auto;min-height:200px" class="muted">—</div><div style="padding:10px 12px;border-top:1px solid var(--line);display:flex;gap:8px"><input id="convReply" placeholder="Reply as XEVEN (test)..." style="flex:1" onkeydown="if(event.key===\'Enter\') sendConvReply()"><button class="btn ghost small" onclick="sendConvReply()">Send</button></div></div>';
       html+='</div></div>';
       pane.innerHTML=html;
       renderConvList(list);
@@ -485,7 +531,7 @@
     if(!list.length){ el.innerHTML='<div class="empty" style="margin:12px;border:0"><p>No matches</p></div>'; return; }
     el.innerHTML=list.map(c=>{
       const cid=esc(c.conversation_id||c.conversationId||c.id||"—"); const cust=esc(c.customer_id||c.customerId||"—"); const upd=c.updated_at?new Date(c.updated_at).toLocaleString():"—"; const count=c.message_count||c.messageCount||0;
-      return '<div onclick="openConv(\''+cid+'\')" style="padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;transition:.12s" onmouseenter="this.style.background=\'var(--bg-subtle)\'" onmouseleave="this.style.background=\'transparent\'"><div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:13px">'+cust+'</b><span class="muted xs">'+count+' msgs</span></div><div class="muted xs" style="margin-top:4px">'+cid+'</div><div class="muted xs">'+upd+'</div></div>';
+      return '<div data-act="open-conv" data-id="'+esc(cid)+'" style="padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;transition:.12s" onmouseenter="this.style.background=\'var(--bg-subtle)\'" onmouseleave="this.style.background=\'transparent\'"><div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:13px">'+cust+'</b><span class="muted xs">'+count+' msgs</span></div><div class="muted xs" style="margin-top:4px">'+cid+'</div><div class="muted xs">'+upd+'</div></div>';
     }).join("");
   }
   let _openConvId=null;
@@ -501,8 +547,8 @@
       let html='';
       if(cur){
         html+='<div class="grid" style="grid-template-columns:1fr 1fr;gap:10px"><div class="kpi" style="padding:12px"><div class="n" style="font-size:14px">'+esc(String(cur.message_count||0))+'</div><div class="l">Messages</div></div><div class="kpi" style="padding:12px"><div class="n" style="font-size:14px">'+esc(cur.customer_id||cur.customerId||"—")+'</div><div class="l">Customer</div></div></div>';
-        html+='<div style="margin-top:12px" class="card" style="background:var(--bg-subtle)"><h3>What NOVA did</h3><p class="muted" style="margin:0;line-height:1.6">This conversation has '+esc(String(cur.message_count||0))+' messages. Full transcript is stored server-side and used for context. Use the preview on the Agent page or the input below to test how NOVA responds to this customer type.</p><div class="muted xs" style="margin-top:8px">Updated: '+(cur.updated_at?new Date(cur.updated_at).toLocaleString():"—")+' • Channel: '+esc(cur.channel||"api")+'</div></div>';
-        html+='<div class="card"><h3>Test a follow-up</h3><p class="muted xs" style="margin:0 0 8px">Send a message as this customer to see how NOVA would reply right now.</p><div class="row"><input id="convTestInput" placeholder="Ask as '+esc(cur.customer_id||"customer")+'..." style="flex:1"><button class="btn primary small" onclick="sendConvTest()">Test</button></div><div id="convTestOut" style="margin-top:10px" class="muted"></div></div>';
+        html+='<div style="margin-top:12px" class="card" style="background:var(--bg-subtle)"><h3>What XEVEN did</h3><p class="muted" style="margin:0;line-height:1.6">This conversation has '+esc(String(cur.message_count||0))+' messages. Full transcript is stored server-side and used for context. Use the preview on the Agent page or the input below to test how XEVEN responds to this customer type.</p><div class="muted xs" style="margin-top:8px">Updated: '+(cur.updated_at?new Date(cur.updated_at).toLocaleString():"—")+' • Channel: '+esc(cur.channel||"api")+'</div></div>';
+        html+='<div class="card"><h3>Test a follow-up</h3><p class="muted xs" style="margin:0 0 8px">Send a message as this customer to see how XEVEN would reply right now.</p><div class="row"><input id="convTestInput" placeholder="Ask as '+esc(cur.customer_id||"customer")+'..." style="flex:1"><button class="btn primary small" onclick="sendConvTest()">Test</button></div><div id="convTestOut" style="margin-top:10px" class="muted"></div></div>';
       } else {
         html=emptyState("Conversation not found", "This conversation may have been archived.", "", "");
       }
@@ -513,7 +559,7 @@
   window.sendConvTest = async function(){
     const inp=$("convTestInput"); const out=$("convTestOut"); if(!inp||!out) return; const t=inp.value.trim(); if(!t) return;
     out.innerHTML='<span class="muted">Thinking…</span>';
-    try{ const r=await api("POST","/chat/test",{message:t, messages:[{role:"user", content:t}]}); out.innerHTML='<div style="border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface-2);margin-top:8px"><b class="muted xs">NOVA</b><div style="margin-top:4px">'+esc(r.reply)+'</div></div>'; }catch(e){ out.innerHTML='<span style="color:var(--bad)">'+esc(e.message)+'</span>'; }
+    try{ const r=await api("POST","/chat/test",{message:t, messages:[{role:"user", content:t}]}); out.innerHTML='<div style="border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface-2);margin-top:8px"><b class="muted xs">XEVEN</b><div style="margin-top:4px">'+esc(r.reply)+'</div></div>'; }catch(e){ out.innerHTML='<span style="color:var(--bad)">'+esc(e.message)+'</span>'; }
   };
   // --- Followups ---
   async function loadFollowups(){
@@ -529,7 +575,7 @@
       Object.entries(counts).forEach(([k,v])=>{ html+='<div class="kpi" style="padding:12px"><div class="n" style="font-size:16px">'+v+'</div><div class="l">'+esc(k)+'</div></div>'; });
       html+='</div><p class="muted xs" style="margin:10px 0 0">Pending → Scheduled → Sent → Completed. Failed jobs retry per your policy.</p></div>';
       if(!jobs.length){
-        html+=emptyState("No follow-ups yet.", "When NOVA schedules a follow-up (cart, lead), it will appear here.", "", "");
+        html+=emptyState("No follow-ups yet.", "When XEVEN schedules a follow-up (cart, lead), it will appear here.", "", "");
       } else {
         html+='<div class="card"><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Email</th><th>Kind</th><th>Status</th><th>Attempts</th><th>Next send</th></tr></thead><tbody>';
         jobs.forEach(j=>{
@@ -556,7 +602,7 @@
       // Try guide
       let guide=null; try{ const g=await api("GET","/site/guide"); guide=g.guide; }catch{}
       let html='';
-      html+='<div class="card"><div class="card-head"><div><h2 style="font-size:16px">Website</h2><p class="muted" style="margin:4px 0 0">Teach NOVA your website — guided workflow, not technical config.</p></div>'+(guide?'<span class="status ok"><span class="dot ok"></span> Synced</span>':'<span class="status neutral">Not synced</span>')+'</div>';
+      html+='<div class="card"><div class="card-head"><div><h2 style="font-size:16px">Website</h2><p class="muted" style="margin:4px 0 0">Teach XEVEN your website — guided workflow, not technical config.</p></div>'+(guide?'<span class="status ok"><span class="dot ok"></span> Synced</span>':'<span class="status neutral">Not synced</span>')+'</div>';
       html+='<label>Website URL<input id="siteUrl" value="'+esc(siteUrl||"")+'" placeholder="https://example.com"></label>';
       html+='<div class="row" style="margin-top:8px"><button class="btn primary" onclick="analyzeSite()">Start learning</button><button class="btn ghost" onclick="previewGuide()">Preview Guide</button><span id="siteMsg" class="muted xs"></span></div>';
       html+='<div id="siteProgress" style="margin-top:14px"></div>';
@@ -595,7 +641,7 @@
         var bar=document.getElementById("siteProgBar"); if(bar) bar.style.width="100%";
         setTimeout(function(){
           if(m) m.textContent="Learned "+(r.products?.length??r.total??"")+" products";
-          if(prog) prog.innerHTML='<div class="pill" style="background:var(--ok-bg);border-color:var(--ok-border);color:var(--ok)"><span class="dot ok"></span> Fully synced • '+(r.products?.length??"")+' products • '+(r.knowledge?.length??"")+' chunks</div><div style="margin-top:8px" class="row"><button class="btn ghost small" onclick="loadWebsite()">Refresh</button><button class="btn ghost small" onclick="selectTab(\'knowledge\')">View Knowledge</button> <button class="btn primary small" onclick="previewGuide()">Preview Guide</button></div>';
+          if(prog) prog.innerHTML='<div class="pill" style="background:var(--ok-bg);border-color:var(--ok-border);color:var(--ok)"><span class="dot ok"></span> Fully synced • '+(r.products?.length??"")+' products • '+(r.knowledge?.length??"")+' chunks</div><div style="margin-top:8px" class="row"><button class="btn ghost small" onclick="loadWebsite()">Refresh</button><button class="btn ghost small" data-act="go-tab-portal" data-tab="knowledge">View Knowledge</button> <button class="btn primary small" onclick="previewGuide()">Preview Guide</button></div>';
           toast("Website learned");
         }, 320);
       }
@@ -620,7 +666,10 @@
       html+='<div class="card"><div class="card-head"><div><h2 style="font-size:16px">Voice</h2><p class="muted" style="margin:4px 0 0">Premium AI voice — phone-ready when you are.</p></div><span class="status '+(echo.enabled!==false?"ok":"neutral")+'"><span class="dot '+(echo.enabled!==false?"ok":"neutral")+'"></span> '+(echo.enabled!==false?"Active":"Not configured")+'</span></div>';
       html+='<div class="row"><div><label>Greeting<input id="voiceGreeting" value="'+esc(call.greetingTemplate||"")+'" placeholder="Hello, thank you for calling..."></label></div><div><label>Handoff phone<input id="voicePhone" value="'+esc(call.handoffPhone||"")+'"></label></div></div>';
       html+='<div class="row"><div><label>Handoff email<input id="voiceEmail" type="email" value="'+esc(call.handoffEmail||"")+'"></label></div><div><label>Language<select id="voiceLang"><option value="en" '+(echo.defaultLanguage==="en"?"selected":"")+'>en</option><option value="es" '+(echo.defaultLanguage==="es"?"selected":"")+'>es</option><option value="fr" '+(echo.defaultLanguage==="fr"?"selected":"")+'>fr</option><option value="de" '+(echo.defaultLanguage==="de"?"selected":"")+'>de</option><option value="auto" '+(echo.defaultLanguage==="auto"?"selected":"")+'>auto</option></select></label></div><div><label>Sidecar<input id="voiceSidecar" value="'+esc(echo.sidecarUrl||"")+'" placeholder="http://127.0.0.1:8765"></label></div></div>';
-      html+='<label>Initial prompt<input id="voicePrompt" value="'+esc(echo.initialPrompt||"")+'" placeholder="NOVA Style..."></label>';
+      html+='<label>Initial prompt<input id="voicePrompt" value="'+esc(echo.initialPrompt||"")+'" placeholder="XEVEN Style..."></label>';
+      html+='<div class="row"><div><label>Speech voice<select id="voiceModel">'
+        +["piper","elevenlabs","openai","melo"].map(m=>'<option value="'+m+'"'+(echo.model===m?"selected":"")+'>'+m+"</option>").join("")
+        +'</select></label><p class="muted xs" style="margin:6px 0 0">melo speaks 6 languages locally — needs its sidecar, else falls through.</p></div></div>';
       html+='<label style="display:flex;align-items:center;gap:8px;margin-top:8px"><input type="checkbox" id="voiceWordTs" '+(echo.wordTimestamps?"checked":"")+' style="width:auto;margin:0"> <span class="muted" style="font-size:13px">Word timestamps</span></label>';
       html+='<div class="row" style="margin-top:12px"><button class="btn primary" onclick="saveVoice()">Save voice settings</button><button class="btn ghost" onclick="testVoice()">▶ Test</button><span id="voiceMsg" class="muted xs"></span></div>';
       html+='</div>';
@@ -643,7 +692,7 @@
           if(head && !head.querySelector("#voiceLock")){ const lock=document.createElement("span"); lock.id="voiceLock"; lock.className="pill"; lock.style.background="var(--warn-bg)"; lock.style.borderColor="var(--warn-border)"; lock.style.color="#92400e"; lock.textContent="Add-on required"; head.appendChild(lock); }
           // add purchase hint
           if(!pane.querySelector("#voicePurchaseHint")){
-            const hint=document.createElement("div"); hint.id="voicePurchaseHint"; hint.className="card"; hint.style.background="var(--warn-bg)"; hint.style.borderColor="var(--warn-border)"; hint.innerHTML='<b style="color:#92400e">Voice is restricted — purchase Voice Channel add-on</b><p class="muted xs" style="margin:6px 0 0">Enable via Integrations → Voice Channel or upgrade to Scale/Unlimited. Sidecar 24/7 at '+esc(echo.sidecarUrl||"http://127.0.0.1:8765")+'.</p><button class="btn primary small" onclick="selectTab(\'integrations\')">Go to Integrations</button>';
+            const hint=document.createElement("div"); hint.id="voicePurchaseHint"; hint.className="card"; hint.style.background="var(--warn-bg)"; hint.style.borderColor="var(--warn-border)"; hint.innerHTML='<b style="color:#92400e">Voice is restricted — purchase Voice Channel add-on</b><p class="muted xs" style="margin:6px 0 0">Enable via Integrations → Voice Channel or upgrade to Scale/Unlimited. Sidecar 24/7 at '+esc(echo.sidecarUrl||"http://127.0.0.1:8765")+'.</p><button class="btn primary small" data-act="go-tab-portal" data-tab="integrations">Go to Integrations</button>';
             pane.insertBefore(hint, pane.children[1]);
           }
         } else {
@@ -686,8 +735,8 @@
         let ch='<div class="card"><h3>Recent transcripts</h3>';
         if(!list.length) ch+=emptyState("No transcripts yet.", "Transcripts from voice calls will appear here.", "", "");
         else {
-          ch+='<div class="table-wrap"><table><thead><tr><th>Customer</th><th>Lang</th><th>Text</th></tr></thead><tbody>';
-          list.slice(0,10).forEach(t=>{ ch+='<tr><td>'+esc(t.customer_id||"—")+'</td><td>'+esc(t.language||"—")+'</td><td style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc((t.transcript||"").slice(0,120))+'</td></tr>'; });
+          ch+='<div class="table-wrap"><table><thead><tr><th>Customer</th><th>Lang</th><th>Text</th><th>Notes</th></tr></thead><tbody>';
+          list.slice(0,10).forEach(t=>{ ch+='<tr><td>'+esc(t.customer_id||"?")+'</td><td>'+esc(t.language||"?")+'</td><td style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc((t.transcript||"").slice(0,120))+'</td><td><button class="btn ghost small" data-note="'+esc(t.transcript_id||"")+'" onclick="transcriptNotes(this)">Notes</button></td></tr>'; });
           ch+='</tbody></table></div>';
         }
         ch+='</div>';
@@ -710,6 +759,7 @@
       sidecarUrl:$("voiceSidecar")?.value||"",
       initialPrompt:$("voicePrompt")?.value||"",
       wordTimestamps:!!$("voiceWordTs")?.checked,
+      ttsModel:$("voiceModel")?.value||"",
       echoEnabled:true
     };
     try{
@@ -719,6 +769,28 @@
     }catch(e){ toast(e.message); }
   };
   window.testVoice = function(){ toast("Voice test — check sidecar at "+($("voiceSidecar")?.value||"http://127.0.0.1:8765")); };
+  window.transcriptNotes = async function(btn){
+    try{
+      var id = btn.getAttribute("data-note") || "";
+      var tr = btn.closest("tr");
+      var open = tr && tr.nextElementSibling && tr.nextElementSibling.classList.contains("note-row");
+      var old = tr && tr.parentNode.querySelector(".note-row");
+      if (old) old.remove();
+      if (open || !id) return;
+      btn.disabled = true;
+      var prev = btn.textContent;
+      btn.textContent = "…";
+      var r = await api("POST", "/voice/notes", { transcriptId: id });
+      var n = (r && r.notes) || { summary: "", actionItems: [], keyPoints: [] };
+      var html = '<tr class="note-row"><td colspan="4"><b>Summary.</b> ' + esc(n.summary || "—");
+      html += '<br><b>Actions.</b> ' + ((n.actionItems || []).map(esc).join(" · ") || "—");
+      html += '<br><b>Points.</b> ' + ((n.keyPoints || []).map(esc).join(" · ") || "—") + '</td></tr>';
+      tr.insertAdjacentHTML("afterend", html);
+      btn.textContent = "Hide";
+      btn.disabled = false;
+      btn.onclick = function(){ var x = tr.nextElementSibling; if (x && x.classList.contains("note-row")) x.remove(); btn.textContent = "Notes"; btn.onclick = function(){ window.transcriptNotes(btn); }; };
+    }catch(e){ toast(e.message); btn.disabled = false; btn.textContent = "Notes"; }
+  };
   // --- Schedule ---
   async function loadSchedule(){
     const pane=$("tab-schedule"); if(!pane) return;
@@ -747,7 +819,7 @@
       // gated: Chrono is core (bookings:true all plans) but show Live 24/7 badge when editable — otherwise hint to upgrade
       const canEditSched = (()=>{
         const plan=(ME&&ME.plan)||"launch";
-        return true; // Chrono live for all — 24/7 with NOVA AI (bookings:true)
+        return true; // Chrono live for all — 24/7 with XEVEN AI (bookings:true)
       })();
       try{
         if(!canEditSched){
@@ -776,7 +848,7 @@
     const el=$("ovTable"); if(!el) return;
     if(!list.length){ el.innerHTML=emptyState("No overrides.", "Holidays and special hours will appear here.", "", ""); return; }
     let h='<div class="table-wrap"><table><thead><tr><th>Date</th><th>Status</th><th>Hours</th><th></th></tr></thead><tbody>';
-    list.forEach(o=>{ h+='<tr><td>'+esc(o.date||o.override_id||"—")+'</td><td><span class="pill">'+(o.is_closed?"Closed":"Open")+'</span></td><td>'+esc((o.open_time||"")+" - "+(o.close_time||""))+'</td><td><button class="btn ghost small" onclick="deleteOverride(\''+esc(o.override_id)+'\')">✕</button></td></tr>'; });
+    list.forEach(o=>{ h+='<tr><td>'+esc(o.date||o.override_id||"—")+'</td><td><span class="pill">'+(o.is_closed?"Closed":"Open")+'</span></td><td>'+esc((o.open_time||"")+" - "+(o.close_time||""))+'</td><td><button class="btn ghost small" data-act="delete-override" data-id="'+esc(o.override_id)+'">✕</button></td></tr>'; });
     h+='</tbody></table></div>'; el.innerHTML=h;
   }
   window.saveSchedule = async function(){
@@ -821,21 +893,21 @@
       let html='<div class="card"><div class="card-head"><h3>Integrations</h3><span class="status ok"><span class="dot ok"></span> Operational</span></div><p class="muted" style="margin:0 0 12px">Each integration has clear status — connected or not.</p>';
       html+='<div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">';
       if(!list.length){
-        html+=emptyState("No integrations yet.", "Connect payments, calendars, and tools to extend NOVA.", "", "");
+        html+=emptyState("No integrations yet.", "Connect payments, calendars, and tools to extend XEVEN.", "", "");
       } else {
         list.forEach(a=>{
           const name=esc(a.meta?.label||a.key); const desc=esc(a.meta?.description||""); const enabled=!!a.enabled;
           const icon = a.key==="voice_channel"?"◍":a.key==="multilanguage"?"◎":a.key==="custom_behaviour"?"✦":"⬣";
-          html+='<div style="border:1px solid var(--line);border-radius:10px;padding:16px;background:var(--surface)"><div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center">'+icon+'</div><div><b>'+name+'</b><div class="muted xs">'+desc+'</div></div><span class="spacer"></span><span class="status '+(enabled?"ok":"neutral")+'">'+(enabled?"Connected":"Not connected")+'</span></div><div class="row" style="margin-top:12px"><button class="btn '+(enabled?"ghost":"primary")+' small" onclick="toggleAddon(\''+esc(a.key)+'\','+(!enabled)+')">'+(enabled?"Configure":"Connect")+'</button>'+(enabled?'<button class="btn ghost small" onclick="toggleAddon(\''+esc(a.key)+'\',false)">Disconnect</button>':"")+'</div></div>';
+          html+='<div style="border:1px solid var(--line);border-radius:10px;padding:16px;background:var(--surface)"><div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center">'+icon+'</div><div><b>'+name+'</b><div class="muted xs">'+desc+'</div></div><span class="spacer"></span><span class="status '+(enabled?"ok":"neutral")+'">'+(enabled?"Connected":"Not connected")+'</span></div><div class="row" style="margin-top:12px"><button class="btn '+(enabled?"ghost":"primary")+' small" data-act="toggle-addon" data-id="'+esc(a.key)+'" data-on="'+(!enabled)+'">'+(enabled?"Configure":"Connect")+'</button>'+(enabled?'<button class="btn ghost small" data-act="toggle-addon" data-id="'+esc(a.key)+'" data-on="false">Disconnect</button>':"")+'</div></div>';
         });
       }
       html+='</div></div>';
       // Widget snippet — real integration (repo-learned: show both widget + tracker, copy UX)
       try{
         const bizId = ME.business?.businessId || ME.business?.business_id || "";
-        const widgetCode='&lt;script src="'+location.origin+'/widget/nova-widget.js" data-public-key="YOUR_PUBLIC_KEY" defer&gt;&lt;/script&gt;';
-        const trackerCode='&lt;script src="'+location.origin+'/widget/nova-tracker.js" data-public-key="YOUR_PUBLIC_KEY"&gt;&lt;/script&gt;';
-        html+='<div class="card"><div class="card-head"><h3>Website widget</h3><span class="status ok"><span class="dot ok"></span> Live</span></div><p class="muted" style="margin:0 0 10px">Your chat widget — paste on your site. Grounded answers only. Tracker records page_view automatically; call <code class="key" style="padding:2px 6px">NOVATracker.productView</code> for rich context.</p><div class="code" id="widgetSnippet" style="position:relative">'+widgetCode+'<br>'+trackerCode+'</div><div class="row" style="margin-top:10px"><button class="btn ghost small" onclick="copyWidgetSnippet()">Copy snippet</button><button class="btn ghost small" onclick="selectTab(\'website\')">Sync website →</button></div><p class="muted xs" style="margin-top:8px">Public key is per-business — ask admin at <b>Admin → Settings → Rotate key</b> if needed.</p></div>';
+        const widgetCode='&lt;script src="'+location.origin+'/widget/xeven-widget.js" data-public-key="YOUR_PUBLIC_KEY" defer&gt;&lt;/script&gt;';
+        const trackerCode='&lt;script src="'+location.origin+'/widget/xeven-tracker.js" data-public-key="YOUR_PUBLIC_KEY"&gt;&lt;/script&gt;';
+        html+='<div class="card"><div class="card-head"><h3>Website widget</h3><span class="status ok"><span class="dot ok"></span> Live</span></div><p class="muted" style="margin:0 0 10px">Your chat widget — paste on your site. Grounded answers only. Tracker records page_view automatically; call <code class="key" style="padding:2px 6px">XevenTracker.productView</code> for rich context.</p><div class="code" id="widgetSnippet" style="position:relative">'+widgetCode+'<br>'+trackerCode+'</div><div class="row" style="margin-top:10px"><button class="btn ghost small" onclick="copyWidgetSnippet()">Copy snippet</button><button class="btn ghost small" data-act="go-tab-portal" data-tab="website">Sync website →</button></div><p class="muted xs" style="margin-top:8px">Public key is per-business — ask admin at <b>Admin → Settings → Rotate key</b> if needed.</p></div>';
       }catch{}
       pane.innerHTML=html;
       // view-only lock — integrations affect channels, portal views only
@@ -867,7 +939,7 @@
       html+='<div class="row"><div><label>Timezone<input id="bizTimezone" value="'+esc(s.timezone||"UTC")+'" placeholder="Europe/London"></label></div><div><label>Address<input id="bizAddress" value="'+esc(s.address||"")+'" placeholder="123 High St, London"></label></div></div>';
       html+='<div class="row" style="margin-top:12px"><button class="btn primary" onclick="saveBusiness()">Save business</button><span id="bizMsg" class="muted xs"></span></div>';
       html+='</div>';
-      html+='<div class="card"><h3>AI vs Business</h3><p class="muted" style="margin:0;line-height:1.6">Business is your identity (name, contact, hours). AI is how NOVA behaves (Agent, Knowledge, Behaviors, Memory). This separation keeps your AI operating system clean — edit AI under <b>AI</b> in the sidebar.</p></div>';
+      html+='<div class="card"><h3>AI vs Business</h3><p class="muted" style="margin:0;line-height:1.6">Business is your identity (name, contact, hours). AI is how XEVEN behaves (Agent, Knowledge, Behaviors, Memory). This separation keeps your AI operating system clean — edit AI under <b>AI</b> in the sidebar.</p></div>';
       pane.innerHTML=html;
     }catch(e){ pane.innerHTML=errorState(e.message, "loadBusiness()"); }
   }
@@ -887,8 +959,8 @@
     try{
       const me=await api("GET","/me"); const s=me.settings||{};
       let html='';
-      html+='<div class="card"><div class="card-head"><div><h2 style="font-size:16px">Preferences</h2><p class="muted" style="margin:4px 0 0">How NOVA contacts customers — email identity and follow-up cadence.</p></div><span class="pill">Per-business</span></div>';
-      html+='<div class="card"><h3>Send-as email (SMTP)</h3><p class="muted xs" style="margin:0 0 10px">NOVA never sends from itself — it sends from your address.</p>';
+      html+='<div class="card"><div class="card-head"><div><h2 style="font-size:16px">Preferences</h2><p class="muted" style="margin:4px 0 0">How XEVEN contacts customers — email identity and follow-up cadence.</p></div><span class="pill">Per-business</span></div>';
+      html+='<div class="card"><h3>Send-as email (SMTP)</h3><p class="muted xs" style="margin:0 0 10px">XEVEN never sends from itself — it sends from your address.</p>';
       html+='<div class="row"><div><label>SMTP host<input id="smtpHost" value="'+esc(s.smtpHost||"")+'" placeholder="smtp.gmail.com"></label></div><div><label>Port<input id="smtpPort" type="number" value="'+esc(s.smtpPort||587)+'"></label></div></div>';
       html+='<div class="row"><div><label>SMTP user<input id="smtpUser" type="email" value="'+esc(s.smtpUser||"")+'"></label></div><div><label>Password<input id="smtpPass" type="password" placeholder="(unchanged)"></label></div></div>';
       html+='<div class="row"><div><label>From name<input id="smtpFrom" value="'+esc(s.smtpFromName||"")+'" placeholder="Your Store"></label></div><div style="flex:0 0 auto;padding-top:18px"><button class="btn ghost" onclick="testEmail()">Send test email</button></div></div>';
@@ -965,7 +1037,7 @@
     // offline banner
     var ob=document.createElement("div"); ob.id="offlineBanner";
     ob.style.cssText="position:fixed;top:0;left:0;right:0;z-index:99;background:var(--warn-bg);border-bottom:1px solid var(--warn-border);color:#92400e;padding:8px 14px;text-align:center;font-size:12px;font-weight:700;display:none;backdrop-filter:blur(8px)";
-    ob.textContent="You are offline — NOVA will retry when back online";
+    ob.textContent="You are offline — XEVEN will retry when back online";
     document.body.prepend(ob);
     function syncOffline(){ ob.style.display=navigator.onLine?"none":"block"; }
     window.addEventListener("online", syncOffline); window.addEventListener("offline", syncOffline); syncOffline();
@@ -976,24 +1048,24 @@
   // --- robust login wiring: ensure form submit works even if DOM not ready at script load ---
   function attachLoginHandlers(){
     const form = document.getElementById("loginForm");
-    if(form && !form._novaBound){
-      form._novaBound = true;
+    if(form && !form._xevenBound){
+      form._xevenBound = true;
       form.addEventListener("submit", e=>{ e.preventDefault(); login(); });
     }
     const pass = document.getElementById("liPass");
-    if(pass && !pass._novaBound){
-      pass._novaBound = true;
+    if(pass && !pass._xevenBound){
+      pass._xevenBound = true;
       pass.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); login(); }});
     }
     const email = document.getElementById("liEmail");
-    if(email && !email._novaBound){
-      email._novaBound = true;
+    if(email && !email._xevenBound){
+      email._xevenBound = true;
       email.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); login(); }});
     }
     // also ensure button click directly triggers login (covers case where form submit not wired)
     const btn = form?.querySelector('button[type="submit"]');
-    if(btn && !btn._novaBound){
-      btn._novaBound = true;
+    if(btn && !btn._xevenBound){
+      btn._xevenBound = true;
       btn.addEventListener("click", e=>{
         e.preventDefault();
         login();

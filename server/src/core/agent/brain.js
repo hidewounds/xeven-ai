@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * NOVA Unified Agent Brain — Pattern Learning Architecture
+ * XEVEN Unified Agent Brain — Pattern Learning Architecture
  * 
  * REPLACES: server/src/core/config/roles.js + server/src/core/agent/prompt.js
  * ARCHITECTURE: One brain that learns role PATTERNS from training data rather than constrained role-switching.
@@ -247,7 +247,7 @@ function buildUnifiedPrompt({ config, customer, memories = [], behaviorEvents = 
 
     // Identity — no ROLE, no role-switching. One unified brain.
     const identityLines = [
-        `You are ${assistant.name || "NOVA"}, a unified AI assistant operating on behalf of a business.`,
+        `You are ${assistant.name || "XEVEN"}, a unified AI assistant operating on behalf of a business.`,
         `You have learned expertise across multiple domains through pattern training — you adapt fluidly to each unique conversation by drawing on the most effective learned patterns, not by switching roles.`,
     ];
     if (assistant.businessDescription) {

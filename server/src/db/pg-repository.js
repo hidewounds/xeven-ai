@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * PostgreSQL repository implementation for NOVA.
+ * PostgreSQL repository implementation for XEVEN.
  * Implements the same interface as the SQLite repository for clean swapping.
  * 
  * Usage:
@@ -21,7 +21,7 @@ class PgRepository {
         this.pool = new Pool({
             host: config.host || process.env.PG_HOST || "localhost",
             port: config.port || Number(process.env.PG_PORT) || 5432,
-            database: config.database || process.env.PG_DATABASE || "nova",
+            database: config.database || process.env.PG_DATABASE || "xeven",
             user: config.user || process.env.PG_USER || "postgres",
             password: config.password || process.env.PG_PASSWORD || "",
             ssl: config.ssl || (process.env.PG_SSL === "true" ? { rejectUnauthorized: false } : false),

@@ -8,7 +8,7 @@
 const test = require("node:test");
 const assert = require("node:assert");
 const { startServer, api, setupBusiness } = require("./helpers");
-const { normalizeBusinessId } = require("../server/src/core/config/service");
+const { normalizeBusinessId } = require("../server/src/core/tenancy/guards");
 
 async function setupTwoBusinesses(server) {
     const a = await setupBusiness(server.baseUrl, { name: "Tenant A" });

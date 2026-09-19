@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Reward function for NOVA Unified Brain RLHF
+ * Reward function for XEVEN Unified Brain RLHF
  * Based on rkinas/reasoning_models_how_to — Methods for LLM Training (PPO/DPO/GRPO)
  * 
  * Optimizes for: task-completion-success, user-satisfaction, knowledge-accuracy

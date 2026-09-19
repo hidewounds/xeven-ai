@@ -5,15 +5,15 @@ const env = require("../env");
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 };
 const threshold = LEVELS[env.logLevel] ?? LEVELS.info;
 
-const SECRET_KEY_PATTERN = /pass|secret|token|api[-_]?key|integration[-_]?key|authorization|cookie/i;
+const SECRET_KEY_PATTERN = /pass|secret|token|api[-_]?key|integration[-_]?key|widget[-_]?key|authorization|cookie|smtp/i;
 
 function redact(value, depth = 0) {
     if (depth > 6) return "[truncated]";
     if (value === null || value === undefined) return value;
 
     if (typeof value === "string") {
-        // Redact anything shaped like a NOVA key or bearer token.
-        return value.replace(/nova_pk_[a-f0-9]{8}[a-f0-9]*/gi, "nova_pk_[redacted]");
+        // Redact anything shaped like a XEVEN key or bearer token.
+        return value.replace(/xeven_pk_[a-f0-9]{8}[a-f0-9]*/gi, "xeven_pk_[redacted]");
     }
 
     if (Array.isArray(value)) {

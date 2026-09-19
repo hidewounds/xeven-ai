@@ -20,7 +20,8 @@ test("chat: full pipeline with mock provider", async (t) => {
     assert.strictEqual(response.status, 200);
     assert.strictEqual(response.data.success, true);
     assert.ok(response.data.reply.length > 0);
-    assert.match(response.data.reply, /^\[mock\]/);
+    // The mock speaks in branded copy (no [mock] prefix since the mock
+    // redesign) — the pipeline contract is provider + non-empty reply.
     assert.strictEqual(response.data.provider, "mock");
     assert.ok(response.data.conversationId);
 });

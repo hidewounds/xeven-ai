@@ -1,7 +1,7 @@
 "use strict";
 
 const express = require("express");
-const { authenticateIntegration, requireScope } = require("../../auth/integration");
+const { authenticateIntegration, requireScope, requireSecretKey } = require("../../auth/integration");
 const behaviorStore = require("../../core/behavior/store");
 const customers = require("../../core/customers/store");
 const outcomes = require("../../core/outcomes/store");
@@ -22,11 +22,11 @@ router.post("/behavior", requireScope("behavior:write"), (req, res, next) => {
 
         const eventType = String(body.eventType || "");
         const result = behaviorStore.saveBehaviorEvent({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             customerId,
             eventType,
             eventData: body.eventData || {},
-            config: getConfig(req.nova.businessId),
+            config: getConfig(req.xeven.businessId),
         });
 
         // --- growth suite hooks -------------------------------------------------
@@ -37,14 +37,14 @@ router.post("/behavior", requireScope("behavior:write"), (req, res, next) => {
             try {
                 const amountCents = Number(body.eventData?.amount_cents ?? body.eventData?.total_cents) || null;
                 extras.outcome = outcomes.recordOutcome({
-                    businessId: req.nova.businessId,
+                    businessId: req.xeven.businessId,
                     customerId,
                     outcomeType: "purchase",
                     amountCents,
                     sourceEventId: result.event_id || null,
                 }).outcome_uid;
                 // A purchase ends any pending follow-up chain.
-                followUps.markAnswered(req.nova.businessId, customerId, "cart");
+                followUps.markAnswered(req.xeven.businessId, customerId, "cart");
             } catch {
                 // attribution must never break ingestion
             }
@@ -53,10 +53,10 @@ router.post("/behavior", requireScope("behavior:write"), (req, res, next) => {
         // Abandoned carts schedule the follow-up chain (per-business policy).
         if (eventType === "cart" && result.saved) {
             try {
-                const customer = customers.getCustomer(req.nova.businessId, customerId);
+                const customer = customers.getCustomer(req.xeven.businessId, customerId);
                 if (customer && customer.email) {
                     extras.followUp = followUps.scheduleFollowUp({
-                        businessId: req.nova.businessId,
+                        businessId: req.xeven.businessId,
                         customerId,
                         email: customer.email,
                         kind: "cart",
@@ -74,12 +74,12 @@ router.post("/behavior", requireScope("behavior:write"), (req, res, next) => {
     }
 });
 
-router.get("/behavior", requireScope("behavior:read"), (req, res, next) => {
+router.get("/behavior", requireScope("behavior:read"), requireSecretKey, (req, res, next) => {
     try {
         const customerId = customers.validateCustomerId(req.query.customerId);
         if (!customerId) throw badRequest("A valid customerId query parameter is required.");
         const limit = Math.min(Number(req.query.limit) || 50, 200);
-        const result = behaviorStore.listRecentBehavior(req.nova.businessId, customerId, limit);
+        const result = behaviorStore.listRecentBehavior(req.xeven.businessId, customerId, limit);
         // Return flat shape {events:[], total, limit, offset} so data.events is array (tests expect array)
         res.json(result);
     } catch (error) {

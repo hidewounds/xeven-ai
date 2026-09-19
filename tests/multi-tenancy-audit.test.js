@@ -198,14 +198,14 @@ test("audit: widget config - business isolation", async (t) => {
     // Get widget config for A
     const configA = await api(server.baseUrl, "GET", "/api/v1/widget/config", { key: a.integrationKey });
     assert.strictEqual(configA.status, 200);
-    assert.strictEqual(configA.data.config.assistantName, "NOVA");
+    assert.strictEqual(configA.data.config.assistantName, "XEVEN");
 
     // Get widget config for B
     const configB = await api(server.baseUrl, "GET", "/api/v1/widget/config", { key: b.integrationKey });
     assert.strictEqual(configB.status, 200);
     
     // Configs should be different (different business IDs)
-    // Note: Both show "NOVA" as default, but businessId differs
+    // Note: Both show "XEVEN" as default, but businessId differs
 });
 
 // =============================================================================

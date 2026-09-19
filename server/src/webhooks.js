@@ -18,7 +18,7 @@ const WEBHOOK_SECRET = env.webhookSecret;
  */
 function signWebhook(payload) {
     if (!WEBHOOK_SECRET) {
-        throw new Error("NOVA_WEBHOOK_SECRET not configured");
+        throw new Error("XEVEN_WEBHOOK_SECRET not configured");
     }
     const payloadStr = typeof payload === "string" ? payload : JSON.stringify(payload);
     return crypto.createHmac("sha256", WEBHOOK_SECRET).update(payloadStr).digest("base64url");
@@ -39,17 +39,17 @@ function verifyWebhook(payload, signature) {
 
 /**
  * Middleware to verify inbound webhook signatures.
- * Expects signature in 'X-Nova-Signature' header.
+ * Expects signature in 'X-Xeven-Signature' header.
  */
 function webhookVerifyMiddleware(req, res, next) {
     if (!WEBHOOK_SECRET) {
         return next(); // Skip verification if not configured
     }
 
-    const signature = req.headers["x-nova-signature"];
+    const signature = req.headers["x-xeven-signature"];
     if (!signature) {
         return res.status(401).json({
-            error: { code: "webhook_signature_missing", message: "Missing X-Nova-Signature header." },
+            error: { code: "webhook_signature_missing", message: "Missing X-Xeven-Signature header." },
             requestId: req.requestId,
         });
     }
@@ -105,10 +105,10 @@ async function deliverWebhook({ url, payload, maxAttempts = 5, initialDelayMs = 
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-Nova-Signature": signature,
-                    "X-Nova-Event-Type": eventType || "unknown",
-                    "X-Nova-Delivery-Attempt": String(attemptNum),
-                    "User-Agent": "NOVA-Webhook/1.0",
+                    "X-Xeven-Signature": signature,
+                    "X-Xeven-Event-Type": eventType || "unknown",
+                    "X-Xeven-Delivery-Attempt": String(attemptNum),
+                    "User-Agent": "XEVEN-Webhook/1.0",
                 },
                 body: payloadStr,
                 signal: controller.signal,

@@ -2,7 +2,7 @@
 
 /**
  * ECHO — Speech-to-text.
- * NOVA-side abstraction over the whisper (nova-echo) sidecar.
+ * XEVEN-side abstraction over the whisper (xeven-echo) sidecar.
  * Supports both batch HTTP and WebSocket streaming.
  */
 

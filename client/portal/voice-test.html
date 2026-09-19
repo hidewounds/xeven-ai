@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NOVA Voice Test</title>
+    <title>XEVEN Voice Test</title>
     <style>
         * { box-sizing: border-box; font-family: system-ui, sans-serif; }
         body { max-width: 800px; margin: 2rem auto; padding: 1rem; }
@@ -28,7 +28,7 @@
     </style>
 </head>
 <body>
-    <h1>🎙️ NOVA Voice Client Test</h1>
+    <h1>🎙️ XEVEN Voice Client Test</h1>
 
     <div class="card">
         <h2>Connection</h2>
@@ -77,7 +77,7 @@
     <div class="card">
         <h2>Text-to-Speech (Barge-in Test)</h2>
         <div class="row">
-            <input type="text" id="ttsText" value="Hello! This is NOVA speaking. You can interrupt me at any time by starting to speak." style="flex: 1; min-width: 300px;">
+            <input type="text" id="ttsText" value="Hello! This is XEVEN speaking. You can interrupt me at any time by starting to speak." style="flex: 1; min-width: 300px;">
             <button class="btn-primary" id="btnSpeak" disabled>Speak</button>
             <button class="btn-danger" id="btnInterrupt" disabled>Interrupt (Barge-in)</button>
         </div>
@@ -88,7 +88,7 @@
         <div id="log" class="log"></div>
     </div>
 
-    <script src="nova-voice-client.js"></script>
+    <script src="xeven-voice-client.js"></script>
     <script>
         const logEl = document.getElementById("log");
         const transcriptEl = document.getElementById("transcript");
@@ -114,7 +114,7 @@
             const prompt = document.getElementById("prompt").value;
 
             try {
-                voiceClient = new NovaVoiceClient({
+                voiceClient = new XevenVoiceClient({
                     sidecarWsUrl: sidecarUrl,
                     ttsWsUrl: ttsUrl,
                     language: language === "auto" ? undefined : language,

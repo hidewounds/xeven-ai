@@ -23,7 +23,7 @@ router.use(authenticateIntegration);
 router.post("/synthesize", requireScope("tts:synthesize"), express.json({ limit: "1mb" }), async (req, res, next) => {
     try {
         authenticateIntegration(req, res, () => {});
-        if (req.nova?.businessId === undefined) return;
+        if (req.xeven?.businessId === undefined) return;
 
         const body = req.body || {};
         const text = String(body.text || "").trim();
@@ -39,13 +39,13 @@ router.post("/synthesize", requireScope("tts:synthesize"), express.json({ limit:
             style: body.style,
         });
 
-        const config = configService.getConfig(req.nova.businessId);
+        const config = configService.getConfig(req.xeven.businessId);
         const result = await require("../../core/echo/tts").synthesize({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             text: body.text,
             params,
             config: {
-                ttsSidecarUrl: config.echo?.ttsSidecarUrl || env.NOVA_TTS_SIDECAR_URL || env.echoSidecarUrl,
+                ttsSidecarUrl: config.echo?.ttsSidecarUrl || env.XEVEN_TTS_SIDECAR_URL || env.echoSidecarUrl,
             },
         });
         // For rewired Echo: if server TTS returns no audio (no sidecar/key on Vercel), tell client to use browser TTS
@@ -67,7 +67,7 @@ router.post("/synthesize", requireScope("tts:synthesize"), express.json({ limit:
 router.get("/voices", requireScope("tts:read"), (req, res, next) => {
     try {
         authenticateIntegration(req, res, () => {});
-        if (req.nova?.businessId === undefined) return;
+        if (req.xeven?.businessId === undefined) return;
 
         const { listVoices, normalizeLanguage } = require("../../core/echo/tts");
         const model = String(req.query.model || "piper").toLowerCase();

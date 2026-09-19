@@ -215,7 +215,7 @@ const CAPABILITIES = {
         },
     },
     "guide.start": {
-        summary: "Start website guide — shows step-by-step overlay pointing at real elements, ends with 'Ask me any question on NOVA'. Use when user says guide me / show me around / tour / how does this site work.",
+        summary: "Start website guide — shows step-by-step overlay pointing at real elements, ends with 'Ask me any question on XEVEN'. Use when user says guide me / show me around / tour / how does this site work.",
         risk: "read",
         params: {
             type: "object",
@@ -237,13 +237,13 @@ const CAPABILITIES = {
             if (!guide) {
                 // generic fallback so guide always works even before site analyze (human-like, no training needed)
                 const steps = [
-                    { id:"welcome", title:"Welcome — I'll guide you", selector:"body", description:"Hi, I'm NOVA. I'll show you around in 60 seconds.", position:"center" },
+                    { id:"welcome", title:"Welcome — I'll guide you", selector:"body", description:"Hi, I'm XEVEN. I'll show you around in 60 seconds.", position:"center" },
                     { id:"explore", title:"Explore", selector:"nav, header", description:"Browse what's here — I'll explain as we go.", position:"bottom" },
-                    { id:"ask", title:"Ask me anything on NOVA", selector:"#nova-widget-button", description:"Guide done. Ask any question — I still handle basics like support, sales, bookings.", position:"left" }
+                    { id:"ask", title:"Ask me anything on XEVEN", selector:"#xeven-widget-button", description:"Guide done. Ask any question — I still handle basics like support, sales, bookings.", position:"left" }
                 ];
-                return { status: "ok", guide: { steps, title: "Quick tour", siteUrl: params.siteUrl || "", siteType: "general", products: [] }, message: "I'll guide you in 3 short steps — I'll point at each thing. At the end, ask me any question on NOVA." };
+                return { status: "ok", guide: { steps, title: "Quick tour", siteUrl: params.siteUrl || "", siteType: "general", products: [] }, message: "I'll guide you in 3 short steps — I'll point at each thing. At the end, ask me any question on XEVEN." };
             }
-            return { status: "ok", guide: { steps: guide.steps, title: guide.title, siteUrl: guide.siteUrl, siteType: guide.siteType, products: guide.products.slice(0,3) }, message: `I'll guide you in ${guide.steps.length} steps — I'll point at each thing. At the end, ask me any question on NOVA.` };
+            return { status: "ok", guide: { steps: guide.steps, title: guide.title, siteUrl: guide.siteUrl, siteType: guide.siteType, products: guide.products.slice(0,3) }, message: `I'll guide you in ${guide.steps.length} steps — I'll point at each thing. At the end, ask me any question on XEVEN.` };
         },
     },
     "guide.next": {
@@ -558,7 +558,7 @@ function conversationCount(conversationId) {
 
 const { parseStructuredOutput, SCHEMAS } = require("../ai/structured-output");
 
-const FENCE_RE = /```(?:json|nova-tool)?\s*\n([\s\S]*?)```/g;
+const FENCE_RE = /```(?:json|xeven-tool)?\s*\n([\s\S]*?)```/g;
 
 /** Extract capability requests from an assistant reply with structured output validation. */
 function parseToolCalls(reply) {
@@ -576,7 +576,7 @@ function parseToolCalls(reply) {
         }
     };
 
-    // 1. fenced blocks (```json / ```nova-tool / bare ```)
+    // 1. fenced blocks (```json / ```xeven-tool / bare ```)
     let match;
     FENCE_RE.lastIndex = 0;
     while ((match = FENCE_RE.exec(reply)) !== null) {

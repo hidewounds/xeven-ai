@@ -2,15 +2,15 @@
 // Local dev bootstrap: ensure we have a super admin + demo business, print key.
 process.env.NODE_ENV = "development";
 const path = require("path");
-process.chdir("D:/nova ai");
-require("dotenv").config({ path: path.join("D:/nova ai", ".env") });
-const db = require("D:/nova ai/server/src/db");
+process.chdir("D:/xeven ai");
+require("dotenv").config({ path: path.join("D:/xeven ai", ".env") });
+const db = require("D:/xeven ai/server/src/db");
 db.init();
-const crypto = require("D:/nova ai/server/src/lib/crypto");
-const admin = require("D:/nova ai/server/src/auth/admin");
-const configService = require("D:/nova ai/server/src/core/config/service");
+const crypto = require("D:/xeven ai/server/src/lib/crypto");
+const admin = require("D:/xeven ai/server/src/auth/admin");
+const configService = require("D:/xeven ai/server/src/core/config/service");
 
-const EMAIL = "admin@novaweb.test";
+const EMAIL = "admin@xeven.test";
 const PASSWORD = "super-secret-8";
 
 (function main() {
@@ -33,13 +33,13 @@ const PASSWORD = "super-secret-8";
 
     const { token } = admin.signAdminToken(row);
 
-    let bizRow = db.get().prepare(`SELECT business_id FROM businesses WHERE business_name = 'NOVA Web Demo'`).get();
+    let bizRow = db.get().prepare(`SELECT business_id FROM businesses WHERE business_name = 'XEVEN Web Demo'`).get();
     let key;
     if (bizRow) {
         key = db.get().prepare(`SELECT integration_key FROM businesses WHERE business_id = ?`).get(bizRow.business_id).integration_key;
         console.log("existing business", bizRow.business_id);
     } else {
-        const created = configService.createBusiness({ businessName: "NOVA Web Demo" });
+        const created = configService.createBusiness({ businessName: "XEVEN Web Demo" });
         key = created.integrationKey;
         bizRow = { business_id: created.business.businessId };
         console.log("created business", bizRow.business_id);

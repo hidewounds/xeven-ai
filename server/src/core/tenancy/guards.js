@@ -77,8 +77,8 @@ function tenantIsolationMiddleware(req, res, next) {
     
     res.json = function(data) {
         // In non-production, add tenant context header for debugging
-        if (process.env.NODE_ENV !== "production" && req.nova?.businessId) {
-            res.setHeader("X-Nova-Tenant", req.nova.businessId);
+        if (process.env.NODE_ENV !== "production" && req.xeven?.businessId) {
+            res.setHeader("X-Xeven-Tenant", req.xeven.businessId);
         }
         return originalJson(data);
     };
@@ -123,9 +123,12 @@ function sanitizeRequestBody(body, businessId) {
     return sanitize(sanitized);
 }
 
-/** Normalize business ID for comparison. */
+/** Normalize business ID for comparison. Non-scalar input normalizes to
+ * "" (never to a lookalike like "object_object", which could collide
+ * across tenants). */
 function normalizeBusinessId(id) {
     if (!id) return "";
+    if (typeof id !== "string" && typeof id !== "number") return "";
     return String(id).trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 80);
 }
 

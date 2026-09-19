@@ -15,14 +15,14 @@ router.use(authenticateIntegration);
 router.post("/transcribe", requireScope("echo:transcribe"), express.json({ limit: "10mb" }), async (req, res, next) => {
     try {
         const body = req.body || {};
-        const bizCfg = (() => { try { return require("../../core/config/service").getConfig(req.nova.businessId); } catch { return {}; } })();
+        const bizCfg = (() => { try { return require("../../core/config/service").getConfig(req.xeven.businessId); } catch { return {}; } })();
         const prompt = String(body.prompt || bizCfg.echo?.initialPrompt || "").slice(0, 600);
         const params = transcribeParams({ language: body.language, model: body.model, prompt, wordTimestamps: body.wordTimestamps === true || bizCfg.echo?.wordTimestamps === true });
         const customerId = String(body.customerId || body.customer_id || "anonymous").slice(0, 80);
         const conversationId = body.conversationId ? String(body.conversationId).slice(0, 100) : null;
 
         // Parity: local sidecar vs Vercel OpenAI — same UX, different backend
-        const bizSidecar = (() => { try { return require("../../core/config/service").getConfig(req.nova.businessId).echo?.sidecarUrl; } catch { return ""; } })();
+        const bizSidecar = (() => { try { return require("../../core/config/service").getConfig(req.xeven.businessId).echo?.sidecarUrl; } catch { return ""; } })();
         const sidecarUrl = (bizSidecar || env.echoSidecarUrl || "").trim();
         const hasAudio = body.audioBase64 && typeof body.audioBase64 === "string" && body.audioBase64.length > 20;
 
@@ -44,7 +44,7 @@ router.post("/transcribe", requireScope("echo:transcribe"), express.json({ limit
                         const crypto = require("../../lib/crypto");
                         const id = `ect_${crypto.randomHex(10)}`;
                         db().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-                            .run(id, req.nova.businessId, customerId, conversationId, result.language || params.language || "", result.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify(result.segments?.flatMap((s) => s.words || []) || []), params.model || "turbo");
+                            .run(id, req.xeven.businessId, customerId, conversationId, result.language || params.language || "", result.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify(result.segments?.flatMap((s) => s.words || []) || []), params.model || "turbo");
                         return res.json({ transcriptId: id, text: result.text, language: result.language || params.language, segments: result.segments || [], wordTimestamps: params.wordTimestamps, sidecar: true, via: "sidecar" });
                     }
                 } catch (e) {
@@ -74,7 +74,7 @@ router.post("/transcribe", requireScope("echo:transcribe"), express.json({ limit
                         const crypto = require("../../lib/crypto");
                         const id = `ect_${crypto.randomHex(10)}`;
                         db().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-                            .run(id, req.nova.businessId, customerId, conversationId, whisper.language || params.language || "", whisper.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify([]), "whisper-1");
+                            .run(id, req.xeven.businessId, customerId, conversationId, whisper.language || params.language || "", whisper.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify([]), "whisper-1");
                         return res.json({ transcriptId: id, text: whisper.text, language: whisper.language || params.language, sidecar: false, provider: "openai_whisper", via: "openai" });
                     }
                 } catch (e) {
@@ -97,7 +97,7 @@ router.post("/transcribe", requireScope("echo:transcribe"), express.json({ limit
                         const crypto = require("../../lib/crypto");
                         const id = `ect_${crypto.randomHex(10)}`;
                         db().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-                            .run(id, req.nova.businessId, customerId, conversationId, hfRes.language || params.language || "", hfRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify([]), env.hfWhisperModel || "openai/whisper-large-v3");
+                            .run(id, req.xeven.businessId, customerId, conversationId, hfRes.language || params.language || "", hfRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify([]), env.hfWhisperModel || "openai/whisper-large-v3");
                         return res.json({ transcriptId: id, text: hfRes.text, language: hfRes.language || params.language, sidecar: false, provider: "hf_whisper", via: "huggingface" });
                     }
                 } catch (e) {
@@ -107,7 +107,7 @@ router.post("/transcribe", requireScope("echo:transcribe"), express.json({ limit
         }
 
         const audioMeta = { format: body.mimeType || "webm", bytes: hasAudio ? Buffer.from(body.audioBase64, "base64").length : 0, durationMs: body.durationMs || 0 };
-        const stub = stubTranscribe({ businessId: req.nova.businessId, customerId, conversationId, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model });
+        const stub = stubTranscribe({ businessId: req.xeven.businessId, customerId, conversationId, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model });
         // Parity hint: tell client whether server STT is expected (openai/hf) or must use browser — Option 3
         const hasValidKeyEcho = (() => { const k = (env.ai.openaiApiKey || "").trim(); return k.startsWith("sk-") && k.length > 20 && !k.includes("..."); })();
         const hasHfKeyEcho = !!((env.hfToken || process.env.HF_TOKEN || "").trim());

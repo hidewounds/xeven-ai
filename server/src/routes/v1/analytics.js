@@ -1,15 +1,15 @@
 "use strict";
 
 const express = require("express");
-const { authenticateIntegration } = require("../../auth/integration");
+const { authenticateIntegration, requireSecretKey } = require("../../auth/integration");
 const analytics = require("../../core/analytics/service");
 
 const router = express.Router();
 
 router.use(authenticateIntegration);
 
-router.get("/analytics/summary", (req, res) => {
-    res.json(analytics.summary(req.nova.businessId));
+router.get("/analytics/summary", requireSecretKey, (req, res) => {
+    res.json(analytics.summary(req.xeven.businessId));
 });
 
 module.exports = router;

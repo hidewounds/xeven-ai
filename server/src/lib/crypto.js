@@ -20,7 +20,33 @@ function sha256hex(value) {
 }
 
 function generateIntegrationKey() {
-    return `nova_pk_${randomHex(32)}`;
+    return `xeven_pk_${randomHex(32)}`;
+}
+
+/**
+ * Split credentials: the website snippet embeds the PUBLISHABLE key
+ * (widget-scoped only), while the SECRET key stays in the dashboard/API.
+ * Legacy `xeven_pk_<64hex>` keys keep full access (backward compatible).
+ */
+function generatePublishableKey() {
+    return `xeven_pk_pub_${randomHex(16)}`;
+}
+
+function generateSecretKey() {
+    return `xeven_pk_sec_${randomHex(32)}`;
+}
+
+function derivePublishableKey(secretKey) {
+    return `xeven_pk_pub_${sha256hex(secretKey).slice(0, 32)}`;
+}
+
+function classifyIntegrationKey(key) {
+    // COMPAT: pre-rebrand keys map onto current kinds. Remove once migrated.
+    const k = String(key || "").trim().replace(/^nova_pk_/, "xeven_pk_");
+    if (/^xeven_pk_pub_[0-9a-f]{32}$/.test(k)) return "publishable";
+    if (/^xeven_pk_sec_[0-9a-f]{64}$/.test(k)) return "secret";
+    if (/^xeven_pk_[0-9a-f]{64}$/.test(k)) return "legacy";
+    return "unknown";
 }
 
 function hashPassword(password) {
@@ -56,14 +82,14 @@ function safeEqual(a, b) {
 }
 
 // --- reversible encryption for stored credentials (business SMTP passwords) ---
+// In production a real XEVEN_CREDENTIAL_SECRET must be set (see env.js validation).
+// The development fallback below is intentionally weak and must never be used with
+// real credentials — it only keeps local `npm run dev` zero-config.
 
 function _encryptionKey() {
-    // Dedicated secret first; fall back to the admin token secret so a fresh
-    // install works without extra env setup.
-    const secret =
-        process.env.NOVA_CREDENTIAL_SECRET ||
-        process.env.NOVA_ADMIN_TOKEN_SECRET ||
-        "nova-local-development-secret";
+    const fromEnv = process.env.XEVEN_CREDENTIAL_SECRET || process.env.XEVEN_ADMIN_TOKEN_SECRET || "";
+    const secret = fromEnv || (process.env.NODE_ENV === "production" ? "" : "xeven-local-development-secret");
+    if (!secret) throw new Error("XEVEN_CREDENTIAL_SECRET (or XEVEN_ADMIN_TOKEN_SECRET) must be set in production");
     return crypto.createHash("sha256").update(String(secret)).digest();
 }
 
@@ -93,6 +119,10 @@ module.exports = {
     randomId,
     sha256hex,
     generateIntegrationKey,
+    generatePublishableKey,
+    generateSecretKey,
+    derivePublishableKey,
+    classifyIntegrationKey,
     hashPassword,
     verifyPassword,
     hmacSign,

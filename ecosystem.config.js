@@ -2,7 +2,7 @@ const path = require("path");
 module.exports = {
     apps: [
         {
-            name: "nova-api",
+            name: "xeven-api",
             script: path.join(__dirname, "server/index.js"),
             cwd: __dirname,
             instances: 1,
@@ -15,7 +15,7 @@ module.exports = {
             },
         },
         {
-            name: "nova-echo-sidecar",
+            name: "xeven-echo-sidecar",
             script: path.join(__dirname, "echo/server.py"),
             interpreter: "python",
             interpreter_args: "-u",
@@ -30,8 +30,9 @@ module.exports = {
                 ECHO_PORT: "8765",
                 ECHO_HOST: "127.0.0.1",
                 PYTHONPATH: path.join(__dirname, "echo"),
-                PATH: process.env.PATH + ";" + "C:\\Users\\dhana\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-9.0.1-full_build\\bin",
-                FFMPEG_BINARY: "C:\\Users\\dhana\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-9.0.1-full_build\\bin\\ffmpeg.exe",
+                // PATH and FFMPEG_BINARY: set FFMPEG_BINARY env to an absolute ffmpeg path
+                // if ffmpeg is not on PATH. Do not hardcode user-specific WinGet paths.
+                ...(process.env.FFMPEG_BINARY ? { FFMPEG_BINARY: process.env.FFMPEG_BINARY } : {}),
             },
         },
     ],

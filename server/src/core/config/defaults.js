@@ -78,7 +78,7 @@ const DEFAULT_CONFIG = {
     version: 1,
 
     assistant: {
-        name: "NOVA",
+        name: "XEVEN",
         // Unified brain — no role switching. Agent is one brain with learned expertise across 6 patterns.
         // Legacy `role`/`roles` kept for backward compat but ignored; see server/src/core/agent/brain.js
         role: "unified",
@@ -93,7 +93,7 @@ const DEFAULT_CONFIG = {
     },
 
     model: {
-        provider: "ollama", // ollama | openai-compatible | mock | inherit (env)
+        provider: "inherit", // openai-compatible | mock | inherit (env)
         model: "",          // empty = provider/env default
         baseUrl: "",        // empty = provider/env default
         apiKey: "",         // secret; stripped from all API responses
@@ -196,6 +196,7 @@ const DEFAULT_CONFIG = {
 
     security: {
         widgetEnabled: true,
+        allowedOrigins: [],
     },
 
     // Custom Agent Behaviour Builder — business-defined situation overrides

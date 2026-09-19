@@ -2,7 +2,7 @@
 
 /**
  * Embedding generation and vector search for knowledge retrieval.
- * Supports local embedding models via Ollama (nomic-embed-text) or ONNX.
+ * Deterministic offline embeddings (OpenAI embeddings can be wired here later).
  */
 
 const db = require("../../db").get;
@@ -10,8 +10,7 @@ const { randomId } = require("../../lib/crypto");
 const ai = require("../ai");
 const { clampText } = require("../../lib/tokens");
 
-const EMBEDDING_DIM = 768; // nomic-embed-text dimension
-const EMBEDDING_MODEL = "nomic-embed-text";
+const EMBEDDING_DIM = 768;
 const CHUNK_SIZE = 512;
 const CHUNK_OVERLAP = 50;
 
@@ -19,12 +18,8 @@ let embeddingProvider = null;
 
 async function getEmbeddingProvider() {
     if (embeddingProvider) return embeddingProvider;
-    
-    // Try Ollama first
-    const ollamaProvider = await tryOllamaProvider();
-    if (ollamaProvider) return ollamaProvider;
-    
-    // Fallback: random projection (deterministic, for testing/offline)
+
+    // Deterministic pseudo-embedding (offline/testing)
     embeddingProvider = {
         name: "random",
         embed(texts) {
@@ -33,27 +28,6 @@ async function getEmbeddingProvider() {
         dim: EMBEDDING_DIM,
     };
     return embeddingProvider;
-}
-
-async function tryOllamaProvider() {
-    try {
-        const ollama = require("../ai/ollama-provider");
-        const isUp = await ollama.isUp().catch(() => false);
-        if (!isUp) return null;
-        const models = await ollama.listModels().catch(() => []);
-        if (!models.includes(EMBEDDING_MODEL)) return null;
-        
-        return {
-            name: "ollama",
-            async embed(texts) {
-                const results = await Promise.all(texts.map(t => ollama.embed(t, EMBEDDING_MODEL)));
-                return results.map(r => r.embedding);
-            },
-            dim: EMBEDDING_DIM,
-        };
-    } catch {
-        return null;
-    }
 }
 
 /** Deterministic pseudo-embedding for offline/testing (not for production). */

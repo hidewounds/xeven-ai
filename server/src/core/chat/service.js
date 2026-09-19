@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Chat orchestration service — the heart of NOVA.
+ * Chat orchestration service — the heart of XEVEN.
  *
  *   validate -> upsert customer -> persist conversation
  *     -> extract memories -> build ranked context
@@ -23,7 +23,7 @@ const MAX_TOOL_HOPS = 3;
 // --- deterministic response helpers for public widget ---
 
 const GREETING_RE = /^(hi|hello|hey|hola|bonjour|greetings|good\s*(morning|afternoon|evening|night)|yo|sup|howdy|hey\s+there|hi\s+there|hello\s+there|whats?\s*up|how\s+are\s+you)(\s*[!.?,]*)?$/i;
-const GREETING_RE_WITH_NOVA = /^(hi|hello|hey|hola)\s+nova(\s*[!.?,]*)?$/i;
+const GREETING_RE_WITH_XEVEN = /^(hi|hello|hey|hola)\s+xeven(\s*[!.?,]*)?$/i;
 
 function isGreeting(text) {
     if (!text || typeof text !== "string") return false;
@@ -31,7 +31,7 @@ function isGreeting(text) {
     if (!t || t.length > 40) return false;
     // pure single greeting or greeting with optional punctuation
     if (GREETING_RE.test(t)) return true;
-    if (GREETING_RE_WITH_NOVA.test(t)) return true;
+    if (GREETING_RE_WITH_XEVEN.test(t)) return true;
     const lower = t.toLowerCase().replace(/[!.?,]+$/g, "").trim();
     if (/^(hi|hello|hey|hola|hey there|hi there)$/i.test(lower)) return true;
     // single word
@@ -56,9 +56,9 @@ function isNavigationIntent(text) {
 function isBusinessRelated(query, knowledge, config) {
     if (!query || typeof query !== "string") return false;
     const q = query.toLowerCase();
-    // curated distinctive keywords for NOVA platform — avoid generic stop-words that cause false positives
+    // curated distinctive keywords for XEVEN platform — avoid generic stop-words that cause false positives
     const distinctiveKeywords = [
-        "nova","platform","subscription","launch","growth","scale","unlimited",
+        "xeven","platform","subscription","launch","growth","scale","unlimited",
         "pricing","price","plan","feature","role","booking","appointment","widget","chrono","echo","guide","tour","show me","operate","site","website","sell","selling","buy","buying","product","products","catalog","shop","store","offer","stock","have","available",
         "nimbus","aerobuds","sport pulse","consultation","demo","billing","checkout","schedule","availability","available","slot","slots","book",
         "account","transfer","refund","enterprise","custom","human",
@@ -69,7 +69,7 @@ function isBusinessRelated(query, knowledge, config) {
     }
     // capability questions are business-related ("what can you do" is about the agent, not general)
     const capabilityPhrases = [
-        "what can you do","what do you do","how can you help","capabilities","capability","what are your features","what do you offer","how do you work","widget work","help me with nova","support for nova","what are you","who are you",
+        "what can you do","what do you do","how can you help","capabilities","capability","what are your features","what do you offer","how do you work","widget work","help me with xeven","support for xeven","what are you","who are you",
         "guide me","show me around","tour","how does this site work","how to use this site","website guide","full operation"
     ];
     for (const phrase of capabilityPhrases) {
@@ -77,7 +77,7 @@ function isBusinessRelated(query, knowledge, config) {
     }
     // also consider business name if distinctive (>3 chars and not generic)
     const bName = String(config?.assistant?.name || "").toLowerCase().trim();
-    if (bName && bName.length >= 3 && bName !== "nova" && q.includes(bName)) return true;
+    if (bName && bName.length >= 3 && bName !== "xeven" && q.includes(bName)) return true;
     // also treat as related if any retrieved knowledge shares a significant word with query (generic, not just distinctive)
     // this handles product names like "mugshot", "jordan" for Crepdog, or any business-specific terms
     if (Array.isArray(knowledge) && knowledge.length > 0) {
@@ -343,7 +343,7 @@ async function runChat({ businessId, customerInput, messages, conversationId = n
             if (isShortVoice && !/^[!.?,;\s]*$/.test(lastUserText)) {
                 // treat as related for widget — let AI try with full context instead of hard fail
             } else {
-                const failedReply = "I'm here to help with NOVA — ask me about features, pricing, booking, or your business. How can I help?";
+                const failedReply = "I'm here to help with XEVEN — ask me about features, pricing, booking, or your business. How can I help?";
                 if (activeConversationId) {
                     conversationStore.appendMessage({
                         businessId,

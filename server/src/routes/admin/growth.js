@@ -28,7 +28,7 @@ router.use(adminAuth.requireAdmin);
 const scoped = [adminAuth.loadOwnedBusiness];
 
 function assertSuper(req) {
-    if (!req.nova.isSuper) {
+    if (!req.xeven.isSuper) {
         const err = new Error("Only the super admin can manage portal access and capabilities.");
         err.status = 403;
         throw err;
@@ -56,16 +56,16 @@ router.get("/digest", (req, res, next) => {
 // --- capability flags -------------------------------------------------------
 
 router.get("/businesses/:businessId/features", scoped, (req, res) => {
-    res.json({ businessId: req.nova.businessId, features: flagsStore.getFlags(req.nova.businessId), allowedKeys: flagsStore.FLAG_KEYS });
+    res.json({ businessId: req.xeven.businessId, features: flagsStore.getFlags(req.xeven.businessId), allowedKeys: flagsStore.FLAG_KEYS });
 });
 
 /** Super admin ONLY — this is how you decide what a business may self-manage. */
 router.put("/businesses/:businessId/features", scoped, (req, res, next) => {
     try {
         assertSuper(req);
-        const features = flagsStore.setFlags(req.nova.businessId, req.body || {});
-        auditStore.record({ businessId: req.nova.businessId, actorType: "admin", actorId: req.nova.adminUid, action: "admin.features.updated" });
-        res.json({ businessId: req.nova.businessId, features });
+        const features = flagsStore.setFlags(req.xeven.businessId, req.body || {});
+        auditStore.record({ businessId: req.xeven.businessId, actorType: "admin", actorId: req.xeven.adminUid, action: "admin.features.updated" });
+        res.json({ businessId: req.xeven.businessId, features });
     } catch (error) {
         next(error);
     }
@@ -77,7 +77,7 @@ router.get("/businesses/:businessId/portal-users", scoped, (req, res) => {
     assertSuper(req);
     const rows = db
         .prepare("SELECT portal_uid, email, active, created_at FROM portal_users WHERE business_id = ?")
-        .all(req.nova.businessId);
+        .all(req.xeven.businessId);
     res.json({ users: rows.map((r) => ({ ...r, portalUid: r.portal_uid, createdAt: r.created_at })) });
 });
 
@@ -93,17 +93,17 @@ router.post("/businesses/:businessId/portal-users", scoped, (req, res, next) => 
             // Reset flow: update hash + rebind to THIS business.
             db().prepare(
                 "UPDATE portal_users SET password_hash = ?, business_id = ?, active = 1, updated_at = ? WHERE id = ?"
-            ).run(require("../../lib/crypto").hashPassword(body.password), req.nova.businessId, Date.now(), existing.id);
-            auditStore.record({ businessId: req.nova.businessId, actorType: "admin", actorId: req.nova.adminUid, action: "admin.portal_user.reset" });
+            ).run(require("../../lib/crypto").hashPassword(body.password), req.xeven.businessId, Date.now(), existing.id);
+            auditStore.record({ businessId: req.xeven.businessId, actorType: "admin", actorId: req.xeven.adminUid, action: "admin.portal_user.reset" });
             return res.json({ success: true, reset: true });
         }
 
         const user = portal.registerPortalUser({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             email: body.email,
             password: body.password,
         });
-        auditStore.record({ businessId: req.nova.businessId, actorType: "admin", actorId: req.nova.adminUid, action: "admin.portal_user.created" });
+        auditStore.record({ businessId: req.xeven.businessId, actorType: "admin", actorId: req.xeven.adminUid, action: "admin.portal_user.created" });
         res.status(201).json({ user: portal.publicUser(user) });
     } catch (error) {
         next(error);
@@ -113,7 +113,7 @@ router.post("/businesses/:businessId/portal-users", scoped, (req, res, next) => 
 // --- follow-ups --------------------------------------------------------------
 
 router.get("/businesses/:businessId/follow-up-policy", scoped, (req, res) => {
-    res.json({ policy: followUps.getPolicy(req.nova.businessId), smtp: mailer.canSend(req.nova.businessId).ok ? "configured" : "not-configured" });
+    res.json({ policy: followUps.getPolicy(req.xeven.businessId), smtp: mailer.canSend(req.xeven.businessId).ok ? "configured" : "not-configured" });
 });
 
 /** Manually run due follow-ups for observability/testing. */
@@ -130,7 +130,7 @@ router.post("/businesses/:businessId/follow-ups/run", scoped, async (req, res, n
 // --- owner weekly digest ------------------------------------------------------
 
 router.get("/businesses/:businessId/digest-config", scoped, (req, res) => {
-    res.json(digests.getConfig(req.nova.businessId));
+    res.json(digests.getConfig(req.xeven.businessId));
 });
 
 /** Super admin ONLY — flip the weekly_digest capability + set the recipient. */
@@ -138,10 +138,10 @@ router.put("/businesses/:businessId/digest-config", scoped, (req, res, next) => 
     try {
         assertSuper(req);
         const body = req.body || {};
-        if (body.email !== undefined) digests.setEmail(req.nova.businessId, body.email);
-        if (body.enabled !== undefined) flagsStore.setFlags(req.nova.businessId, { weekly_digest: Boolean(body.enabled) });
-        auditStore.record({ businessId: req.nova.businessId, actorType: "admin", actorId: req.nova.adminUid, action: "admin.digest.configured" });
-        res.json(digests.getConfig(req.nova.businessId));
+        if (body.email !== undefined) digests.setEmail(req.xeven.businessId, body.email);
+        if (body.enabled !== undefined) flagsStore.setFlags(req.xeven.businessId, { weekly_digest: Boolean(body.enabled) });
+        auditStore.record({ businessId: req.xeven.businessId, actorType: "admin", actorId: req.xeven.adminUid, action: "admin.digest.configured" });
+        res.json(digests.getConfig(req.xeven.businessId));
     } catch (error) {
         next(error);
     }
@@ -151,7 +151,7 @@ router.put("/businesses/:businessId/digest-config", scoped, (req, res, next) => 
 router.post("/businesses/:businessId/digest/run", scoped, async (req, res, next) => {
     try {
         assertSuper(req);
-        const result = await digests.sendNow(req.nova.businessId, { preview: req.query.preview === "1" });
+        const result = await digests.sendNow(req.xeven.businessId, { preview: req.query.preview === "1" });
         res.json(result);
     } catch (error) {
         next(error);

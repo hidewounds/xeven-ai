@@ -1,12 +1,12 @@
-# NOVA — AI Agent Platform for Businesses
+# XEVEN — AI Agent Platform for Businesses
 
-NOVA is a multi-tenant, self-hosted AI agent platform. Businesses install NOVA once,
+XEVEN is a multi-tenant, self-hosted AI agent platform. Businesses install XEVEN once,
 then configure everything — agent role, personality, knowledge, memory and behavior
 tracking — through the admin dashboard or API. **No source-code changes are ever
 required to onboard a new business.**
 
 ```
-NOVA CORE + BUSINESS CONFIG + AGENT CONFIG + KNOWLEDGE + INTEGRATIONS = BUSINESS INSTANCE
+XEVEN CORE + BUSINESS CONFIG + AGENT CONFIG + KNOWLEDGE + INTEGRATIONS = BUSINESS INSTANCE
 ```
 
 ---
@@ -24,8 +24,8 @@ copy the integration key → configure your agent.
 
 Development: `npm run dev` (watch mode) · Tests: `npm test`
 
-The default AI provider is a local [Ollama](https://ollama.com) model
-(`ollama pull qwen2.5-coder:3b`). Switch providers via `AI_PROVIDER` env or per-business
+The default AI provider is OpenAI-compatible (`AI_PROVIDER=openai-compatible`,
+`XEVEN_MODEL=gpt-4o-mini`). Switch providers via `AI_PROVIDER` env or per-business
 model configuration (`openai-compatible`, `mock`). See `.env.example`.
 
 ---
@@ -33,23 +33,23 @@ model configuration (`openai-compatible`, `mock`). See `.env.example`.
 ## Onboarding a new business (no code changes)
 
 1. Sign in at `/admin/`
-2. **Create business** → receive integration key (`nova_pk_…`)
+2. **Create business** → receive integration key (`xeven_pk_…`)
 3. **Agent tab** → pick role, tone, personality, instructions
 4. **Knowledge tab** → add FAQs, policies, product info
-5. **Memory / Behavior tabs** → tune what NOVA remembers and tracks
+5. **Memory / Behavior tabs** → tune what XEVEN remembers and tracks
 6. **Integration tab** → paste the snippet into any website:
 
 ```html
-<script src="https://your-nova-host/widget/nova-tracker.js"
-        data-public-key="nova_pk_..."></script>
+<script src="https://your-xeven-host/widget/xeven-tracker.js"
+        data-public-key="xeven_pk_..."></script>
 
-<script src="https://your-nova-host/widget/nova-widget.js"
-        data-public-key="nova_pk_..." defer></script>
+<script src="https://your-xeven-host/widget/xeven-widget.js"
+        data-public-key="xeven_pk_..." defer></script>
 ```
 
 7. Activate. Done.
 
-The tracker records page views automatically; call `NOVATracker.productView(...)`,
+The tracker records page views automatically; call `XevenTracker.productView(...)`,
 `.search(query)`, `.cart({...})`, `.wishlist({...})`, `.purchase({...})` for rich
 personalization context.
 
@@ -66,14 +66,14 @@ server/
     ├── db/                      SQLite connection + versioned migrations
     ├── lib/                     errors, logger (redacting), crypto, tokens
     ├── auth/
-    │   ├── integration.js       business API-key auth (x-nova-key / Bearer)
+    │   ├── integration.js       business API-key auth (x-xeven-key / Bearer)
     │   └── admin.js             dashboard accounts, HMAC tokens, access grants
     ├── core/
     │   ├── config/              canonical config system (defaults→merge→normalize)
     │   │   └── roles.js         agent role framework (8 roles, data-driven)
     │   ├── agent/prompt.js      single canonical system-prompt builder
     │   ├── ai/                  provider abstraction:
-    │   │                        ollama | openai-compatible | mock (+ future)
+    │   │                        openai-compatible | mock (+ future)
     │   ├── memory/              store + extractor (explicit vs inferred,
     │   │                        remember/forget commands, allow-list)
     │   ├── behavior/            TTL'd behavioral events, per-event retention
@@ -90,10 +90,11 @@ server/
         ├── v1/                  platform API (integration-key scoped)
         └── admin/               dashboard API (admin-token scoped)
 client/
-├── sdk/nova-widget.js           embeddable chat widget
-├── sdk/nova-tracker.js          behavioral tracking SDK
-├── demo/                        demo storefront page
-└── admin/                       dashboard SPA (real functionality only)
+├── sdk/xeven-widget.js           embeddable chat widget
+├── sdk/xeven-tracker.js          behavioral tracking SDK
+├── welcome/                     public landing page
+├── admin/                       dashboard SPA (real functionality only)
+└── portal/                      business portal SPA
 tests/                           node:test suites (auth, isolation, memory,
                                  behavior, config, chat, widget, keys)
 ```
@@ -134,7 +135,7 @@ single prompt builder — there is no per-role code path.
 
 All errors return `{ "error": { "code", "message" }, "requestId" }`.
 
-### Platform API — `Authorization: Bearer nova_pk_…` (or `x-nova-key`)
+### Platform API — `Authorization: Bearer xeven_pk_…` (or `x-xeven-key`)
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -183,8 +184,20 @@ Non-super admins can only touch businesses they created or were granted.
 ## Deployment
 
 - `NODE_ENV=production` enables HSTS and tighter log defaults
-- Set `NOVA_ADMIN_TOKEN_SECRET` explicitly in production (or rely on DB-persisted secret)
-- Put NOVA behind TLS; set `NOVA_CORS_ORIGIN` to your site origins if you don't need
+- Set `XEVEN_ADMIN_TOKEN_SECRET` explicitly in production (or rely on DB-persisted secret)
+- Put XEVEN behind TLS; set `XEVEN_CORS_ORIGIN` to your site origins if you don't need
   arbitrary embedding
 - SQLite (WAL) suits small/medium deployments; the data layer is isolated in `src/db`
   so a Postgres adapter can replace it without touching business logic
+- Postgres path (when you outgrow SQLite): `pg` is already a dependency.
+  Set `DB_DRIVER=postgres` plus `PG_HOST` / `PG_PORT` / `PG_DATABASE` /
+  `PG_USER` / `PG_PASSWORD` (`PG_SSL=true` for managed hosts). The
+  versioned `schema_migrations` runner in `server/src/db/schema.js` is the
+  pattern to follow: add one migration per schema change, backfill existing
+  rows inside the migration, never edit an applied migration. Migrate data
+  with an offline dump/load window — there is no live replication.
+- Integration keys are split: the website snippet embeds the **publishable**
+  key (`xeven_pk_pub_…`, widget-scoped), while the **secret** key
+  (`xeven_pk_sec_…`) stays in the dashboard for API/SDK management. Legacy
+  `xeven_pk_…` keys keep full access. Rotating invalidates the secret only;
+  the publishable key is stable so deployed snippets keep working

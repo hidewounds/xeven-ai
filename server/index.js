@@ -11,10 +11,23 @@ function main() {
     db.init();
     logger.info("database ready", { path: env.dbPath });
 
+    // Validate the admin token secret source at boot (fail-fast visibility,
+    // never log the value). Ephemeral secrets invalidate sessions on restart.
+    try {
+        const fromEnv = Boolean(env.adminTokenSecretFromEnv);
+        if (!fromEnv && process.env.VERCEL) {
+            logger.warn("admin token secret is ephemeral (no XEVEN_ADMIN_TOKEN_SECRET) — set it in production so sessions survive across instances");
+        } else {
+            logger.info("admin token secret ready", { source: fromEnv ? "env" : "persisted" });
+        }
+    } catch (error) {
+        logger.warn("admin token secret check failed", { error: error.message });
+    }
+
     const app = createApp();
 
     const server = app.listen(env.port, () => {
-        logger.info("NOVA server started", {
+        logger.info("XEVEN server started", {
             port: env.port,
             environment: env.nodeEnv,
             defaultProvider: env.ai.provider,

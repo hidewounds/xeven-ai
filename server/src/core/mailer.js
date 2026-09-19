@@ -3,7 +3,7 @@
 /**
  * Outbound mail — ALWAYS from the business's own email identity.
  *
- * NOVA is staff, not a sender: it owns no addresses. Every follow-up and
+ * XEVEN is staff, not a sender: it owns no addresses. Every follow-up and
  * handoff email goes out through the business's SMTP credentials (configured
  * in their portal), from their address, on their behalf.
  */
@@ -84,7 +84,7 @@ async function sendAsBusiness(businessId, { to, subject, text, idempotencyKey })
                 auth: { user: s.smtp_user, pass: smtpPassword(s) },
             });
             await transport.sendMail({
-                from: `"${s.smtp_from_name || "NOVA Assistant"}" <${s.contact_email}>`,
+                from: `"${s.smtp_from_name || "XEVEN Assistant"}" <${s.contact_email}>`,
                 to,
                 subject,
                 text,

@@ -98,7 +98,7 @@ function normalizeConfig(config, { plan = "launch", bypassLimit = false } = {}) 
     const unifiedRoles = ["unified"];
 
     merged.assistant = {
-        name: cleanText(merged.assistant.name, 80) || "NOVA",
+        name: cleanText(merged.assistant.name, 80) || "XEVEN",
         role: unifiedRole, // unified brain
         roles: unifiedRoles, // one brain, not stacked skills
         personas: [], // personas removed — patterns are learned, not traits
@@ -116,7 +116,7 @@ function normalizeConfig(config, { plan = "launch", bypassLimit = false } = {}) 
     };
 
     merged.model = {
-        provider: ["ollama", "openai-compatible", "mock", "inherit"].includes(merged.model?.provider)
+        provider: ["openai-compatible", "mock", "inherit"].includes(merged.model?.provider)
             ? merged.model.provider
             : "inherit",
         model: cleanText(merged.model?.model, 120),
@@ -178,6 +178,11 @@ function normalizeConfig(config, { plan = "launch", bypassLimit = false } = {}) 
 
     merged.security = {
         widgetEnabled: merged.security?.widgetEnabled !== false,
+        // Embed allowlist for the widget surface. Empty = allow any origin
+        // (open-by-default) with a dashboard warning in production.
+        allowedOrigins: Array.isArray(merged.security?.allowedOrigins)
+            ? merged.security.allowedOrigins.filter((o) => typeof o === "string" && o.trim()).map((o) => o.trim().slice(0, 200)).slice(0, 20)
+            : [],
     };
 
     // chrono (schedule engine) — mirrors DAYS schedule from chrono/schedule.js
@@ -316,7 +321,7 @@ function getBusiness(businessId) {
         return (
             db()
                 .prepare(
-                    `SELECT id, business_id, business_name, integration_key, active, plan, created_at, updated_at, deactivated_at
+                    `SELECT id, business_id, business_name, integration_key, widget_public_key, active, plan, created_at, updated_at, deactivated_at
                      FROM businesses WHERE business_id = ? LIMIT 1`
                 )
                 .get(id) || null
@@ -334,32 +339,41 @@ function getBusiness(businessId) {
 }
 
 function getBusinessByKey(integrationKey) {
-    const key = String(integrationKey || "").trim();
+    let key = String(integrationKey || "").trim();
+    // COMPAT (pre-rebrand embeds): accept legacy nova_pk_ keys by mapping
+    // them onto the current prefix. New keys are always issued as xeven_pk_.
+    // Remove once all embeds migrate (keys, header, snippet URL, global).
+    if (/^nova_pk_/.test(key)) key = key.replace(/^nova_pk_/, "xeven_pk_");
     if (!key || key.length > 500) return null;
+    const withPub = `SELECT id, business_id, business_name, integration_key, widget_public_key, active, plan, created_at, updated_at, deactivated_at
+                     FROM businesses WHERE integration_key = ? OR widget_public_key = ? LIMIT 1`;
+    const legacyNew = `SELECT id, business_id, business_name, integration_key, active, plan, created_at, updated_at, deactivated_at
+                     FROM businesses WHERE integration_key = ? LIMIT 1`;
+    const legacyOld = `SELECT id, business_id, business_name, integration_key, active, plan, created_at, updated_at
+                     FROM businesses WHERE integration_key = ? LIMIT 1`;
+    let row = null;
     try {
-        return (
-            db()
-                .prepare(
-                    `SELECT id, business_id, business_name, integration_key, active, plan, created_at, updated_at, deactivated_at
-                     FROM businesses WHERE integration_key = ? LIMIT 1`
-                )
-                .get(key) || null
-        );
+        row = db().prepare(withPub).get(key, key) || null;
     } catch {
-        return (
-            db()
-                .prepare(
-                    `SELECT id, business_id, business_name, integration_key, active, plan, created_at, updated_at
-                     FROM businesses WHERE integration_key = ? LIMIT 1`
-                )
-                .get(key) || null
-        );
+        try {
+            row = db().prepare(legacyNew).get(key) || null;
+        } catch {
+            row = db().prepare(legacyOld).get(key) || null;
+        }
     }
+    if (!row) return null;
+    // Attach the credential kind: publishable keys are widget-scoped,
+    // secret + legacy keys keep full platform access.
+    if (row.widget_public_key && row.widget_public_key === key) row._keyKind = "publishable";
+    else if (row.integration_key && row.integration_key === key) {
+        row._keyKind = crypto.classifyIntegrationKey(key) === "secret" ? "secret" : "legacy";
+    } else return null;
+    return row;
 }
 
 function listBusinesses({ includeInactive = false } = {}) {
     try {
-        const rows = db().prepare(`SELECT id, business_id, business_name, integration_key, active, plan, created_at, updated_at, deactivated_at FROM businesses ORDER BY created_at ASC`).all();
+        const rows = db().prepare(`SELECT id, business_id, business_name, integration_key, widget_public_key, active, plan, created_at, updated_at, deactivated_at FROM businesses ORDER BY created_at ASC`).all();
         return includeInactive ? rows : rows.filter((row) => row.active);
     } catch {
         const rows = db().prepare(`SELECT id, business_id, business_name, integration_key, active, plan, created_at, updated_at FROM businesses ORDER BY created_at ASC`).all();
@@ -374,16 +388,17 @@ function createBusiness({ businessId, businessName, config = {} }) {
     if (getBusiness(id)) throw new AppError(409, "business_exists", "A business with this ID already exists.");
 
     const timestamp = now();
-    const integrationKey = crypto.generateIntegrationKey();
+    const integrationKey = crypto.generateSecretKey();
+    const widgetPublicKey = crypto.generatePublishableKey();
     const normalized = normalizeConfig({ ...config, version: 1 });
 
     db().transaction(() => {
         db()
             .prepare(
-                `INSERT INTO businesses (business_id, business_name, integration_key, active, created_at, updated_at)
-                 VALUES (?, ?, ?, 1, ?, ?)`
+                `INSERT INTO businesses (business_id, business_name, integration_key, widget_public_key, active, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, 1, ?, ?)`
             )
-            .run(id, name, integrationKey, timestamp, timestamp);
+            .run(id, name, integrationKey, widgetPublicKey, timestamp, timestamp);
 
         db()
             .prepare(
@@ -397,6 +412,7 @@ function createBusiness({ businessId, businessName, config = {} }) {
     return {
         business: publicBusiness(getBusiness(id)),
         integrationKey,
+        widgetPublicKey,
         config: sanitizeConfig(normalized),
     };
 }
@@ -413,6 +429,8 @@ function publicBusiness(row, { includeKey = false } = {}) {
         deactivatedAt: row.deactivated_at || null,
     };
     if (includeKey) base.integrationKey = row.integration_key;
+    // Publishable key is safe to show in the dashboard snippet by design.
+    base.widgetPublicKey = row.widget_public_key || null;
     return base;
 }
 
@@ -473,9 +491,12 @@ function rotateIntegrationKey(businessId) {
     const id = normalizeBusinessId(businessId);
     const existing = getBusiness(id);
     if (!existing) throw notFound("Business not found.");
-    const key = crypto.generateIntegrationKey();
+    // The publishable key stays stable (it is embedded in deployed snippets);
+    // only the secret rotates. Legacy businesses without a publishable key
+    // keep the legacy single-key format.
+    const key = existing.widget_public_key ? crypto.generateSecretKey() : crypto.generateIntegrationKey();
     db().prepare(`UPDATE businesses SET integration_key = ?, updated_at = ? WHERE business_id = ?`).run(key, now(), id);
-    return { integrationKey: key };
+    return { integrationKey: key, widgetPublicKey: existing.widget_public_key || null };
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 #!/bin/bash
-# NOVA Echo Sidecar Startup Script
+# XEVEN Echo Sidecar Startup Script
 # Usage: ./echo/start.sh [model] [port]
 
 set -e
@@ -8,7 +8,7 @@ MODEL=${1:-base}
 PORT=${2:-8765}
 HOST=${3:-127.0.0.1}
 
-echo "Starting NOVA Echo sidecar..."
+echo "Starting XEVEN Echo sidecar..."
 echo "Model: $MODEL"
 echo "Port: $PORT"
 echo "Host: $HOST"

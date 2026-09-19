@@ -3,20 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="NOVA Admin Console — multi-tenant AI agent platform. Manage tenants, brain, knowledge & integrations. No code changes, full audit.">
+<meta name="description" content="XEVEN Admin Console — multi-tenant AI agent platform. Manage tenants, brain, knowledge & integrations. No code changes, full audit.">
 <meta name="theme-color" content="#050508">
-<title>NOVA — Admin</title>
+<title>XEVEN — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/admin/admin.css?v=1.1">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f0f11'/><rect x='14' y='14' width='72' height='72' rx='12' fill='none' stroke='%23232326' stroke-width='2'/><text x='50' y='62' font-size='42' text-anchor='middle' fill='%23f4f4f5' font-family='Inter' font-weight='600'>N</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2306090f'/><path d='M30 30 L70 70 M70 30 L30 70' stroke='%239cf5d3' stroke-width='11' stroke-linecap='round' fill='none'/></svg>">
 </head>
 <body>
 <!-- AUTH -->
 <div id="authView" class="auth-layout">
   <div class="auth-side">
     <div class="auth-brand">
-      <div class="logo">N</div>
+      <div class="logo" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M14 14 L34 34 M34 14 L14 34" stroke="currentColor" stroke-width="7" stroke-linecap="round" fill="none"/></svg></div>
       <div>
-        <div class="brand-name">NOVA</div>
+        <div class="brand-name">XEVEN</div>
         <div class="brand-sub">Admin Console</div>
       </div>
     </div>
@@ -29,11 +32,11 @@
         <div class="hero-point"><i>◎</i><div><b>Memory</b><br><span>Explicit, human-readable, GDPR-ready</span></div></div>
       </div>
     </div>
-    <div class="auth-foot">© 2026 NOVA • SOC 2 ready • hello@nova.ai</div>
+    <div class="auth-foot">© 2026 XEVEN • SOC 2 ready • hello@xeven.ai</div>
   </div>
   <div class="auth-main">
     <div class="auth-card">
-      <h2 id="authTitle">Sign in to NOVA</h2>
+      <h2 id="authTitle">Sign in to XEVEN</h2>
       <p class="muted">Use your work email. First account becomes workspace owner.</p>
       <form id="loginForm" class="form">
         <label>Work email
@@ -71,9 +74,9 @@
     <aside class="sidebar" id="sidebar" aria-label="Admin navigation">
       <div class="sidebar-head">
         <div class="brand">
-          <div class="logo">N</div>
+          <div class="logo" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M14 14 L34 34 M34 14 L14 34" stroke="currentColor" stroke-width="7" stroke-linecap="round" fill="none"/></svg></div>
           <div>
-            <div class="brand-name">NOVA</div>
+            <div class="brand-name">XEVEN</div>
             <div class="brand-sub">Admin</div>
           </div>
         </div>
@@ -188,7 +191,7 @@
   const syncBiz=()=>{ const t=sel.options[sel.selectedIndex]; if(t && biz) biz.textContent=t.textContent.replace(' (inactive)','').trim(); if(t && bPill) bPill.textContent=t.textContent.trim(); };
   if(sel){ sel.addEventListener('change',syncBiz); new MutationObserver(syncBiz).observe(sel,{childList:true}); }
   const tabs=document.querySelectorAll('#tabs .nav-item'), ct=document.getElementById('crumbTab'), pt=document.getElementById('pageTitle'), pd=document.getElementById('pageDesc');
-  const descs={overview:"Workspace at a glance — KPIs, attention, workspace. (Health → diagnostics, Analytics → trends)",agent:"The brain — identity, personality, live preview. (Knowledge/Memory/Behaviour have their own sections)",knowledge:"Everything NOVA knows — grounded, synced. Only place to manage sources.",voice:"Voice — Echo sidecar 24/7. Greeting, handoff, languages, sidecar health.",schedule:"Schedule — Chrono 24/7. Weekly hours, slots, holidays, live preview.",integration:"Connect website, chat, tracker — only connections, not model or knowledge.",customers:"People — searchable, GDPR-ready. Click View for memories & conversations in one place.",memory:"Memory config — not live data. Live memories are in Customers → View.",behavior:"Conversations — all threads. Signals are per-customer in Customers → View.",custom:"Behaviour — trigger → pattern + tone. Advanced override, live in <1s.",audit:"Immutable audit — who changed what, when.",performance:"Performance — grounded rate, msgs/conv, signals. (Not latency — see logs)",usage:"Usage — volume handled: conversations, messages, knowledge, customers.",costs:"Costs — attributed revenue, purchases, leads. 7d window.",health:"Health — diagnostics: brain, knowledge, integrations, DB, rate limits.",logs:"Logs — immutable audit of every change. Filterable.",settings:"Settings — workspace identity, plan, integration key. No duplication."};
+  const descs={overview:"Workspace at a glance — KPIs, attention, workspace. (Health → diagnostics, Analytics → trends)",agent:"The brain — identity, personality, live preview. (Knowledge/Memory/Behaviour have their own sections)",knowledge:"Everything XEVEN knows — grounded, synced. Only place to manage sources.",voice:"Voice — Echo sidecar 24/7. Greeting, handoff, languages, sidecar health.",schedule:"Schedule — Chrono 24/7. Weekly hours, slots, holidays, live preview.",integration:"Connect website, chat, tracker — only connections, not model or knowledge.",customers:"People — searchable, GDPR-ready. Click View for memories & conversations in one place.",memory:"Memory config — not live data. Live memories are in Customers → View.",behavior:"Conversations — all threads. Signals are per-customer in Customers → View.",custom:"Behaviour — trigger → pattern + tone. Advanced override, live in <1s.",audit:"Immutable audit — who changed what, when.",performance:"Performance — grounded rate, msgs/conv, signals. (Not latency — see logs)",usage:"Usage — volume handled: conversations, messages, knowledge, customers.",costs:"Costs — attributed revenue, purchases, leads. 7d window.",health:"Health — diagnostics: brain, knowledge, integrations, DB, rate limits.",logs:"Logs — immutable audit of every change. Filterable.",settings:"Settings — workspace identity, plan, integration key. No duplication."};
   tabs.forEach(b=>b.addEventListener('click',()=>{
     const label=b.textContent.trim().replace(/^[^A-Za-z0-9]+/,'');
     if(ct) ct.textContent=label;

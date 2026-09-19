@@ -1,7 +1,7 @@
 "use strict";
 
-// Supported languages — mirrors nova-echo (openai/whisper tokenizer list @ whisper/tokenizer.py)
-// Subset most relevant to NOVA businesses; full list is accepted via whisper in sidecar.
+// Supported languages — mirrors xeven-echo (openai/whisper tokenizer list @ whisper/tokenizer.py)
+// Subset most relevant to XEVEN businesses; full list is accepted via whisper in sidecar.
 const ECHO_LANGUAGES = [
     "en","zh","de","es","ru","ko","fr","ja","pt","tr","pl","ca","nl","ar","sv","it","id","hi","fi","vi","he","uk","el","ms","cs","ro","da","hu","ta","no","th","ur","hr","bg","lt","la","mi","ml","cy","sk","te","fa","lv","bn","sr","az","sl","kn","et","mk","br","eu","is","hy","ne","mn","bs","kk","sq","sw","gl","mr","pa","si","km","sn","yo","so","af","oc","ka","be","tg","sd","gu","am","yi","lo","uz","fo","ht","ps","tk","nn","mt","sa","lb","my","bo","tl","mg","as","tt","haw","ln","ha","ba","jw","su",
 ];

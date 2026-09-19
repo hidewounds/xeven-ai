@@ -2,7 +2,7 @@
 
 /**
  * CHRONO — Schedule store.
- * Adapted from nova-chrono (Cal.com availability model) for NOVA's SQLite substrate.
+ * Adapted from xeven-chrono (Cal.com availability model) for XEVEN's SQLite substrate.
  * Weekly schedule is business-local 09:00-17:00 Mon-Fri by default; buffer/minNotice
  * mirror Cal's slot controls. All writes invalidate no cache explicitly — chrono
  * generates slots live with sub-second freshness (no polling).

@@ -3,11 +3,11 @@
 /**
  * Outcome tracking + revenue attribution + weekly digest.
  *
- * An "outcome" is a business result NOVA contributed to: a tracked purchase,
+ * An "outcome" is a business result XEVEN contributed to: a tracked purchase,
  * a captured lead, or a booking. Purchases arrive via the behavioral tracker
  * (`purchase` events); attribution links them back to conversations the
  * customer had inside the attribution window, so the founder can see what
- * NOVA's chats are actually worth.
+ * XEVEN's chats are actually worth.
  */
 
 const db = require("../../db").get;
@@ -150,7 +150,7 @@ function digestText({ from, to } = {}) {
     const fmt = (cents) => "$" + (cents / 100).toFixed(2);
 
     const lines = [
-        `NOVA WEEKLY DIGEST — ${new Date(summary.weekStart).toISOString().slice(0, 10)} → ${new Date(summary.weekEnd).toISOString().slice(0, 10)}`,
+        `XEVEN WEEKLY DIGEST — ${new Date(summary.weekStart).toISOString().slice(0, 10)} → ${new Date(summary.weekEnd).toISOString().slice(0, 10)}`,
         `Total attributed revenue: ${fmt(summary.totalAttributedRevenueCents)}`,
         "",
     ];

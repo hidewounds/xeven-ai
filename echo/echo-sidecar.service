@@ -1,23 +1,23 @@
-# NOVA Echo Sidecar — Systemd Service
+# XEVEN Echo Sidecar — Systemd Service
 # Install: sudo cp echo-sidecar.service /etc/systemd/system/
 # Enable: sudo systemctl enable echo-sidecar
 # Start: sudo systemctl start echo-sidecar
 
 [Unit]
-Description=NOVA Echo Sidecar (STT/TTS)
+Description=XEVEN Echo Sidecar (STT/TTS)
 After=network.target
 Wants=network.target
 
 [Service]
 Type=simple
-User=nova
-Group=nova
-WorkingDirectory=/opt/nova/echo
+User=xeven
+Group=xeven
+WorkingDirectory=/opt/xeven/echo
 Environment=ECHO_MODEL=base
 Environment=ECHO_PORT=8765
 Environment=ECHO_HOST=127.0.0.1
-Environment=PYTHONPATH=/opt/nova/echo
-ExecStart=/opt/nova/venv/bin/python /opt/nova/echo/server.py --model ${ECHO_MODEL} --port ${ECHO_PORT} --host ${ECHO_HOST}
+Environment=PYTHONPATH=/opt/xeven/echo
+ExecStart=/opt/xeven/venv/bin/python /opt/xeven/echo/server.py --model ${ECHO_MODEL} --port ${ECHO_PORT} --host ${ECHO_HOST}
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -32,7 +32,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/nova/echo
+ReadWritePaths=/opt/xeven/echo
 
 [Install]
 WantedBy=multi-user.target

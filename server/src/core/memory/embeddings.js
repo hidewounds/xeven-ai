@@ -11,33 +11,13 @@ const ai = require("../ai");
 const { clampText } = require("../../lib/tokens");
 
 const EMBEDDING_DIM = 768;
-const EMBEDDING_MODEL = "nomic-embed-text";
 
 let embeddingProvider = null;
 
 async function getEmbeddingProvider() {
     if (embeddingProvider) return embeddingProvider;
 
-    try {
-        const ollamaProvider = require("../ai/ollama-provider");
-        const isUp = await ollamaProvider.isUp().catch(() => false);
-        if (isUp) {
-            const models = await ollamaProvider.listModels().catch(() => []);
-            if (models.includes(EMBEDDING_MODEL)) {
-                embeddingProvider = {
-                    name: "ollama",
-                    async embed(texts) {
-                        const results = await Promise.all(texts.map(t => ollamaProvider.embed(t, EMBEDDING_MODEL)));
-                        return results.map(r => r.embedding);
-                    },
-                    dim: EMBEDDING_DIM,
-                };
-                return embeddingProvider;
-            }
-        }
-    } catch {}
-
-    // Fallback: deterministic pseudo-embedding (array return, matches Ollama provider shape)
+    // Deterministic pseudo-embedding (offline/testing)
     const crypto = require("crypto");
     embeddingProvider = {
         name: "deterministic",

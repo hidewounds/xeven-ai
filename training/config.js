@@ -1,15 +1,15 @@
 "use strict";
 
 /**
- * Training config for NOVA Unified Brain
+ * Training config for XEVEN Unified Brain
  * Based on rkinas/reasoning_models_how_to — Methods for LLM Training
  * Supports PPO, DPO, GRPO, KTO, etc. We use DPO as primary (simple, no reward model needed), GRPO for verifiable rewards
  */
 
 module.exports = {
     // Base model (openai-compatible or local)
-    baseModel: process.env.NOVA_TRAIN_BASE_MODEL || "gpt-4o-mini",
-    provider: process.env.NOVA_TRAIN_PROVIDER || "openai-compatible",
+    baseModel: process.env.XEVEN_TRAIN_BASE_MODEL || "gpt-4o-mini",
+    provider: process.env.XEVEN_TRAIN_PROVIDER || "openai-compatible",
     baseUrl: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
 
     // Methods from rkinas repo

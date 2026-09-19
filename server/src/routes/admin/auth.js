@@ -19,7 +19,8 @@ function createFromRequest(req, res) {
     const access = admin.signAdminToken(result._raw);
     const refresh = admin.signAdminRefreshToken(result._raw);
     audit.record({ actorType: "admin", actorId: result.admin.adminUid, action: "admin.registered", ip: req.ip });
-    res.status(201).json({ admin: result.admin, accessToken: access.token, refreshToken: refresh.token, accessExpiresAt: access.expiresAt, refreshExpiresAt: refresh.expiresAt });
+    admin.setAdminCookies(res, access, refresh);
+    res.status(201).json({ admin: result.admin, accessToken: access.token, refreshToken: refresh.token, accessExpiresAt: access.expiresAt, refreshExpiresAt: refresh.expiresAt, cookieAuth: true });
 }
 
 /** Register. Open only while no accounts exist (first account = super-admin).
@@ -36,7 +37,7 @@ router.post("/register", (req, res, next) => {
         admin.requireAdmin(req, res, (authErr) => {
             if (authErr) return next(authErr);
             try {
-                if (!req.nova || !req.nova.isSuper) {
+                if (!req.xeven || !req.xeven.isSuper) {
                     throw forbidden(
                         "Registration is closed. Only a super admin can create additional accounts.",
                         "registration_closed"
@@ -60,7 +61,8 @@ router.post("/login", (req, res, next) => {
         const access = admin.signAdminToken(row);
         const refresh = admin.signAdminRefreshToken(row);
         audit.record({ actorType: "admin", actorId: row.admin_uid, action: "admin.login", ip: req.ip });
-        res.json({ admin: admin.publicAdmin(row), accessToken: access.token, refreshToken: refresh.token, accessExpiresAt: access.expiresAt, refreshExpiresAt: refresh.expiresAt });
+        admin.setAdminCookies(res, access, refresh);
+        res.json({ admin: admin.publicAdmin(row), accessToken: access.token, refreshToken: refresh.token, accessExpiresAt: access.expiresAt, refreshExpiresAt: refresh.expiresAt, cookieAuth: true });
     } catch (error) {
         next(error);
     }
@@ -69,7 +71,7 @@ router.post("/login", (req, res, next) => {
 router.post("/refresh", (req, res, next) => {
     try {
         const body = req.body || {};
-        const refreshToken = body.refreshToken || body.refresh_token;
+        const refreshToken = body.refreshToken || body.refresh_token || admin.parseCookies(req)[admin.ADMIN_REFRESH_COOKIE];
         if (!refreshToken) throw badRequest("Refresh token is required.");
 
         const payload = admin.verifyAdminRefreshToken(refreshToken);
@@ -83,7 +85,8 @@ router.post("/refresh", (req, res, next) => {
 
         const access = admin.signAdminToken(adminRow);
         const newRefresh = admin.signAdminRefreshToken(adminRow);
-        res.json({ accessToken: access.token, refreshToken: newRefresh.token, accessExpiresAt: access.expiresAt, refreshExpiresAt: newRefresh.expiresAt });
+        admin.setAdminCookies(res, access, newRefresh);
+        res.json({ accessToken: access.token, refreshToken: newRefresh.token, accessExpiresAt: access.expiresAt, refreshExpiresAt: newRefresh.expiresAt, cookieAuth: true });
     } catch (error) {
         next(error);
     }
@@ -99,22 +102,27 @@ router.post("/logout", admin.requireAdmin, (req, res, next) => {
         }
         // Also revoke refresh token if provided
         const body = req.body || {};
-        const refreshToken = body.refreshToken || body.refresh_token;
+        const refreshToken = body.refreshToken || body.refresh_token || admin.parseCookies(req)[admin.ADMIN_REFRESH_COOKIE];
         if (refreshToken) {
             admin.addRevokedToken(require("../../lib/crypto").sha256hex(refreshToken));
         }
-        audit.record({ actorType: "admin", actorId: req.novaAdmin.adminUid, action: "admin.logout", ip: req.ip });
+        audit.record({ actorType: "admin", actorId: req.xevenAdmin.adminUid, action: "admin.logout", ip: req.ip });
+        admin.clearAdminCookies(res);
         res.json({ success: true });
     } catch (error) {
         next(error);
     }
 });
 
+router.get("/csrf-token", admin.requireAdmin, (req, res) => {
+    res.json({ csrf_token: admin.adminCsrfToken(req.xeven.adminUid) });
+});
+
 router.get("/me", admin.requireAdmin, (req, res) => {
     res.json({
-        admin: req.novaAdmin,
+        admin: req.xevenAdmin,
         businesses: admin.listAccessibleBusinesses(
-            require("../../db").get().prepare(`SELECT * FROM admin_users WHERE id = ?`).get(req.nova.adminId)
+            require("../../db").get().prepare(`SELECT * FROM admin_users WHERE id = ?`).get(req.xeven.adminId)
         ),
     });
 });

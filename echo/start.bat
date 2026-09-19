@@ -1,5 +1,5 @@
 @echo off
-REM NOVA Echo Sidecar Startup Script (Windows)
+REM XEVEN Echo Sidecar Startup Script (Windows)
 REM Usage: echo\start.bat [model] [port]
 
 set MODEL=%1
@@ -10,7 +10,7 @@ if "%MODEL%"=="" set MODEL=base
 if "%PORT%"=="" set PORT=8765
 if "%HOST%"=="" set HOST=127.0.0.1
 
-echo Starting NOVA Echo sidecar...
+echo Starting XEVEN Echo sidecar...
 echo Model: %MODEL%
 echo Port: %PORT%
 echo Host: %HOST%

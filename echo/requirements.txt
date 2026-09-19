@@ -1,4 +1,4 @@
-# NOVA Echo Sidecar Dependencies
+# XEVEN Echo Sidecar Dependencies
 # Install: pip install -r echo/requirements.txt
 
 # Core ASR
@@ -15,6 +15,12 @@ websockets>=12.0
 
 # Audio processing
 numpy>=1.24.0
+soundfile>=0.12.0
+librosa>=0.10.0
+
+# Tokenizer + progress (required by vendor transcribe path)
+tiktoken>=0.5.0
+tqdm>=4.60.0
 
 # TTS (optional)
 piper-tts>=1.2.0

@@ -15,7 +15,7 @@ const FLAG_KEYS = [
     "edit_tone",            // tweak welcome message / assistant tone
     "view_analytics",
     "view_customers",       // customer list + erasure button
-    "email_handoff",        // NOVA offers their email when customers ask for a human
+    "email_handoff",        // XEVEN offers their email when customers ask for a human
     "edit_followup",        // configure follow-up days/intervals + SMTP
     "weekly_digest",        // receive the Monday weekly performance email
 ];

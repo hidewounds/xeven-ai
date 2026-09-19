@@ -1,5 +1,5 @@
-// NOVA GUIDE — full operation website guide overlay, points at real elements
-// Loaded on demand by nova-widget.js via NOVA_GUIDE.start(steps)
+// XEVEN GUIDE — full operation website guide overlay, points at real elements
+// Loaded on demand by xeven-widget.js via XEVEN_GUIDE.start(steps)
 (function(){
   "use strict";
   var overlay=null, tooltip=null, arrow=null, current=0, steps=[], onClose=null;
@@ -7,25 +7,25 @@
     if(overlay) return;
     var s=document.createElement("style");
     s.textContent=[
-      "#nova-guide-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2147482998;display:none}",
-      "#nova-guide-overlay.on{display:block}",
-      ".nova-guide-highlight{position:absolute;border:2px solid #8b5cf6;border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.55), 0 8px 32px rgba(139,92,246,.35);background:rgba(139,92,246,.08);transition:all .35s cubic-bezier(.16,1,.3,1);z-index:2147482999;pointer-events:none}",
-      "#nova-guide-tooltip{position:absolute;z-index:2147483000;background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.92));backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.6);border-radius:14px;padding:14px 16px;max-width:320px;box-shadow:0 20px 50px rgba(0,0,0,.25);font-family:Inter,'Instrument Sans',system-ui,sans-serif;color:#111}",
-      "#nova-guide-tooltip h4{margin:0 0 6px;font:700 14px 'Space Grotesk',sans-serif;letter-spacing:-.01em}",
-      "#nova-guide-tooltip p{margin:0;font:400 13px/1.5 'Instrument Sans',sans-serif;color:#475569}",
-      "#nova-guide-tooltip .actions{display:flex;gap:8px;margin-top:12px;align-items:center}",
-      "#nova-guide-tooltip button{border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 14px;font:600 13px 'Instrument Sans',sans-serif;cursor:pointer}",
-      "#nova-guide-tooltip .primary{background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;border-color:transparent}",
-      "#nova-guide-tooltip .muted{color:#64748b;font-size:12px;margin-left:auto}",
-      "#nova-guide-arrow{position:absolute;width:14px;height:14px;background:#fff;border-left:1px solid rgba(0,0,0,.06);border-top:1px solid rgba(0,0,0,.06);transform:rotate(45deg);z-index:2147483000;display:none}"
+      "#xeven-guide-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2147482998;display:none}",
+      "#xeven-guide-overlay.on{display:block}",
+      ".xeven-guide-highlight{position:absolute;border:2px solid #8b5cf6;border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.55), 0 8px 32px rgba(139,92,246,.35);background:rgba(139,92,246,.08);transition:all .35s cubic-bezier(.16,1,.3,1);z-index:2147482999;pointer-events:none}",
+      "#xeven-guide-tooltip{position:absolute;z-index:2147483000;background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.92));backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.6);border-radius:14px;padding:14px 16px;max-width:320px;box-shadow:0 20px 50px rgba(0,0,0,.25);font-family:Inter,'Instrument Sans',system-ui,sans-serif;color:#111}",
+      "#xeven-guide-tooltip h4{margin:0 0 6px;font:700 14px 'Space Grotesk',sans-serif;letter-spacing:-.01em}",
+      "#xeven-guide-tooltip p{margin:0;font:400 13px/1.5 'Instrument Sans',sans-serif;color:#475569}",
+      "#xeven-guide-tooltip .actions{display:flex;gap:8px;margin-top:12px;align-items:center}",
+      "#xeven-guide-tooltip button{border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 14px;font:600 13px 'Instrument Sans',sans-serif;cursor:pointer}",
+      "#xeven-guide-tooltip .primary{background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;border-color:transparent}",
+      "#xeven-guide-tooltip .muted{color:#64748b;font-size:12px;margin-left:auto}",
+      "#xeven-guide-arrow{position:absolute;width:14px;height:14px;background:#fff;border-left:1px solid rgba(0,0,0,.06);border-top:1px solid rgba(0,0,0,.06);transform:rotate(45deg);z-index:2147483000;display:none}"
     ].join("\n");
     document.head.appendChild(s);
-    overlay=document.createElement("div"); overlay.id="nova-guide-overlay";
-    overlay.innerHTML='<div class="nova-guide-highlight" id="nova-guide-highlight"></div><div id="nova-guide-tooltip"><h4 id="nova-guide-title"></h4><p id="nova-guide-desc"></p><div class="actions"><button id="nova-guide-prev">Back</button><button id="nova-guide-next" class="primary">Next</button><span class="muted" id="nova-guide-progress"></span><button id="nova-guide-close" style="margin-left:4px">✕</button></div></div><div id="nova-guide-arrow"></div>';
+    overlay=document.createElement("div"); overlay.id="xeven-guide-overlay";
+    overlay.innerHTML='<div class="xeven-guide-highlight" id="xeven-guide-highlight"></div><div id="xeven-guide-tooltip"><h4 id="xeven-guide-title"></h4><p id="xeven-guide-desc"></p><div class="actions"><button id="xeven-guide-prev">Back</button><button id="xeven-guide-next" class="primary">Next</button><span class="muted" id="xeven-guide-progress"></span><button id="xeven-guide-close" style="margin-left:4px">✕</button></div></div><div id="xeven-guide-arrow"></div>';
     document.body.appendChild(overlay);
-    overlay.querySelector("#nova-guide-next").addEventListener("click", function(){ next(1); });
-    overlay.querySelector("#nova-guide-prev").addEventListener("click", function(){ next(-1); });
-    overlay.querySelector("#nova-guide-close").addEventListener("click", close);
+    overlay.querySelector("#xeven-guide-next").addEventListener("click", function(){ next(1); });
+    overlay.querySelector("#xeven-guide-prev").addEventListener("click", function(){ next(-1); });
+    overlay.querySelector("#xeven-guide-close").addEventListener("click", close);
     overlay.addEventListener("click", function(e){ if(e.target===overlay) close(); });
   }
   function resolveTarget(selector){
@@ -54,9 +54,9 @@
   }
   function position(step){
     var target=resolveTarget(step.selector);
-    var hl=document.getElementById("nova-guide-highlight");
-    var tt=document.getElementById("nova-guide-tooltip");
-    var ar=document.getElementById("nova-guide-arrow");
+    var hl=document.getElementById("xeven-guide-highlight");
+    var tt=document.getElementById("xeven-guide-tooltip");
+    var ar=document.getElementById("xeven-guide-arrow");
     if(!hl||!tt) return;
     var r = target===document.body ? {left: window.innerWidth/2-160, top: window.innerHeight/2-80, width:320, height:160 } : target.getBoundingClientRect();
     // highlight
@@ -87,24 +87,24 @@
     ensure();
     var step=steps[current];
     if(!step) return;
-    document.getElementById("nova-guide-title").textContent=(current+1)+". "+step.title;
-    document.getElementById("nova-guide-desc").textContent=step.description;
-    document.getElementById("nova-guide-progress").textContent=(current+1)+"/"+steps.length;
-    document.getElementById("nova-guide-prev").style.visibility=current===0?"hidden":"visible";
-    var nxt=document.getElementById("nova-guide-next");
-    nxt.textContent=current===steps.length-1?"Done — Ask on NOVA":"Next";
+    document.getElementById("xeven-guide-title").textContent=(current+1)+". "+step.title;
+    document.getElementById("xeven-guide-desc").textContent=step.description;
+    document.getElementById("xeven-guide-progress").textContent=(current+1)+"/"+steps.length;
+    document.getElementById("xeven-guide-prev").style.visibility=current===0?"hidden":"visible";
+    var nxt=document.getElementById("xeven-guide-next");
+    nxt.textContent=current===steps.length-1?"Done — Ask on XEVEN":"Next";
     overlay.classList.add("on");
     // delay for highlight transition
     requestAnimationFrame(function(){ requestAnimationFrame(function(){ position(step); }); });
   }
   function next(dir){
     var wasLast = current===steps.length-1 && dir===1;
-    if(wasLast){ close(); // concludes with asks any question on nova
-      // also send chat prompt to NOVA
-      var msg="Guide done — ask me any question on NOVA";
-      if(window.NOVA_WIDGET && window.NOVA_WIDGET.open) window.NOVA_WIDGET.open();
+    if(wasLast){ close(); // concludes with asks any question on xeven
+      // also send chat prompt to XEVEN
+      var msg="Guide done — ask me any question on XEVEN";
+      if(window.XEVEN_WIDGET && window.XEVEN_WIDGET.open) window.XEVEN_WIDGET.open();
       // inject message into widget if exists
-      var ev=new CustomEvent("nova:guideDone",{detail:{message:msg}});
+      var ev=new CustomEvent("xeven:guideDone",{detail:{message:msg}});
       window.dispatchEvent(ev);
       if(onClose) onClose(null);
       return;
@@ -122,8 +122,8 @@
   }
   function close(){
     if(overlay) overlay.classList.remove("on");
-    var ar=document.getElementById("nova-guide-arrow"); if(ar) ar.style.display="none";
+    var ar=document.getElementById("xeven-guide-arrow"); if(ar) ar.style.display="none";
     if(onClose) onClose(null);
   }
-  window.NOVA_GUIDE={ start:start, close:close, next:next };
+  window.XEVEN_GUIDE={ start:start, close:close, next:next };
 })();

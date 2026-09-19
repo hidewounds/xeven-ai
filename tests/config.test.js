@@ -29,14 +29,14 @@ test("config: patch merges deeply and persists", async (t) => {
     const patched = await api(server.baseUrl, "PUT", "/api/v1/config", {
         key: setup.integrationKey,
         body: {
-            assistant: { role: "sales", name: "Nova Sales" },
+            assistant: { role: "sales", name: "Xeven Sales" },
             context: { maxMemories: 8 },
         },
     });
     assert.strictEqual(patched.status, 200);
     // Unified brain — role is always unified (legacy role fields coerced)
     assert.strictEqual(patched.data.config.assistant.role, "unified");
-    assert.strictEqual(patched.data.config.assistant.name, "Nova Sales");
+    assert.strictEqual(patched.data.config.assistant.name, "Xeven Sales");
     assert.strictEqual(patched.data.config.context.maxMemories, 8);
     // untouched defaults survive
     assert.strictEqual(patched.data.config.context.maxBehavior, 10);

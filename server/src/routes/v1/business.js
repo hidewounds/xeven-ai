@@ -1,7 +1,7 @@
 "use strict";
 
 const express = require("express");
-const { authenticateIntegration } = require("../../auth/integration");
+const { authenticateIntegration, requireSecretKey } = require("../../auth/integration");
 const configService = require("../../core/config/service");
 const audit = require("../../core/audit/store");
 // Unified brain — roles removed (see server/src/core/agent/brain.js)
@@ -16,25 +16,25 @@ router.use(authenticateIntegration);
 // ---------------------------------------------------------------------------
 
 router.get("/business", (req, res) => {
-    const config = configService.getConfig(req.nova.businessId);
+    const config = configService.getConfig(req.xeven.businessId);
     res.json({
-        business: req.novaBusiness,
+        business: req.xevenBusiness,
         config: configService.sanitizeConfig(config),
     });
 });
 
-router.patch("/business", (req, res, next) => {
+router.patch("/business", requireSecretKey, (req, res, next) => {
     try {
         const body = req.body || {};
         if (body.businessName === undefined && body.active === undefined) {
             throw badRequest("Provide businessName and/or active to update.");
         }
-        const business = configService.updateBusinessIdentity(req.nova.businessId, {
+        const business = configService.updateBusinessIdentity(req.xeven.businessId, {
             businessName: body.businessName,
             active: typeof body.active === "boolean" ? body.active : undefined,
         });
         audit.record({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             actorType: "integration",
             action: "business.updated",
             detail: { fields: Object.keys(body) },
@@ -50,11 +50,11 @@ router.patch("/business", (req, res, next) => {
 // configuration
 // ---------------------------------------------------------------------------
 
-router.put("/config", (req, res, next) => {
+router.put("/config", requireSecretKey, (req, res, next) => {
     try {
-        const nextConfig = configService.updateConfig(req.nova.businessId, req.body || {});
+        const nextConfig = configService.updateConfig(req.xeven.businessId, req.body || {});
         audit.record({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             actorType: "integration",
             action: "config.updated",
             detail: { sections: Object.keys(req.body || {}) },
@@ -67,11 +67,11 @@ router.put("/config", (req, res, next) => {
 });
 
 /** Import a previously exported configuration. */
-router.post("/config/import", (req, res, next) => {
+router.post("/config/import", requireSecretKey, (req, res, next) => {
     try {
         const imported = (req.body || {}).config;
         if (!imported || typeof imported !== "object") throw badRequest("Body must contain a config object.");
-        const normalized = configService.updateConfig(req.nova.businessId, imported);
+        const normalized = configService.updateConfig(req.xeven.businessId, imported);
         res.json({ config: configService.sanitizeConfig(normalized) });
     } catch (error) {
         next(error);
@@ -79,11 +79,11 @@ router.post("/config/import", (req, res, next) => {
 });
 
 router.get("/config/export", (req, res) => {
-    const config = configService.getConfig(req.nova.businessId);
+    const config = configService.getConfig(req.xeven.businessId);
     res.json({
-        novaConfigExport: true,
+        xevenConfigExport: true,
         exportedAt: new Date().toISOString(),
-        businessName: req.nova.businessName,
+        businessName: req.xeven.businessName,
         config: configService.sanitizeConfig(config),
     });
 });
@@ -92,11 +92,11 @@ router.get("/config/export", (req, res) => {
 // integration key management
 // ---------------------------------------------------------------------------
 
-router.post("/business/rotate-key", (req, res, next) => {
+router.post("/business/rotate-key", requireSecretKey, (req, res, next) => {
     try {
-        const result = configService.rotateIntegrationKey(req.nova.businessId);
+        const result = configService.rotateIntegrationKey(req.xeven.businessId);
         audit.record({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             actorType: "integration",
             action: "key.rotated",
             detail: {},

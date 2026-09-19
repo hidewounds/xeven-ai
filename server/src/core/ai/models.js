@@ -8,60 +8,6 @@
 const env = require("../../env");
 
 const MODEL_CAPABILITIES = {
-    // Local models (Ollama)
-    "qwen2.5:3b-instruct": {
-        name: "qwen2.5:3b-instruct",
-        provider: "ollama",
-        tools: true,
-        structuredOutput: true,
-        contextWindow: 32768,
-        vision: false,
-        multilingual: true,
-        reasoning: "medium",
-        speed: "fast",
-        cost: "free",
-        tier: "local",
-    },
-    "qwen2.5-coder:3b": {
-        name: "qwen2.5-coder:3b",
-        provider: "ollama",
-        tools: true,
-        structuredOutput: true,
-        contextWindow: 32768,
-        vision: false,
-        multilingual: true,
-        reasoning: "high",
-        speed: "fast",
-        cost: "free",
-        tier: "local",
-    },
-    "llama3.1:8b": {
-        name: "llama3.1:8b",
-        provider: "ollama",
-        tools: true,
-        structuredOutput: true,
-        contextWindow: 131072,
-        vision: false,
-        multilingual: true,
-        reasoning: "high",
-        speed: "medium",
-        cost: "free",
-        tier: "local",
-    },
-    "nomic-embed-text": {
-        name: "nomic-embed-text",
-        provider: "ollama",
-        tools: false,
-        structuredOutput: false,
-        contextWindow: 8192,
-        vision: false,
-        multilingual: true,
-        reasoning: "none",
-        speed: "fast",
-        cost: "free",
-        tier: "embedding",
-    },
-
     // OpenAI-compatible (cloud)
     "gpt-4o-mini": {
         name: "gpt-4o-mini",
@@ -121,8 +67,6 @@ const MODEL_CAPABILITIES = {
 
 const TIER_HIERARCHY = {
     test: 0,
-    embedding: 1,
-    local: 2,
     cloud: 3,
 };
 
@@ -174,7 +118,7 @@ function getBestModelFor(requirements = {}) {
 
     if (!candidates.length) return null;
 
-    // Sort by preference: prefer local > cloud for privacy, then by speed/reasoning
+    // Sort by preference: cheaper tiers first, then by speed/reasoning
     candidates.sort((a, b) => {
         const tierDiff = TIER_HIERARCHY[a.tier] - TIER_HIERARCHY[b.tier];
         if (tierDiff !== 0) return tierDiff;

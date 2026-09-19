@@ -13,8 +13,8 @@ const crypto = require("crypto");
 // Isolated temp database + forced mock provider + unlimited rate for every test file.
 process.env.NODE_ENV = "test";
 process.env.AI_PROVIDER = "mock";
-process.env.NOVA_DB_PATH = path.join(os.tmpdir(), `nova-test-${crypto.randomBytes(6).toString("hex")}.db`);
-process.env.NOVA_RATE_LIMIT = "100000";
+process.env.XEVEN_DB_PATH = path.join(os.tmpdir(), `xeven-test-${crypto.randomBytes(6).toString("hex")}.db`);
+process.env.XEVEN_RATE_LIMIT = "100000";
 process.env.PORT = "0";
 
 const { createApp } = require("../server/app");
@@ -38,7 +38,7 @@ async function startServer() {
                         // ignore
                     }
                     try {
-                        fs.unlinkSync(process.env.NOVA_DB_PATH);
+                        fs.unlinkSync(process.env.XEVEN_DB_PATH);
                     } catch {
                         // ignore
                     }
@@ -50,7 +50,7 @@ async function startServer() {
 
 async function api(baseUrl, method, urlPath, { key, token, body } = {}) {
     const headers = { "Content-Type": "application/json" };
-    if (key) headers["x-nova-key"] = key;
+    if (key) headers["x-xeven-key"] = key;
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(`${baseUrl}${urlPath}`, {

@@ -1,10 +1,10 @@
 // ============================================================
-// NOVA WIDGET — embeddable chat widget (chrono + echo aware)
+// XEVEN WIDGET — embeddable chat widget (chrono + echo aware)
 //
 // Usage:
-//   <script src="https://your-nova-host/widget/nova-widget.js"
-//           data-public-key="nova_pk_xxx"
-//           data-api="https://your-nova-host"
+//   <script src="https://your-xeven-host/widget/xeven-widget.js"
+//           data-public-key="xeven_pk_xxx"
+//           data-api="https://your-xeven-host"
 //           defer></script>
 // ============================================================
 
@@ -19,7 +19,7 @@
         })();
 
     if (!currentScript) {
-        console.error("NOVA Widget: unable to locate script element.");
+        console.error("XEVEN Widget: unable to locate script element.");
         return;
     }
 
@@ -35,17 +35,17 @@
     }
 
     if (!publicKey) {
-        console.error('NOVA Widget: data-public-key is required. Example: <script data-public-key="nova_pk_...">');
+        console.error('XEVEN Widget: data-public-key is required. Example: <script data-public-key="xeven_pk_...">');
         return;
     }
 
     // -------------------------------------------------------
-    // load guide overlay (pointer) — nova-guide.js
+    // load guide overlay (pointer) — xeven-guide.js
     // -------------------------------------------------------
     (function loadGuide(){
         try {
             var g = document.createElement("script");
-            g.src = apiBase + "/widget/nova-guide.js";
+            g.src = apiBase + "/widget/xeven-guide.js";
             g.async = true;
             g.onerror = function(){};
             document.head.appendChild(g);
@@ -58,10 +58,10 @@
 
     function getVisitorId() {
         try {
-            var id = localStorage.getItem("nova_visitor_id");
+            var id = localStorage.getItem("xeven_visitor_id");
             if (id) return id;
             id = "visitor_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-            localStorage.setItem("nova_visitor_id", id);
+            localStorage.setItem("xeven_visitor_id", id);
             return id;
         } catch (e) {
             return "anonymous";
@@ -74,56 +74,56 @@
 
     var style = document.createElement("style");
     style.textContent = [
-        "@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@600;700&display=swap');",
-        "#nova-widget-button{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border-radius:16px;border:1px solid rgba(255,255,255,.14);cursor:pointer;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);color:#fff;font-size:22px;font-weight:800;box-shadow:0 8px 24px rgba(139,92,246,.35), inset 0 1px 0 rgba(255,255,255,.18);z-index:2147483000;display:flex;align-items:center;justify-content:center;transition:transform .22s cubic-bezier(.16,1,.3,1), box-shadow .22s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:'Space Grotesk',sans-serif}",
-        "#nova-widget-button:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 14px 36px rgba(139,92,246,.45)}",
-        "#nova-widget{position:fixed;right:22px;bottom:90px;width:380px;max-width:calc(100vw - 24px);height:560px;max-height:calc(100vh - 110px);display:none;flex-direction:column;background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border:1px solid rgba(255,255,255,.11);border-radius:24px;box-shadow:0 24px 64px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);overflow:hidden;z-index:2147483000;font-family:'Instrument Sans',system-ui,-apple-system,sans-serif;color:#f1f5f9}",
-        "#nova-widget.open{display:flex;animation:novaIn .32s cubic-bezier(.16,1,.3,1)}",
-        "@keyframes novaIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}",
-        "#nova-widget::before{content:'';position:absolute;inset:0;border-radius:24px;padding:1px;background:linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,0), rgba(139,92,246,.22));-webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.9}",
-        "#nova-widget-header{padding:16px 16px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.07);background:linear-gradient(180deg, rgba(255,255,255,.04), transparent);position:relative;z-index:1}",
-        "#nova-widget-av{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:18px;box-shadow:0 4px 14px rgba(139,92,246,.35);flex-shrink:0}",
-        "#nova-widget-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:#fff;line-height:1}",
-        "#nova-widget-sub{font-size:11.5px;color:#10b981;font-weight:700;display:flex;align-items:center;gap:6px;margin-top:2px}",
-        "#nova-widget-sub::before{content:'';width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 5px rgba(16,185,129,.14);animation:novaPulse 2s infinite}",
-        "@keyframes novaPulse{0%,100%{box-shadow:0 0 0 5px rgba(16,185,129,.14)}50%{box-shadow:0 0 0 9px rgba(16,185,129,0)}}",
-        "#nova-widget-live{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.2);padding:6px 10px;border-radius:999px;white-space:nowrap}",
-        "#nova-widget-close{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:#fff;border-radius:10px;padding:6px 9px;font-size:12px;cursor:pointer;backdrop-filter:blur(8px);transition:.2s;margin-left:4px}",
-        "#nova-widget-close:hover{background:rgba(255,255,255,.1)}",
-        "#nova-widget-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:transparent;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.14) transparent;position:relative;z-index:1}",
-        "#nova-widget-messages::-webkit-scrollbar{width:4px}#nova-widget-messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:999px}",
-        ".nova-msg{max-width:86%;padding:12px 16px;border-radius:18px;font-size:14px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word;position:relative;backdrop-filter:blur(8px);border:1px solid transparent}",
-        ".nova-msg.user{align-self:flex-end;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);color:#fff;border-color:rgba(255,255,255,.14);border-bottom-right-radius:6px;box-shadow:0 8px 18px rgba(139,92,246,.28)}",
-        ".nova-msg.assistant{align-self:flex-start;background:rgba(255,255,255,.06);color:#f1f5f9;border-color:rgba(255,255,255,.07);border-bottom-left-radius:6px}",
-        ".nova-msg .nova-tag{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px;opacity:.94}",
-        ".nova-msg.assistant .nova-tag{color:#a78bfa}.nova-msg.user .nova-tag{color:rgba(255,255,255,.92)}",
-        ".nova-msg.nova-loading{opacity:.6;font-size:13px;background:transparent;border:none;padding:4px 8px;color:#94a3b8;backdrop-filter:none}",
-        ".nova-msg strong{font-weight:700;color:#fff}",
-        ".nova-msg em{font-style:italic;opacity:.9}",
-        "#nova-widget-input-area{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.02);align-items:flex-end;backdrop-filter:blur(12px);position:relative;z-index:1}",
-        "#nova-widget-input{flex:1;resize:none;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);border-radius:999px;padding:10px 14px;font-size:14px;font-family:'Instrument Sans',sans-serif;outline:none;max-height:110px;color:#f1f5f9;transition:.18s}",
-        "#nova-widget-input::placeholder{color:#64748b}",
-        "#nova-widget-input:focus{border-color:rgba(139,92,246,.35);box-shadow:0 0 0 4px rgba(139,92,246,.12);background:rgba(255,255,255,.08)}",
-        "#nova-widget-send{width:38px;height:38px;min-width:38px;border:none;border-radius:50%;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(139,92,246,.28);transition:.18s;flex-shrink:0}",
-        "#nova-widget-send:hover{transform:translateY(-1px);box-shadow:0 10px 22px rgba(139,92,246,.35)}",
-        "#nova-widget-send:disabled{opacity:.5;cursor:default;transform:none}",
-        "#nova-mic{width:38px;height:38px;min-width:38px;border:1px solid rgba(255,255,255,.11);border-radius:50%;background:rgba(255,255,255,.06);color:#f1f5f9;font-size:15px;cursor:pointer;display:none;backdrop-filter:blur(8px);transition:.2s;flex-shrink:0}",
-        "#nova-mic:hover{background:rgba(255,255,255,.1)}",
-        "#nova-mic.on{background:#ef4444;color:#fff;border-color:#ef4444;animation:novaPulseMic 1.2s infinite}",
-        "@keyframes novaPulseMic{0%{opacity:1}50%{opacity:.75}100%{opacity:1}}",
-        "#nova-avail-toggle{width:38px;height:38px;min-width:38px;border:1px solid rgba(255,255,255,.11);border-radius:50%;background:rgba(255,255,255,.06);color:#f1f5f9;font-size:14px;cursor:pointer;backdrop-filter:blur(8px);flex-shrink:0}",
-        "#nova-avail-toggle:hover{background:rgba(255,255,255,.1)}",
-        "#nova-avail-panel{display:none;max-height:170px;overflow-y:auto;border-top:1px solid rgba(255,255,255,.07);background:rgba(15,18,33,.94);backdrop-filter:blur(16px);padding:10px;font-size:12.5px;color:#cbd5e1;position:relative;z-index:1}",
-        "#nova-avail-panel.open{display:block}",
-        ".nova-slot{display:inline-flex;align-items:center;margin:4px 4px;padding:6px 12px;border:1px solid rgba(255,255,255,.1);border-radius:999px;cursor:pointer;font-size:12.5px;font-weight:600;background:rgba(255,255,255,.06);color:#f1f5f9;backdrop-filter:blur(8px);transition:.2s}",
-        ".nova-slot:hover{background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 100%);color:#fff;border-color:transparent;transform:translateY(-1px)}",
-        ".nova-chip{font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.07);color:#f1f5f9;cursor:pointer;transition:.2s;backdrop-filter:blur(8px)}",
-        ".nova-chip:hover{background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.35);color:#fff;transform:translateY(-1px)}",
-        "@media(max-width:500px){#nova-widget{right:10px;left:10px;width:auto;bottom:84px;height:68vh}#nova-widget-button{right:16px;bottom:16px;width:54px;height:54px}}"
+        "/* Fonts are loaded by the host page via <link> — no @import here (CSP + perf) */",
+        "#xeven-widget-button{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border-radius:16px;border:1px solid rgba(255,255,255,.14);cursor:pointer;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);color:#fff;font-size:22px;font-weight:800;box-shadow:0 8px 24px rgba(139,92,246,.35), inset 0 1px 0 rgba(255,255,255,.18);z-index:2147483000;display:flex;align-items:center;justify-content:center;transition:transform .22s cubic-bezier(.16,1,.3,1), box-shadow .22s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:'Space Grotesk',sans-serif}",
+        "#xeven-widget-button:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 14px 36px rgba(139,92,246,.45)}",
+        "#xeven-widget{position:fixed;right:22px;bottom:90px;width:380px;max-width:calc(100vw - 24px);height:560px;max-height:calc(100vh - 110px);display:none;flex-direction:column;background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border:1px solid rgba(255,255,255,.11);border-radius:24px;box-shadow:0 24px 64px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);overflow:hidden;z-index:2147483000;font-family:'Instrument Sans',system-ui,-apple-system,sans-serif;color:#f1f5f9}",
+        "#xeven-widget.open{display:flex;animation:xevenIn .32s cubic-bezier(.16,1,.3,1)}",
+        "@keyframes xevenIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}",
+        "#xeven-widget::before{content:'';position:absolute;inset:0;border-radius:24px;padding:1px;background:linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,0), rgba(139,92,246,.22));-webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.9}",
+        "#xeven-widget-header{padding:16px 16px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.07);background:linear-gradient(180deg, rgba(255,255,255,.04), transparent);position:relative;z-index:1}",
+        "#xeven-widget-av{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:18px;box-shadow:0 4px 14px rgba(139,92,246,.35);flex-shrink:0}",
+        "#xeven-widget-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:#fff;line-height:1}",
+        "#xeven-widget-sub{font-size:11.5px;color:#10b981;font-weight:700;display:flex;align-items:center;gap:6px;margin-top:2px}",
+        "#xeven-widget-sub::before{content:'';width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 5px rgba(16,185,129,.14);animation:xevenPulse 2s infinite}",
+        "@keyframes xevenPulse{0%,100%{box-shadow:0 0 0 5px rgba(16,185,129,.14)}50%{box-shadow:0 0 0 9px rgba(16,185,129,0)}}",
+        "#xeven-widget-live{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.2);padding:6px 10px;border-radius:999px;white-space:nowrap}",
+        "#xeven-widget-close{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:#fff;border-radius:10px;padding:6px 9px;font-size:12px;cursor:pointer;backdrop-filter:blur(8px);transition:.2s;margin-left:4px}",
+        "#xeven-widget-close:hover{background:rgba(255,255,255,.1)}",
+        "#xeven-widget-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:transparent;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.14) transparent;position:relative;z-index:1}",
+        "#xeven-widget-messages::-webkit-scrollbar{width:4px}#xeven-widget-messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:999px}",
+        ".xeven-msg{max-width:86%;padding:12px 16px;border-radius:18px;font-size:14px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word;position:relative;backdrop-filter:blur(8px);border:1px solid transparent}",
+        ".xeven-msg.user{align-self:flex-end;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);color:#fff;border-color:rgba(255,255,255,.14);border-bottom-right-radius:6px;box-shadow:0 8px 18px rgba(139,92,246,.28)}",
+        ".xeven-msg.assistant{align-self:flex-start;background:rgba(255,255,255,.06);color:#f1f5f9;border-color:rgba(255,255,255,.07);border-bottom-left-radius:6px}",
+        ".xeven-msg .xeven-tag{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px;opacity:.94}",
+        ".xeven-msg.assistant .xeven-tag{color:#a78bfa}.xeven-msg.user .xeven-tag{color:rgba(255,255,255,.92)}",
+        ".xeven-msg.xeven-loading{opacity:.6;font-size:13px;background:transparent;border:none;padding:4px 8px;color:#94a3b8;backdrop-filter:none}",
+        ".xeven-msg strong{font-weight:700;color:#fff}",
+        ".xeven-msg em{font-style:italic;opacity:.9}",
+        "#xeven-widget-input-area{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.02);align-items:flex-end;backdrop-filter:blur(12px);position:relative;z-index:1}",
+        "#xeven-widget-input{flex:1;resize:none;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);border-radius:999px;padding:10px 14px;font-size:14px;font-family:'Instrument Sans',sans-serif;outline:none;max-height:110px;color:#f1f5f9;transition:.18s}",
+        "#xeven-widget-input::placeholder{color:#64748b}",
+        "#xeven-widget-input:focus{border-color:rgba(139,92,246,.35);box-shadow:0 0 0 4px rgba(139,92,246,.12);background:rgba(255,255,255,.08)}",
+        "#xeven-widget-send{width:38px;height:38px;min-width:38px;border:none;border-radius:50%;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(139,92,246,.28);transition:.18s;flex-shrink:0}",
+        "#xeven-widget-send:hover{transform:translateY(-1px);box-shadow:0 10px 22px rgba(139,92,246,.35)}",
+        "#xeven-widget-send:disabled{opacity:.5;cursor:default;transform:none}",
+        "#xeven-mic{width:38px;height:38px;min-width:38px;border:1px solid rgba(255,255,255,.11);border-radius:50%;background:rgba(255,255,255,.06);color:#f1f5f9;font-size:15px;cursor:pointer;display:none;backdrop-filter:blur(8px);transition:.2s;flex-shrink:0}",
+        "#xeven-mic:hover{background:rgba(255,255,255,.1)}",
+        "#xeven-mic.on{background:#ef4444;color:#fff;border-color:#ef4444;animation:xevenPulseMic 1.2s infinite}",
+        "@keyframes xevenPulseMic{0%{opacity:1}50%{opacity:.75}100%{opacity:1}}",
+        "#xeven-avail-toggle{width:38px;height:38px;min-width:38px;border:1px solid rgba(255,255,255,.11);border-radius:50%;background:rgba(255,255,255,.06);color:#f1f5f9;font-size:14px;cursor:pointer;backdrop-filter:blur(8px);flex-shrink:0}",
+        "#xeven-avail-toggle:hover{background:rgba(255,255,255,.1)}",
+        "#xeven-avail-panel{display:none;max-height:170px;overflow-y:auto;border-top:1px solid rgba(255,255,255,.07);background:rgba(15,18,33,.94);backdrop-filter:blur(16px);padding:10px;font-size:12.5px;color:#cbd5e1;position:relative;z-index:1}",
+        "#xeven-avail-panel.open{display:block}",
+        ".xeven-slot{display:inline-flex;align-items:center;margin:4px 4px;padding:6px 12px;border:1px solid rgba(255,255,255,.1);border-radius:999px;cursor:pointer;font-size:12.5px;font-weight:600;background:rgba(255,255,255,.06);color:#f1f5f9;backdrop-filter:blur(8px);transition:.2s}",
+        ".xeven-slot:hover{background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 100%);color:#fff;border-color:transparent;transform:translateY(-1px)}",
+        ".xeven-chip{font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.07);color:#f1f5f9;cursor:pointer;transition:.2s;backdrop-filter:blur(8px)}",
+        ".xeven-chip:hover{background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.35);color:#fff;transform:translateY(-1px)}",
+        "@media(max-width:500px){#xeven-widget{right:10px;left:10px;width:auto;bottom:84px;height:68vh}#xeven-widget-button{right:16px;bottom:16px;width:54px;height:54px}}"
     ].join("\n");
     document.head.appendChild(style);
 
-    // deeper UI improvisation — widget learns design system so it sits to its core like nova web image
+    // deeper UI improvisation — widget learns design system so it sits to its core like xeven web image
     // learns primary, darkMode, radius, fonts, spacing + keeps glass when site is dark (#050508)
     function applyWidgetTheme(theme, customerBase){
         if(!theme || typeof theme !== "object") return;
@@ -144,96 +144,96 @@
             var spacing = theme.spacing || null;
             var darkMode = theme.darkMode;
             var css = "";
-            // site is dark by default (nova web #050508) — keep glass; don't override glass with flat
+            // site is dark by default (xeven web #050508) — keep glass; don't override glass with flat
             // primary — button, send, av, user bubble — keep gradient core but tint if brand is distinct
             if(primary && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(primary) && primary.toLowerCase() !== "#8b5cf6" && primary.toLowerCase() !== "#6366f1"){
                 // if site brand is not violet, blend it into widget's gradient per site
-                css += "\n#nova-widget-button{background:"+primary+"!important;border-color:"+primary+"!important}";
-                css += "\n#nova-widget-av{background:"+primary+"!important}";
-                css += "\n#nova-widget-send{background:"+primary+"!important}";
-                css += "\n.nova-msg.user{background:"+primary+"!important;border-color:"+primary+"!important}";
-                try{ document.documentElement.style.setProperty("--nova-primary", primary); }catch{}
+                css += "\n#xeven-widget-button{background:"+primary+"!important;border-color:"+primary+"!important}";
+                css += "\n#xeven-widget-av{background:"+primary+"!important}";
+                css += "\n#xeven-widget-send{background:"+primary+"!important}";
+                css += "\n.xeven-msg.user{background:"+primary+"!important;border-color:"+primary+"!important}";
+                try{ document.documentElement.style.setProperty("--xeven-primary", primary); }catch{}
                 if(button) button.style.background = primary;
             }
             if(secondary && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(secondary)){
-                css += "\n#nova-mic.on{background:"+secondary+"!important}";
+                css += "\n#xeven-mic.on{background:"+secondary+"!important}";
             }
             // dark/light — site dark (#050508) → keep glass (already dark), site light → switch to light glass
             if(darkMode === false){
                 // light site — widget becomes light glass: white translucent instead of dark
-                css += "\n#nova-widget{background:linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78))!important;color:#0f1221!important;border-color:rgba(15,18,33,.08)!important;box-shadow:0 20px 50px rgba(15,18,33,.12)!important}";
-                css += "\n#nova-widget-header{background:rgba(255,255,255,.4)!important;border-color:rgba(15,18,33,.06)!important}";
-                css += "\n#nova-widget-title{color:#0f1221!important}";
-                css += "\n.nova-msg.assistant{background:rgba(15,18,33,.04)!important;color:#1a2038!important;border-color:rgba(15,18,33,.08)!important}";
-                css += "\n#nova-widget-input-area{background:rgba(255,255,255,.6)!important;border-color:rgba(15,18,33,.06)!important}";
-                css += "\n#nova-widget-input{background:rgba(255,255,255,.9)!important;color:#1a2038!important;border-color:rgba(15,18,33,.1)!important}";
-                css += "\n#nova-widget-input::placeholder{color:#94a3b8!important}";
-                css += "\n#nova-avail-panel{background:rgba(255,255,255,.96)!important;border-color:rgba(15,18,33,.06)!important;color:#1a2038!important}";
-                css += "\n.nova-slot{background:#fff!important;color:#1a2038!important;border-color:rgba(15,18,33,.1)!important}";
+                css += "\n#xeven-widget{background:linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78))!important;color:#0f1221!important;border-color:rgba(15,18,33,.08)!important;box-shadow:0 20px 50px rgba(15,18,33,.12)!important}";
+                css += "\n#xeven-widget-header{background:rgba(255,255,255,.4)!important;border-color:rgba(15,18,33,.06)!important}";
+                css += "\n#xeven-widget-title{color:#0f1221!important}";
+                css += "\n.xeven-msg.assistant{background:rgba(15,18,33,.04)!important;color:#1a2038!important;border-color:rgba(15,18,33,.08)!important}";
+                css += "\n#xeven-widget-input-area{background:rgba(255,255,255,.6)!important;border-color:rgba(15,18,33,.06)!important}";
+                css += "\n#xeven-widget-input{background:rgba(255,255,255,.9)!important;color:#1a2038!important;border-color:rgba(15,18,33,.1)!important}";
+                css += "\n#xeven-widget-input::placeholder{color:#94a3b8!important}";
+                css += "\n#xeven-avail-panel{background:rgba(255,255,255,.96)!important;border-color:rgba(15,18,33,.06)!important;color:#1a2038!important}";
+                css += "\n.xeven-slot{background:#fff!important;color:#1a2038!important;border-color:rgba(15,18,33,.1)!important}";
             }
             if(bg && bg.length>2 && bg !== "rgba(255,255,255,.015)" && darkMode===false){
                 try{ if(widget) widget.style.background = bg; }catch{}
             }
             if(surface && surface.length>2 && darkMode===false){
-                css += "\n.nova-msg.assistant{background:"+surface+"!important}";
+                css += "\n.xeven-msg.assistant{background:"+surface+"!important}";
             }
             if(text && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(text)){
-                if(darkMode===false) css += "\n#nova-widget{color:"+text+"!important}";
+                if(darkMode===false) css += "\n#xeven-widget{color:"+text+"!important}";
             }
             if(muted && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(muted)){
-                css += "\n#nova-widget-messages .nova-msg.nova-loading{color:"+muted+"!important}";
+                css += "\n#xeven-widget-messages .xeven-msg.xeven-loading{color:"+muted+"!important}";
             }
             if(border && border.length>2){
-                css += "\n#nova-widget{border-color:"+border+"!important}";
-                css += "\n#nova-widget-header{border-color:"+border+"!important}";
+                css += "\n#xeven-widget{border-color:"+border+"!important}";
+                css += "\n#xeven-widget-header{border-color:"+border+"!important}";
             }
-            // fonts — nova web uses Instrument Sans / Space Grotesk / JetBrains Mono — keep them
+            // fonts — xeven web uses Instrument Sans / Space Grotesk / JetBrains Mono — keep them
             if(font && font.length>2){
                 var f = font + ", 'Instrument Sans', system-ui, -apple-system, sans-serif";
                 if(widget) widget.style.fontFamily = f;
                 if(button) button.style.fontFamily = font + ", sans-serif";
-                css += "\n#nova-widget{font-family:"+f+"!important}";
+                css += "\n#xeven-widget{font-family:"+f+"!important}";
             }
             if(headingFont && headingFont.length>2){
-                css += "\n#nova-widget-header{font-family:"+headingFont+", 'Space Grotesk', sans-serif!important}";
-                css += "\n#nova-widget-title{font-family:"+headingFont+", 'Space Grotesk', sans-serif!important}";
+                css += "\n#xeven-widget-header{font-family:"+headingFont+", 'Space Grotesk', sans-serif!important}";
+                css += "\n#xeven-widget-title{font-family:"+headingFont+", 'Space Grotesk', sans-serif!important}";
             }
             // radius — site --r-lg 22-24px → widget radius
             var r = radiusLg || radius;
             if(r && /^\d+(px|rem|%|)$/.test(r)){
                 var rv = r.match(/^\d+$/) ? r+"px" : r;
-                css += "\n#nova-widget{border-radius:"+rv+"!important}";
-                css += "\n#nova-widget::before{border-radius:"+rv+"!important}";
+                css += "\n#xeven-widget{border-radius:"+rv+"!important}";
+                css += "\n#xeven-widget::before{border-radius:"+rv+"!important}";
                 if(widget) widget.style.borderRadius = rv;
             }
             if(shadow && shadow.length>5){
                 // keep glass shadow, but blend site shadow
-                css += "\n#nova-widget{box-shadow:"+shadow+", 0 24px 64px rgba(0,0,0,.18)!important}";
+                css += "\n#xeven-widget{box-shadow:"+shadow+", 0 24px 64px rgba(0,0,0,.18)!important}";
             }
             if(spacing && /^\d+(px|rem)$/.test(spacing)){
-                css += "\n#nova-widget-messages{gap:"+spacing+"!important}";
+                css += "\n#xeven-widget-messages{gap:"+spacing+"!important}";
             }
             if(css) {
                 var s = document.createElement("style");
-                s.id = "nova-widget-theme";
+                s.id = "xeven-widget-theme";
                 s.textContent = css;
-                var old = document.getElementById("nova-widget-theme");
+                var old = document.getElementById("xeven-widget-theme");
                 if(old) old.remove();
                 document.head.appendChild(s);
             }
             // customer base — adapt title / avatar style subtly
             if(customerBase){
-                var title = widget ? widget.querySelector("#nova-widget-title") : null;
+                var title = widget ? widget.querySelector("#xeven-widget-title") : null;
                 if(title){
-                    if(customerBase.indexOf("fashion")!==-1 && title.textContent==="Nova") title.textContent="Style Assistant";
-                    // business keeps Nova, general keeps Nova — subtle, human
+                    if(customerBase.indexOf("fashion")!==-1 && title.textContent==="Xeven") title.textContent="Style Assistant";
+                    // business keeps Xeven, general keeps Xeven — subtle, human
                 }
             }
-            try{ localStorage.setItem("nova_widget_theme", JSON.stringify({primary:primary, secondary:secondary, bg:bg, surface:surface, font:font, headingFont:headingFont, radius:r, shadow:shadow, customerBase:customerBase, darkMode:darkMode, at:Date.now()})); }catch{}
+            try{ localStorage.setItem("xeven_widget_theme", JSON.stringify({primary:primary, secondary:secondary, bg:bg, surface:surface, font:font, headingFont:headingFont, radius:r, shadow:shadow, customerBase:customerBase, darkMode:darkMode, at:Date.now()})); }catch{}
         }catch(e){}
     }
     // expose for manual refresh
-    window.NOVA_APPLY_THEME = applyWidgetTheme;
+    window.XEVEN_APPLY_THEME = applyWidgetTheme;
 
     // Echo Manager — unified STT/TTS, parity local (sidecar) vs prod (OpenAI) with browser fallback
     var EchoManager = (function(){
@@ -331,9 +331,15 @@
             tryBrowserTTS: tryBrowserTTS,
             speak: speak,
             transcribeViaWebSpeech: transcribeViaWebSpeech,
-            // wasm still available as fallback, but WebSpeech is primary for prod (no download)
+            // wasm is OPT-IN only (page ?xevenwasm=1 or localStorage xeven_wasm_stt=1).
+            // Default path is WebSpeech (no ~40MB download, works on low-end).
             transcribeWithWasm: async function(blob){
                 try{
+                    var wasmOptIn = false;
+                    try{
+                        wasmOptIn = localStorage.getItem("xeven_wasm_stt")==="1" || /(?:\?|&)xevenwasm=1(?:&|$)/.test(location.search);
+                    }catch(e){}
+                    if(!wasmOptIn) return "";
                     if(!window.transformers?.pipeline){
                         await new Promise(function(res, rej){
                             var s=document.createElement('script');
@@ -360,9 +366,9 @@
     function tryBrowserTTS(text, lang){ return EchoManager.tryBrowserTTS(text, lang); }
     var transcribeWithWasm = EchoManager.transcribeWithWasm;
     function transcribeWithSpeechRecognitionOnce(){ return EchoManager.transcribeViaWebSpeech(); }
-    window.NOVA_ECHO = EchoManager;
-    window.NOVA_TTS_FALLBACK = tryBrowserTTS;
-    window.NOVA_WASM_TRANSCRIBE = transcribeWithWasm;
+    window.XEVEN_ECHO = EchoManager;
+    window.XEVEN_TTS_FALLBACK = tryBrowserTTS;
+    window.XEVEN_WASM_TRANSCRIBE = transcribeWithWasm;
 
     // wav conversion — guarantees sidecar can decode without ffmpeg (webm opus → wav)
     function arrayBufferToBase64(buffer){
@@ -448,21 +454,21 @@
     // -------------------------------------------------------
 
     var button = document.createElement("button");
-    button.id = "nova-widget-button";
-    button.setAttribute("aria-label", "Open NOVA assistant");
-    button.textContent = "N";
+    button.id = "xeven-widget-button";
+    button.setAttribute("aria-label", "Open XEVEN assistant");
+    button.textContent = "X";
 
     var widget = document.createElement("div");
-    widget.id = "nova-widget";
+    widget.id = "xeven-widget";
     widget.innerHTML =
-        '<div id="nova-widget-header"><div id="nova-widget-av">N</div><div><div id="nova-widget-title">Nova</div><div id="nova-widget-sub">online</div></div><span id="nova-widget-live">● LIVE</span><button id="nova-widget-close" aria-label="Close">✕</button></div>' +
-        '<div id="nova-widget-messages"></div>' +
-        '<div id="nova-avail-panel"></div>' +
-        '<div id="nova-widget-input-area">' +
-        '<textarea id="nova-widget-input" placeholder="Ask anything..." rows="1"></textarea>' +
-        '<button id="nova-mic" title="Hold to speak" aria-label="Voice input">🎙</button>' +
-        '<button id="nova-avail-toggle" title="Availability" aria-label="Availability">📅</button>' +
-        '<button id="nova-widget-send" aria-label="Send">↗</button>' +
+        '<div id="xeven-widget-header"><div id="xeven-widget-av">X</div><div><div id="xeven-widget-title">Xeven</div><div id="xeven-widget-sub">online</div></div><span id="xeven-widget-live">● LIVE</span><button id="xeven-widget-close" aria-label="Close">✕</button></div>' +
+        '<div id="xeven-widget-messages"></div>' +
+        '<div id="xeven-avail-panel"></div>' +
+        '<div id="xeven-widget-input-area">' +
+        '<textarea id="xeven-widget-input" placeholder="Ask anything..." rows="1"></textarea>' +
+        '<button id="xeven-mic" title="Hold to speak" aria-label="Voice input">🎙</button>' +
+        '<button id="xeven-avail-toggle" title="Availability" aria-label="Availability">📅</button>' +
+        '<button id="xeven-widget-send" aria-label="Send">↗</button>' +
         "</div>";
 
     function mountWhenReady() {
@@ -491,16 +497,16 @@
     var sidecarAvailable = null; // null=unknown, true/false — checked via /api/health/echo
 
     setTimeout(function () {
-        messagesEl = widget.querySelector("#nova-widget-messages");
-        inputEl = widget.querySelector("#nova-widget-input");
-        sendEl = widget.querySelector("#nova-widget-send");
-        micEl = widget.querySelector("#nova-mic");
-        availToggle = widget.querySelector("#nova-avail-toggle");
-        availPanel = widget.querySelector("#nova-avail-panel");
+        messagesEl = widget.querySelector("#xeven-widget-messages");
+        inputEl = widget.querySelector("#xeven-widget-input");
+        sendEl = widget.querySelector("#xeven-widget-send");
+        micEl = widget.querySelector("#xeven-mic");
+        availToggle = widget.querySelector("#xeven-avail-toggle");
+        availPanel = widget.querySelector("#xeven-avail-panel");
 
         sendEl.addEventListener("click", sendMessage);
         button.addEventListener("click", toggle);
-        var closeBtn = widget.querySelector("#nova-widget-close");
+        var closeBtn = widget.querySelector("#xeven-widget-close");
         if(closeBtn) closeBtn.addEventListener("click", function(e){ e.stopPropagation(); widget.classList.remove("open"); });
         if (availToggle) availToggle.addEventListener("click", toggleAvailability);
         inputEl.addEventListener("keydown", function (event) {
@@ -539,7 +545,7 @@
     var availCacheAt = 0;
     async function api(path, options) {
         options = options || {};
-        options.headers = Object.assign({ "Content-Type": "application/json", "x-nova-key": publicKey }, options.headers || {});
+        options.headers = Object.assign({ "Content-Type": "application/json", "x-xeven-key": publicKey }, options.headers || {});
         // Widget timeout: chat 20s, transcribe/others 20s — sidecar needs up to 5s for 10s audio on CPU, give headroom
         var isChat = path.indexOf("/chat") !== -1;
         var isTranscribe = path.indexOf("transcribe") !== -1 || path.indexOf("/tts/") !== -1;
@@ -561,13 +567,13 @@
                 data = {};
             }
             if (!response.ok) {
-                throw new Error((data && data.error && data.error.message) || "NOVA request failed.");
+                throw new Error((data && data.error && data.error.message) || "XEVEN request failed.");
             }
             return data;
         } catch (e) {
             if (timeoutId) clearTimeout(timeoutId);
             if (e.name === "AbortError" || (e.message && e.message.indexOf("abort") !== -1)) {
-                throw new Error(isChat ? "NOVA is thinking a bit long — please try again in a moment." : "Request timed out — please try again.");
+                throw new Error(isChat ? "XEVEN is thinking a bit long — please try again in a moment." : "Request timed out — please try again.");
             }
             throw e;
         }
@@ -578,7 +584,7 @@
         try {
             var data = await api("/api/v1/widget/config");
             if (data.config && data.config.assistantName) {
-                var title = widget.querySelector("#nova-widget-title");
+                var title = widget.querySelector("#xeven-widget-title");
                 if (title) title.textContent = data.config.assistantName;
             }
             if (data.config) {
@@ -598,30 +604,30 @@
                 }
                 // auto guide ONLY on first login visit — not on every first visit, not on "guide me" chat
                 try {
-                    var login = null; try { login = localStorage.getItem("nova_web_login") || localStorage.getItem("nova_login") || sessionStorage.getItem("nova_web_login"); } catch {}
-                    var seenKey = login ? "nova_guide_seen_" + login : "nova_guide_seen";
+                    var login = null; try { login = localStorage.getItem("xeven_web_login") || localStorage.getItem("xeven_login") || sessionStorage.getItem("xeven_web_login"); } catch {}
+                    var seenKey = login ? "xeven_guide_seen_" + login : "xeven_guide_seen";
                     var seen = null; try { seen = localStorage.getItem(seenKey); } catch {}
                     // only auto-start if logged in and not seen for this login
-                    if(login && !seen && window.NOVA_GUIDE){
+                    if(login && !seen && window.XEVEN_GUIDE){
                         setTimeout(function(){
                             api("/api/v1/widget/guide",{method:"GET"}).then(function(gd){
                                 var steps = (gd && gd.guide && gd.guide.steps && gd.guide.steps.length) ? gd.guide.steps : [
-                                    { id:"welcome", title:"Welcome — I'll guide you", selector:"body", description:"Hi, I'm NOVA. I'll show you around in 60 seconds.", position:"center" },
+                                    { id:"welcome", title:"Welcome — I'll guide you", selector:"body", description:"Hi, I'm XEVEN. I'll show you around in 60 seconds.", position:"center" },
                                     { id:"explore", title:"Explore", selector:"nav, header", description:"Browse what's here — I'll explain as we go.", position:"bottom" },
-                                    { id:"ask", title:"Ask me anything on NOVA", selector:"#nova-widget-button", description:"Tour done. Ask any question — I handle basics, bookings and voice.", position:"left" }
+                                    { id:"ask", title:"Ask me anything on XEVEN", selector:"#xeven-widget-button", description:"Tour done. Ask any question — I handle basics, bookings and voice.", position:"left" }
                                 ];
-                                if(window.NOVA_GUIDE && window.NOVA_GUIDE.start){
-                                    window.NOVA_GUIDE.start(steps, { onStep: function(){}});
-                                    try { localStorage.setItem(seenKey,"1"); localStorage.setItem("nova_guide_seen","1"); } catch {}
+                                if(window.XEVEN_GUIDE && window.XEVEN_GUIDE.start){
+                                    window.XEVEN_GUIDE.start(steps, { onStep: function(){}});
+                                    try { localStorage.setItem(seenKey,"1"); localStorage.setItem("xeven_guide_seen","1"); } catch {}
                                     addMessage("assistant", "👋 Welcome back — showing you around. Follow the highlight, then ask me anything.");
                                     messages.push({role:"assistant", content:"Showing tour — follow highlight"});
                                     hasWelcomed=true;
                                 }
                             }).catch(function(){
-                                if(window.NOVA_GUIDE){
-                                    window.NOVA_GUIDE.start([
-                                        { id:"welcome", title:"Welcome — I'll guide you", selector:"body", description:"Hi, I'm NOVA. I'll show you around in 60 seconds.", position:"center" },
-                                        { id:"ask", title:"Ask me anything on NOVA", selector:"#nova-widget-button", description:"Tour done. Ask any question.", position:"left" }
+                                if(window.XEVEN_GUIDE){
+                                    window.XEVEN_GUIDE.start([
+                                        { id:"welcome", title:"Welcome — I'll guide you", selector:"body", description:"Hi, I'm XEVEN. I'll show you around in 60 seconds.", position:"center" },
+                                        { id:"ask", title:"Ask me anything on XEVEN", selector:"#xeven-widget-button", description:"Tour done. Ask any question.", position:"left" }
                                     ]);
                                     try { localStorage.setItem(seenKey,"1"); } catch {}
                                 }
@@ -648,8 +654,8 @@
                 } catch {}
                 // poll for theme changes as site evolves (every 5 min, widget improves)
                 try {
-                    if(!window._novaThemeInterval){
-                        window._novaThemeInterval = setInterval(function(){
+                    if(!window._xevenThemeInterval){
+                        window._xevenThemeInterval = setInterval(function(){
                             api("/api/v1/widget/theme",{method:"GET"}).then(function(td){
                                 if(td && td.theme) applyWidgetTheme(td.theme, td.customerBase);
                             }).catch(function(){});
@@ -677,7 +683,7 @@
                 }
             }
         } catch (error) {
-            console.warn("NOVA Widget:", error.message);
+            console.warn("XEVEN Widget:", error.message);
         }
     }
 
@@ -695,19 +701,19 @@
     }
     function addMessage(role, content) {
         if (!messagesEl) {
-            try{ messagesEl = widget.querySelector("#nova-widget-messages"); }catch(e){}
+            try{ messagesEl = widget.querySelector("#xeven-widget-messages"); }catch(e){}
             if (!messagesEl) {
-                console.warn("NOVA Widget: messagesEl not ready");
+                console.warn("XEVEN Widget: messagesEl not ready");
                 return null;
             }
         }
         var element = document.createElement("div");
-        element.className = "nova-msg " + role;
+        element.className = "xeven-msg " + role;
         element.innerHTML = formatMessage(content);
         try{
             messagesEl.appendChild(element);
             messagesEl.scrollTop = messagesEl.scrollHeight;
-        }catch(e){ console.warn("NOVA addMessage failed", e); }
+        }catch(e){ console.warn("XEVEN addMessage failed", e); }
         return element;
     }
 
@@ -716,38 +722,35 @@
         // keep helper for legacy but never auto-start guide here
         return false;
     }
+    // Allowlisted in-site pages. Navigation only ever targets these files at
+    // the site ORIGIN root — never relative subpaths, never external URLs.
+    var NAV_PAGES = { pricing:"pricing.html", price:"pricing.html", features:"features.html", feature:"features.html", home:"index.html", checkout:"checkout.html", login:"login.html" };
     function maybeNavigateIntent(text){
-        var t = String(text||"").toLowerCase().trim();
-        // normalize: remove punctuation except spaces
-        var tn = t.replace(/[.,!?]/g, " ").replace(/\s+/g, " ");
-        var target = null;
-        // patterns: take me to, go to, navigate to, show me, guide me to, open
-        var m = tn.match(/(?:take me to|go to|navigate to|show me|guide me to|open)\s+(?:the\s+)?(pricing|features?|home|checkout|login|price|pricing page|features page)/);
-        if(m){
-            target = (m[1]||"").toLowerCase().replace(/\s+page$/, "");
-            var map = { features:"features.html", feature:"features.html", pricing:"pricing.html", price:"pricing.html", home:"index.html", checkout:"checkout.html", login:"login.html" };
-            if(map[target]) return map[target];
-            if(target==="features" || target==="feature") return "features.html";
-            if(target==="pricing" || target==="price") return "pricing.html";
-        }
-        // direct "pricing" or "features" alone when user says "take me to pricing" variations already handled, but also handle "go pricing"
-        if(/(?:take|go|navigate|show|open).*(pricing|price)/.test(tn) && tn.indexOf("pricing")!==-1) return "pricing.html";
-        if(/(?:take|go|navigate|show|open).*(feature)/.test(tn) && tn.indexOf("feature")!==-1) return "features.html";
-        // also handle direct "open features" etc.
-        if(/open (features|pricing|home)/.test(tn)){
-            var mm = tn.match(/open (features|pricing|home)/);
-            var tgt = mm?mm[1]:"";
-            if(tgt==="features") return "features.html";
-            if(tgt==="pricing") return "pricing.html";
-            if(tgt==="home") return "index.html";
-        }
+        var t = String(text||"").toLowerCase();
+        // Never navigate on negations ("don't take me to pricing") or stops.
+        if(/\b(don't|dont|do not|never|can't|cant|cannot|won't|wont|stop|not)\b/.test(t)) return null;
+        var tn = (" "+t+" ").replace(/[.,!?;:]/g, " ").replace(/\s+/g, " ");
+        var m = tn.match(/\b(?:take me to|go to|navigate to|show me|guide me to|open|go)\s+(?:the\s+)?(pricing|features?|home|checkout|login|price)(?:\s+page)?\b/);
+        if(m && NAV_PAGES[m[1]]) return NAV_PAGES[m[1]];
         return null;
+    }
+    function resolveNavTarget(tgt){
+        var name = String(tgt||"").trim().split("?")[0].split("#")[0].replace(/^\.\//,"").replace(/\//g,"").replace(/\.html?$/i,"").toLowerCase();
+        if(!NAV_PAGES[name]) return null;
+        try{ return new URL(NAV_PAGES[name], window.location.origin + "/").href; }
+        catch(e){ return NAV_PAGES[name]; }
+    }
+    function goNav(tgt){
+        var abs = resolveNavTarget(tgt);
+        if(!abs) return false;
+        try{ window.location.href = abs; }catch(e){ try{ window.location.href = abs; }catch(_){} }
+        return true;
     }
     function genericGuideSteps(){
         return [
-            { id:"welcome", title:"Welcome — I'll guide you", selector:"body", description:"Hi, I'm NOVA. I'll show you around in 60 seconds.", position:"center" },
+            { id:"welcome", title:"Welcome — I'll guide you", selector:"body", description:"Hi, I'm XEVEN. I'll show you around in 60 seconds.", position:"center" },
             { id:"explore", title:"Explore", selector:"nav, header", description:"Browse what's here — I'll explain as we go.", position:"bottom" },
-            { id:"talk", title:"Ask me anything on NOVA", selector:"#nova-widget-button", description:"Guide done. Ask any question — I still handle basics like support, sales, bookings.", position:"left" }
+            { id:"talk", title:"Ask me anything on XEVEN", selector:"#xeven-widget-button", description:"Guide done. Ask any question — I still handle basics like support, sales, bookings.", position:"left" }
         ];
     }
     async function sendMessage() {
@@ -762,12 +765,7 @@
             messages.push({ role: "user", content: text });
             addMessage("assistant", "Opening "+navTarget.replace(".html","")+" for you — taking you there.");
             messages.push({ role: "assistant", content: "Opening "+navTarget });
-            setTimeout(function(){
-                try{
-                    // always navigate to requested page (don't scroll on home)
-                    window.location.href = navTarget;
-                }catch(e){ window.location.href = navTarget; }
-            }, 600);
+            setTimeout(function(){ goNav(navTarget); }, 600);
             return;
         }
 
@@ -778,7 +776,7 @@
         sendEl.disabled = true;
 
         var loading = addMessage("assistant", "...");
-        loading.className = "nova-msg nova-loading";
+        loading.className = "xeven-msg xeven-loading";
 
         try {
             var data = await api("/api/v1/widget/chat", {
@@ -804,12 +802,7 @@
             addMessage("assistant", reply);
             messages.push({ role: "assistant", content: reply });
             if(navMatch){
-                try{
-                    setTimeout(function(){
-                        var tgt = navMatch[1].trim();
-                        window.location.href = tgt;
-                    }, 800);
-                } catch{}
+                try{ setTimeout(function(){ goNav(navMatch[1]); }, 800); } catch{}
             }
         } catch (error) {
             loading.remove();
@@ -862,11 +855,11 @@
             availPanel.innerHTML = avail.days.map(function (day) {
                 if (!day.openSlots.length) return '<div style="padding:4px 0;color:#9ca3af">' + day.date + ' — closed</div>';
                 var slots = day.openSlots.slice(0, 6).map(function (t) {
-                    return '<span class="nova-slot" data-iso="' + day.date + "T" + t + ':00Z">' + t + "</span>";
+                    return '<span class="xeven-slot" data-iso="' + day.date + "T" + t + ':00Z">' + t + "</span>";
                 }).join("");
                 return '<div style="padding:4px 0"><b>' + day.date + "</b> " + slots + "</div>";
             }).join("");
-            availPanel.querySelectorAll(".nova-slot").forEach(function (el) {
+            availPanel.querySelectorAll(".xeven-slot").forEach(function (el) {
                 el.addEventListener("click", function () {
                     var iso = el.getAttribute("data-iso");
                     inputEl.value = "I'd like to book for " + iso.replace("T", " ").replace("Z", " UTC");
@@ -897,7 +890,7 @@
                     rec.interimResults = false;
                     rec.maxAlternatives = 1;
                     var srLoading = addMessage("assistant", "Listening…");
-                    if (srLoading) srLoading.className = "nova-msg nova-loading";
+                    if (srLoading) srLoading.className = "xeven-msg xeven-loading";
                     rec.onresult = async function (ev) {
                         if (srLoading) srLoading.remove();
                         var transcript = ev.results && ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : "";
@@ -907,7 +900,7 @@
                         busy = true;
                         if (sendEl) sendEl.disabled = true;
                         var cl = addMessage("assistant", "...");
-                        if (cl) cl.className = "nova-msg nova-loading";
+                        if (cl) cl.className = "xeven-msg xeven-loading";
                         try {
                             var cd = await api("/api/v1/widget/chat", {method:"POST", body:JSON.stringify({customerId:getVisitorId(), conversationId:conversationId, messages:messages.slice(-30)})});
                             if (cl) cl.remove();
@@ -948,7 +941,7 @@
                         return;
                     }
                     var loading = addMessage("assistant", "Transcribing…");
-                    if (loading) loading.className = "nova-msg nova-loading";
+                    if (loading) loading.className = "xeven-msg xeven-loading";
                     busy = true; if (sendEl) sendEl.disabled = true;
                     // Convert to wav when possible so sidecar (no ffmpeg) can decode reliably — guarantees 100% STT
                     blobToWavBase64(blob, async function(base64Wav, wavMime){
@@ -1017,14 +1010,14 @@
                                 addMessage("assistant", "Opening "+navTargetVoice.replace(".html","")+" for you — taking you there.");
                                 messages.push({ role: "assistant", content: "Opening "+navTargetVoice });
                                 tryBrowserTTS("Opening "+navTargetVoice.replace(".html","")+" for you", (lang && lang!=="auto" ? lang : "en"));
-                                setTimeout(function(){ try{ window.location.href = navTargetVoice; }catch(e){ window.location.href = navTargetVoice; } }, 600);
+                                setTimeout(function(){ goNav(navTargetVoice); }, 600);
                                 return;
                             }
-                            // inject transcript as user message and send on their behalf — Nova AI + OpenAI see it as normal chat in detected language
+                            // inject transcript as user message and send on their behalf — Xeven AI + OpenAI see it as normal chat in detected language
                             addMessage("user", text + (lang && lang!=="en" && lang!=="auto" && lang!=="" ? " ["+lang+"]" : ""));
                             messages.push({ role: "user", content: text });
                             var chatLoading = addMessage("assistant", "...");
-                            if (chatLoading) chatLoading.className = "nova-msg nova-loading";
+                            if (chatLoading) chatLoading.className = "xeven-msg xeven-loading";
                             var chatData = await api("/api/v1/widget/chat", {
                                 method: "POST",
                                 body: JSON.stringify({ customerId: getVisitorId(), conversationId: conversationId, messages: messages.slice(-30) })
@@ -1042,14 +1035,7 @@
                             addMessage("assistant", reply);
                             messages.push({ role: "assistant", content: reply });
                             if(navMatch){
-                                try{
-                                    setTimeout(function(){
-                                        var tgt = navMatch[1].trim();
-                                        var absTgt = tgt;
-                                        try{ absTgt = new URL(tgt, window.location.href).href; }catch(e){}
-                                        window.location.href = absTgt;
-                                    }, 800);
-                                }catch{}
+                                try{ setTimeout(function(){ goNav(navMatch[1]); }, 800); }catch{}
                             }
                             // speak reply via TTS in same language — Echo 24/7 (piper/openai) + browser fallback guarantee
                             try{
@@ -1080,13 +1066,13 @@
                                     addMessage("assistant", "Opening "+navTargetVoice2.replace(".html","")+" for you — taking you there.");
                                     messages.push({ role: "assistant", content: "Opening "+navTargetVoice2 });
                                     tryBrowserTTS("Opening "+navTargetVoice2.replace(".html","")+" for you", lang2);
-                                    setTimeout(function(){ try{ window.location.href = navTargetVoice2; }catch(e){} }, 600);
+                                    setTimeout(function(){ goNav(navTargetVoice2); }, 600);
                                     return;
                                 }
                                 addMessage("user", text2);
                                 messages.push({ role: "user", content: text2 });
                                 var chatLoading2 = addMessage("assistant", "...");
-                                if(chatLoading2) chatLoading2.className = "nova-msg nova-loading";
+                                if(chatLoading2) chatLoading2.className = "xeven-msg xeven-loading";
                                 try{
                                     var chatData2 = await api("/api/v1/widget/chat", {
                                         method: "POST",
@@ -1104,7 +1090,7 @@
                                     addMessage("assistant", reply2);
                                     messages.push({ role: "assistant", content: reply2 });
                                     if(navMatch2){
-                                        try{ setTimeout(function(){ window.location.href = navMatch2[1].trim(); }, 800); }catch{}
+                                        try{ setTimeout(function(){ goNav(navMatch2[1]); }, 800); }catch{}
                                     }
                                     try{
                                         var ttsLang2 = lang2 && lang2!=="auto" ? lang2 : "en";
@@ -1137,13 +1123,13 @@
                                     addMessage("assistant", "Opening "+navTargetVoice3.replace(".html","")+" for you — taking you there.");
                                     messages.push({ role: "assistant", content: "Opening "+navTargetVoice3 });
                                     tryBrowserTTS("Opening "+navTargetVoice3.replace(".html","")+" for you", lang3);
-                                    setTimeout(function(){ try{ window.location.href = navTargetVoice3; }catch(e){} }, 600);
+                                    setTimeout(function(){ goNav(navTargetVoice3); }, 600);
                                     return;
                                 }
                                 addMessage("user", text3);
                                 messages.push({ role: "user", content: text3 });
                                 var chatLoading3 = addMessage("assistant", "...");
-                                if(chatLoading3) chatLoading3.className = "nova-msg nova-loading";
+                                if(chatLoading3) chatLoading3.className = "xeven-msg xeven-loading";
                                 try{
                                     var chatData3 = await api("/api/v1/widget/chat", {
                                         method: "POST",
@@ -1161,7 +1147,7 @@
                                     addMessage("assistant", reply3);
                                     messages.push({ role: "assistant", content: reply3 });
                                     if(navMatch3){
-                                        try{ setTimeout(function(){ window.location.href = navMatch3[1].trim(); }, 800); }catch{}
+                                        try{ setTimeout(function(){ goNav(navMatch3[1]); }, 800); }catch{}
                                     }
                                     try{
                                         var ttsLang3 = lang3;
@@ -1221,7 +1207,7 @@
     function maybeProactive() {
         if (proactiveFired || widget.classList.contains("open")) return;
         try {
-            var intent = window.NOVATracker && typeof window.NOVATracker.lastIntent === "function" ? window.NOVATracker.lastIntent() : null;
+            var intent = window.XevenTracker && typeof window.XevenTracker.lastIntent === "function" ? window.XevenTracker.lastIntent() : null;
             if (!intent) return;
             proactiveFired = true;
             // suppress the generic welcome when proactive opens — show only the intent
@@ -1253,10 +1239,10 @@
             document.addEventListener(evt, resetIdle, { passive: true });
         });
         resetIdle();
-        document.addEventListener("nova:intent", maybeProactive);
+        document.addEventListener("xeven:intent", maybeProactive);
     }, 4000);
 
-    window.NOVA_WIDGET = Object.assign(window.NOVA_WIDGET || {}, {
+    window.XEVEN_WIDGET = Object.assign(window.XEVEN_WIDGET || {}, {
         open: toggle,
         proactive: maybeProactive,
         toggleAvailability: toggleAvailability,
@@ -1276,3 +1262,6 @@
         }
     });
 })();
+
+/* COMPAT (pre-rebrand embeds): old global keeps working. Remove once embeds migrate. */
+try { if (typeof globalThis !== "undefined" && globalThis.XevenTracker && !globalThis.NOVATracker) { globalThis.NOVATracker = globalThis.XevenTracker; } } catch (e) {}

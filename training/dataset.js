@@ -91,7 +91,7 @@ const DATASETS = {
         conversations: [
             {
                 situation: "New visitor: Just browsing",
-                effective: "Welcome! Are you exploring for a specific business or just curious about what NOVA can do? Knowing your use case helps me show the most relevant parts.",
+                effective: "Welcome! Are you exploring for a specific business or just curious about what XEVEN can do? Knowing your use case helps me show the most relevant parts.",
                 ineffective: "We offer Launch, Growth, Scale. Which do you want?",
                 reward: { task: 0.75, sat: 0.8, acc: 0.9 },
             },
@@ -106,7 +106,7 @@ const DATASETS = {
         conversations: [
             {
                 situation: "Ambiguous: Hi, what can you do?",
-                effective: "Hi! I'm NOVA — I can answer questions from business knowledge, help with bookings, and guide shopping. What would you like to do today?",
+                effective: "Hi! I'm XEVEN — I can answer questions from business knowledge, help with bookings, and guide shopping. What would you like to do today?",
                 ineffective: "I am a support agent. How can I help?",
                 reward: { task: 0.8, sat: 0.85, acc: 0.85 },
             },

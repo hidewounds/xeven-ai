@@ -11,7 +11,7 @@ test("health endpoint is public", async (t) => {
     const response = await api(server.baseUrl, "GET", "/api/health");
     assert.strictEqual(response.status, 200);
     assert.strictEqual(response.data.ok, true);
-    assert.strictEqual(response.data.service, "NOVA");
+    assert.strictEqual(response.data.service, "XEVEN");
 });
 
 test("integration auth: missing key rejected", async (t) => {
@@ -27,7 +27,7 @@ test("integration auth: invalid key rejected", async (t) => {
     const server = await startServer();
     t.after(() => server.close());
 
-    const response = await api(server.baseUrl, "GET", "/api/v1/business", { key: "nova_pk_bogus" });
+    const response = await api(server.baseUrl, "GET", "/api/v1/business", { key: "xeven_pk_bogus" });
     assert.strictEqual(response.status, 401);
 });
 

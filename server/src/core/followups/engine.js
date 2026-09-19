@@ -5,10 +5,10 @@
  *
  * Policy (per business, editable in their portal, gated by founder flags):
  *   first_days     — days to wait after the trigger before the FIRST follow-up
- *   max_attempts   — total follow-up emails before NOVA drops it
+ *   max_attempts   — total follow-up emails before XEVEN drops it
  *   interval_days  — gap between consecutive attempts
  *
- * Every email is sent FROM the business's own address (their SMTP). NOVA owns
+ * Every email is sent FROM the business's own address (their SMTP). XEVEN owns
  * no identity of its own — it is staff, not a sender.
  */
 
@@ -79,7 +79,7 @@ function scheduleFollowUp({ businessId, customerId, email, kind = "cart", payloa
 
 /**
  * Compose the follow-up email for a job. Personalized from the cart/lead
- * payload; signed by the business identity, never by "NOVA".
+ * payload; signed by the business identity, never by "XEVEN".
  */
 function composeEmail(job, settings) {
     let payload = {};

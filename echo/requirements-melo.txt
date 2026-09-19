@@ -1,0 +1,11 @@
+# XEVEN MeloTTS sidecar dependencies (myshell-ai/MeloTTS, MIT).
+# Separate file so the whisper sidecar stays lean.
+# Install: pip install -r echo/requirements-melo.txt
+# Run: python echo/melo-server.py --port 8766
+# Wire: XEVEN_MELO_SIDECAR_URL=http://127.0.0.1:8766
+# Note: first run downloads language models (~GBs); CPU inference after that.
+
+melotts>=0.1.2
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6

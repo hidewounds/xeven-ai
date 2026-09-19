@@ -1,25 +1,60 @@
-﻿// NOVA Admin — Premium (Linear/Vercel/Stripe) — quiet, minimal, functional
+﻿// XEVEN Admin — Premium (Linear/Vercel/Stripe) — quiet, minimal, functional
 (function(){
   "use strict";
-  var TOKEN_KEY="nova_admin_token";
+  var TOKEN_KEY="xeven_admin_token";
   var state={token:localStorage.getItem(TOKEN_KEY),admin:null,businesses:[],businessId:null,business:null,config:null,plan:"launch",isSuper:false};
   function $(id){return document.getElementById(id)}
   function show(el,on){el.classList.toggle("hidden",!on)}
   function toast(m){var el=$("toast");el.textContent=m;show(el,true);clearTimeout(el._t);el._t=setTimeout(function(){show(el,false)},3000)}
   function esc(v){return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}
+  function useCookie(){try{return sessionStorage.getItem("xeven_admin_cookie")==="1"}catch(e){return false}}
+  function setCookieMode(on){try{if(on)sessionStorage.setItem("xeven_admin_cookie","1");else sessionStorage.removeItem("xeven_admin_cookie")}catch(e){}}
+  var _csrf=null;
+  async function ensureCsrf(){
+    if(_csrf) return _csrf;
+    try{
+      var h={}; if(state.token&&!useCookie())h.Authorization="Bearer "+state.token;
+      var r=await fetch("/api/admin/auth/csrf-token",{headers:h,credentials:"same-origin"});
+      if(!r.ok) return null;
+      var d=await r.json(); _csrf=d.csrf_token||null; return _csrf;
+    }catch(e){ return null; }
+  }
+  function clearLocalSession(){
+    try{setCookieMode(false)}catch(e){}
+    _csrf=null;state.token=null;state.admin=null;
+    try{localStorage.removeItem(TOKEN_KEY)}catch(e){}
+    try{show($("dashView"),false);show($("authView"),true)}catch(e){}
+  }
   async function api(path,opts){
-    opts=opts||{};opts.headers=Object.assign({"Content-Type":"application/json"},state.token?{Authorization:"Bearer "+state.token}:{},opts.headers||{});
+    opts=opts||{};
+    var headers=Object.assign({"Content-Type":"application/json"},opts.headers||{});
+    if(state.token&&!useCookie())headers.Authorization="Bearer "+state.token;
     if(opts.body&&typeof opts.body!=="string")opts.body=JSON.stringify(opts.body);
-    var r=await fetch(path,opts);var d={};try{d=await r.json()}catch(e){}
-    if(r.status===401&&state.token){logout();throw new Error("Session expired")}
+    var method=String(opts.method||"GET").toUpperCase();
+    if(useCookie()&&["POST","PUT","PATCH","DELETE"].indexOf(method)!==-1){
+      var tok=await ensureCsrf(); if(tok)headers["X-CSRF-Token"]=tok;
+    }
+    var r=await fetch(path,Object.assign({},opts,{headers:headers,credentials:"same-origin"}));var d={};try{d=await r.json()}catch(e){}
+    if(r.status===401){clearLocalSession();throw new Error("Session expired")}
     if(!r.ok) throw new Error((d.error&&d.error.message)||"Request failed ("+r.status+")");
     return d;
   }
-  function logout(){state.token=null;state.admin=null;localStorage.removeItem(TOKEN_KEY);show($("dashView"),false);show($("authView"),true)}
+  async function logout(){
+    // Use raw fetch so a failed logout does not re-enter api()'s 401 path and recurse.
+    try{
+      var h={"Content-Type":"application/json"};
+      if(state.token&&!useCookie())h.Authorization="Bearer "+state.token;
+      if(useCookie()){
+        var tok=await ensureCsrf(); if(tok) h["X-CSRF-Token"]=tok;
+      }
+      await fetch("/api/admin/auth/logout",{method:"POST",headers:h,credentials:"same-origin",body:"{}"}).catch(function(){});
+    }catch(e){}
+    clearLocalSession();
+  }
   $("showRegister").addEventListener("click",function(){show($("loginForm"),false);show($("registerForm"),true);$("authTitle").textContent="Create account"});
-  $("showLogin").addEventListener("click",function(){show($("registerForm"),false);show($("loginForm"),true);$("authTitle").textContent="Sign in to NOVA"});
-  $("loginForm").addEventListener("submit",async function(e){e.preventDefault();$("authError").textContent="";try{var d=await api("/api/admin/auth/login",{method:"POST",body:{email:$("authEmail").value.trim(),password:$("authPassword").value}});state.token=d.accessToken;localStorage.setItem(TOKEN_KEY,d.accessToken);await enterDashboard()}catch(err){$("authError").textContent=err.message}});
-  $("registerForm").addEventListener("submit",async function(e){e.preventDefault();$("regError").textContent="";try{var d=await api("/api/admin/auth/register",{method:"POST",body:{name:$("regName").value.trim(),email:$("regEmail").value.trim(),password:$("regPassword").value}});state.token=d.accessToken;localStorage.setItem(TOKEN_KEY,d.accessToken);await enterDashboard()}catch(err){$("regError").textContent=err.message}});
+  $("showLogin").addEventListener("click",function(){show($("registerForm"),false);show($("loginForm"),true);$("authTitle").textContent="Sign in to XEVEN"});
+  $("loginForm").addEventListener("submit",async function(e){e.preventDefault();$("authError").textContent="";try{var d=await api("/api/admin/auth/login",{method:"POST",body:{email:$("authEmail").value.trim(),password:$("authPassword").value}});if(d.cookieAuth){setCookieMode(true);state.token=null;try{localStorage.removeItem(TOKEN_KEY)}catch(_){}}else{state.token=d.accessToken;try{localStorage.setItem(TOKEN_KEY,d.accessToken)}catch(_){}}await enterDashboard()}catch(err){$("authError").textContent=err.message}});
+  $("registerForm").addEventListener("submit",async function(e){e.preventDefault();$("regError").textContent="";try{var d=await api("/api/admin/auth/register",{method:"POST",body:{name:$("regName").value.trim(),email:$("regEmail").value.trim(),password:$("regPassword").value}});if(d.cookieAuth){setCookieMode(true);state.token=null;try{localStorage.removeItem(TOKEN_KEY)}catch(_){}}else{state.token=d.accessToken;try{localStorage.setItem(TOKEN_KEY,d.accessToken)}catch(_){}}await enterDashboard()}catch(err){$("regError").textContent=err.message}});
   $("logoutBtn").addEventListener("click",logout);
   async function enterDashboard(){
     var me=await api("/api/admin/auth/me");
@@ -37,7 +72,7 @@
   }
   function renderEmptyWorkspace(){
     var p=$("tab-overview");
-    p.innerHTML='<div class="empty"><h4>No businesses yet.</h4><p>Create your first workspace and connect NOVA to your business. The Unified Brain is ready.</p><button class="btn primary" onclick="document.getElementById(\'newBusinessBtn\').click()">Create workspace</button></div>';
+    p.innerHTML='<div class="empty"><h4>No businesses yet.</h4><p>Create your first workspace and connect XEVEN to your business. The Unified Brain is ready.</p><button class="btn primary" onclick="document.getElementById(\'newBusinessBtn\').click()">Create workspace</button></div>';
   }
   function renderBusinessSelect(){
     var s=$("businessSelect");s.innerHTML="";
@@ -51,13 +86,39 @@
     if(!n||n.trim().length<2){toast("Name too short");return}
     try{var c=await api("/api/admin/businesses",{method:"POST",body:{businessName:n.trim()}});toast("Workspace created");await enterDashboard();await loadBusiness(c.business.businessId)}catch(e){toast(e.message)}
   });
+  var ANALYTICS_CACHE={data:null,at:0,biz:null};
+  async function getAnalytics(){
+    var now=Date.now();
+    if(ANALYTICS_CACHE.data&&ANALYTICS_CACHE.biz===state.businessId&&now-ANALYTICS_CACHE.at<30000) return ANALYTICS_CACHE.data;
+    var s=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/analytics");
+    ANALYTICS_CACHE={data:s,at:now,biz:state.businessId};
+    return s;
+  }
   async function loadBusiness(id){
     state.businessId=id;
     var d=await api("/api/admin/businesses/"+encodeURIComponent(id));
     state.business=d.business;state.config=d.config;state.plan=d.plan||"launch";state.isSuper=!!d.isSuper;
+    state.securityWarnings=Array.isArray(d.securityWarnings)?d.securityWarnings:[];
+    ANALYTICS_CACHE={data:null,at:0,biz:null};
     renderBusinessSelect();
     renderTab();
   }
+  // Delegated actions for buttons carrying user-controlled ids (data-act/data-id/tab).
+  // Attribute values are HTML-escaped at render; dataset decodes them back
+  // exactly once — no JS-string interpolation, no breakout vector.
+  document.addEventListener("click",function(e){
+    var b=e.target&&e.target.closest?e.target.closest("[data-act]"):null; if(!b) return;
+    var act=b.getAttribute("data-act");
+    if(act==="go-tab"){
+      var tab=b.getAttribute("data-tab")||""; if(!tab) return;
+      var btn=document.querySelector('#tabs button[data-tab="'+CSS.escape(tab)+'"]'); if(btn) btn.click();
+      return;
+    }
+    var id=b.getAttribute("data-id")||"";
+    if(act==="view-customer"&&window.viewCustomer) window.viewCustomer(id);
+    else if(act==="erase-customer"&&window.eraseCustomer) window.eraseCustomer(id);
+    else if(act==="delete-knowledge"&&window.deleteKnowledge) window.deleteKnowledge(id);
+  });
   $("tabs").addEventListener("click",function(e){
     var b=e.target.closest("button[data-tab]");if(!b)return;
     document.querySelectorAll("#tabs button").forEach(function(x){x.classList.remove("active");x.setAttribute("aria-selected","false");x.tabIndex=-1});
@@ -91,17 +152,18 @@
   }
   // --- Skeletons / helpers ---
   function skeleton(rows){var h='';for(var i=0;i<rows;i++) h+='<div class="skeleton" style="height:14px;margin:8px 0;width:'+(70+Math.random()*25)+'%"></div>';return '<div class="card"><div style="padding:4px 0">'+h+'</div></div>'}
-  function emptyState(title, desc, cta, onclick){ return '<div class="empty"><h4>'+esc(title)+'</h4><p>'+esc(desc)+'</p>'+(cta?'<button class="btn primary small" onclick="'+onclick+'">'+esc(cta)+'</button>':"")+'</div>'; }
+  function emptyState(title, desc, cta, tab){ return '<div class="empty"><h4>'+esc(title)+'</h4><p>'+esc(desc)+'</p>'+(cta&&tab?'<button class="btn primary small" data-act="go-tab" data-tab="'+esc(tab)+'">'+esc(cta)+'</button>':"")+'</div>'; }
   // --- Overview: summary + attention ONLY (health lives in Health tab) ---
   async function renderOverview(){
     var p=$("tab-overview");
     p.innerHTML=skeleton(3);
     try{
-      var s=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/analytics");
+      var s=await getAnalytics();
       var c=s.counts||{}; var plan=esc(state.plan);
       var attention=[];
-      if(c.knowledgeItems===0) attention.push({t:"Knowledge is empty",d:"Add a website, document, or FAQ so NOVA can answer grounded.",a:"Go to Knowledge",tab:"knowledge"});
-      if(c.customers===0) attention.push({t:"No customers yet",d:"Install the snippet and NOVA will start capturing conversations.",a:"View Integration",tab:"integration"});
+      if(c.knowledgeItems===0) attention.push({t:"Knowledge is empty",d:"Add a website, document, or FAQ so XEVEN can answer grounded.",a:"Go to Knowledge",tab:"knowledge"});
+      if(c.customers===0) attention.push({t:"No customers yet",d:"Install the snippet and XEVEN will start capturing conversations.",a:"View Integration",tab:"integration"});
+      (state.securityWarnings||[]).forEach(function(w){attention.push({t:String(w.message||w.code||"Security notice").slice(0,140),d:"Security posture — review recommended.",a:"Review settings",tab:w.tab||"settings"})});
       var html='';
       html+='<div class="card" style="background:linear-gradient(135deg, rgba(139,92,246,.08), rgba(6,182,214,.05)), rgba(255,255,255,.03)"><div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div><h2 style="font-size:18px;margin:0">'+esc(state.business.businessName)+'</h2><p class="muted" style="margin:4px 0 0">Overview — what matters today. See Health for system status, Analytics for trends.</p></div><span class="pill">'+plan+' • unified</span></div></div>';
       // KPIs ONLY here — health is NOT duplicated
@@ -113,13 +175,13 @@
       // Attention
       if(attention.length){
         html+='<div class="card" style="margin-top:14px;border-color:var(--warn-border);background:var(--warn-bg)"><h3 style="color:#fcd34d">Attention required</h3>';
-        attention.forEach(function(a){html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(245,158,11,.14)"><div><b style="font-weight:500;color:#f1f5f9">'+esc(a.t)+'</b><div class="muted xs">'+esc(a.d)+'</div></div><button class="btn ghost small" onclick="document.querySelector(\'[data-tab='+a.tab+']\').click()">'+esc(a.a)+'</button></div>'});
+        attention.forEach(function(a){html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(245,158,11,.14)"><div><b style="font-weight:500;color:#f1f5f9">'+esc(a.t)+'</b><div class="muted xs">'+esc(a.d)+'</div></div><button class="btn ghost small" data-act="go-tab" data-tab="'+esc(a.tab)+'">'+esc(a.a)+'</button></div>'});
         html+='</div>';
       } else {
         html+='<div class="card" style="margin-top:14px"><h3>All clear</h3><p class="muted" style="margin:0">No issues. For system details, open Health. For trends, open Analytics.</p></div>';
       }
       // Workspace summary ONLY (not health)
-      html+='<div class="card"><div class="card-head"><h3>Workspace</h3><span class="status ok"><span class="dot ok"></span> '+esc(plan)+'</span></div><div class="row" style="justify-content:space-between"><div><b>'+esc(state.business.businessName)+'</b><div class="muted xs">'+state.businessId+' • '+(state.business.active?'Active':'Inactive')+'</div></div><button class="btn ghost small" onclick="document.querySelector(\'[data-tab=settings]\').click()">Settings</button></div><p class="muted xs" style="margin-top:8px">Health → system status • Performance/Usage/Costs → trends • Logs → audit</p></div>';
+      html+='<div class="card"><div class="card-head"><h3>Workspace</h3><span class="status ok"><span class="dot ok"></span> '+esc(plan)+'</span></div><div class="row" style="justify-content:space-between"><div><b>'+esc(state.business.businessName)+'</b><div class="muted xs">'+state.businessId+' • '+(state.business.active?'Active':'Inactive')+'</div></div><button class="btn ghost small" data-act="go-tab" data-tab="settings">Settings</button></div><p class="muted xs" style="margin-top:8px">Health → system status • Performance/Usage/Costs → trends • Logs → audit</p></div>';
       p.innerHTML=html;
       $("businessPill").textContent=state.business.businessName;
       $("healthPill").innerHTML='<span class="dot ok"></span> Operational';
@@ -140,14 +202,14 @@
     ];
     var html='';
     html+='<div class="card" style="border-left:4px solid var(--violet);background:linear-gradient(135deg, rgba(139,92,246,.08), rgba(6,182,214,.06))"><div class="card-head"><h3>Unified Brain — 6 Learned Patterns</h3><span class="status ok"><span class="dot ok"></span> Unified • Operational</span></div>';
-    html+='<p class="muted" style="margin:-6px 0 12px;line-height:1.6">One brain, not 9 roles. Trained via RLHF — DPO/PPO/GRPO with reward: <b style="color:var(--text)">task completion + satisfaction + accuracy</b>. No role switching — NOVA leans fluidly by situation.</p>';
+    html+='<p class="muted" style="margin:-6px 0 12px;line-height:1.6">One brain, not 9 roles. Trained via RLHF — DPO/PPO/GRPO with reward: <b style="color:var(--text)">task completion + satisfaction + accuracy</b>. No role switching — XEVEN leans fluidly by situation.</p>';
     html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:4px">';
     patterns.forEach(function(pat){html+='<div style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:10px"><b style="font-size:13px">'+esc(pat.k)+'</b><div class="muted xs" style="margin-top:2px">'+esc(pat.d)+' <span style="color:var(--violet-2);font-weight:700">· '+pat.c+'</span></div></div>'});
     html+='</div></div>';
     html+='<div class="card"><div class="card-head"><h3>Agent identity</h3><span class="pill">Live in &lt;1s</span></div>';
     html+='<div class="grid" style="grid-template-columns:1.2fr .85fr;gap:20px">';
     html+='<div>';
-    html+='<p class="muted" style="line-height:1.6;margin:0 0 14px">Define who NOVA is — name, tone and instructions. Knowledge, memory and behaviour live in their own sections.</p>';
+    html+='<p class="muted" style="line-height:1.6;margin:0 0 14px">Define who XEVEN is — name, tone and instructions. Knowledge, memory and behaviour live in their own sections.</p>';
     html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label>Assistant name<input id="ag_name" value="'+esc(a.name)+'"></label></div><div><label>Model<input value="'+esc(cfg.model?.model||state.plan)+'" disabled style="background:var(--bg-subtle)"></label></div></div>';
     html+='<label>Business description<textarea id="ag_desc" placeholder="What does your business do?">'+esc(a.businessDescription||"")+'</textarea></label>';
     html+='<label>Personality<input id="ag_personality" value="'+esc(a.personality||"")+'" placeholder="friendly and practical"></label>';
@@ -156,10 +218,10 @@
     html+='<label>Welcome message<input id="ag_welcome" value="'+esc(a.welcomeMessage||"")+'" placeholder="Hi! I\'m Stella — how can I help?"></label>';
     html+='<label>Fallback<input id="ag_fallback" value="'+esc(a.fallbackMessage||"")+'" placeholder="I don\'t have verified info — want me to connect you?"></label>';
     html+='<div class="row" style="margin-top:14px"><button class="btn primary" onclick="saveAgent()">Save brain</button><span class="muted xs">Live in &lt;1s</span><span class="muted xs" style="margin-left:8px">Plan <b>'+esc(state.plan)+'</b> • unified</span></div>';
-    html+='<p class="muted xs" style="margin-top:10px">Need grounded answers? <a href="#" onclick="document.querySelector(\'[data-tab=knowledge]\').click();return false" style="color:var(--violet-2);font-weight:600">Manage Knowledge →</a> · <a href="#" onclick="document.querySelector(\'[data-tab=custom]\').click();return false" style="color:var(--violet-2);font-weight:600">Custom Behaviour →</a></p>';
+    html+='<p class="muted xs" style="margin-top:10px">Need grounded answers? <a href="#" data-act="go-tab" data-tab="knowledge" style="color:var(--violet-2);font-weight:600">Manage Knowledge →</a> · <a href="#" data-act="go-tab" data-tab="custom" style="color:var(--violet-2);font-weight:600">Custom Behaviour →</a></p>';
     html+='</div>';
     // Live preview
-    html+='<div><div class="preview" style="position:sticky;top:20px"><div class="preview-head"><b>Live preview</b><span class="pill" style="font-size:10px">Grounded</span></div><div class="preview-body" id="agentPreviewBody"><div class="bubble bot">Hi! I\'m '+esc(a.name||"NOVA")+' — ask me anything about '+esc(state.business.businessName||"your business")+'.</div></div><div class="preview-foot"><input id="agentPreviewInput" placeholder="Ask as customer: Do you have running shoes under $150?" onkeydown="if(event.key===\'Enter\') sendAgentPreview()"><button class="btn primary small" onclick="sendAgentPreview()">Send</button></div></div><div class="card" style="margin-top:14px"><h3>What lives elsewhere</h3><p class="muted xs" style="margin:0;line-height:1.6">Knowledge → grounded sources · Memories → per-customer facts · Behaviour → situation overrides · Integrations → widget. No duplication — each section has one job.</p></div></div>';
+    html+='<div><div class="preview" style="position:sticky;top:20px"><div class="preview-head"><b>Live preview</b><span class="pill" style="font-size:10px">Grounded</span></div><div class="preview-body" id="agentPreviewBody"><div class="bubble bot">Hi! I\'m '+esc(a.name||"XEVEN")+' — ask me anything about '+esc(state.business.businessName||"your business")+'.</div></div><div class="preview-foot"><input id="agentPreviewInput" placeholder="Ask as customer: Do you have running shoes under $150?" onkeydown="if(event.key===\'Enter\') sendAgentPreview()"><button class="btn primary small" onclick="sendAgentPreview()">Send</button></div></div><div class="card" style="margin-top:14px"><h3>What lives elsewhere</h3><p class="muted xs" style="margin:0;line-height:1.6">Knowledge → grounded sources · Memories → per-customer facts · Behaviour → situation overrides · Integrations → widget. No duplication — each section has one job.</p></div></div>';
     html+='</div></div>';
     $("tab-agent").innerHTML=html;
   }
@@ -186,7 +248,7 @@
     var p=$("tab-knowledge");
     if(!p){ console.warn("tab-knowledge not found"); return; }
     // clean, not nested: 3 sibling cards (header+form+table | bulk | search)
-    p.innerHTML='<div class="card"><div class="card-head"><h3>Knowledge</h3><button class="btn primary small" onclick="document.getElementById(\'knTitle\')&&document.getElementById(\'knTitle\').focus()">+ Add source</button></div><p class="muted" style="margin:-8px 0 12px">Everything NOVA knows about your business. Grounded, synced, and healthy.</p><div id="knowledgeStats" class="grid" style="margin-bottom:14px">'+skeleton(3).slice(22,-8)+'</div><div class="row"><div style="flex:1"><label>Title<input id="knTitle" placeholder="Do you deliver?"></label></div><div style="width:160px"><label>Type<select id="knType"><option value="faq">FAQ</option><option value="policy">Policy</option><option value="product">Product</option><option value="info">Info</option></select></label></div><div style="flex:0 0 auto;padding-top:18px"><button class="btn primary" onclick="addKnowledge()">Add</button></div></div><label>Content<textarea id="knContent" placeholder="Yes — free delivery over $50 within the city..."></textarea></label><div id="knMsg"></div><div id="knTableWrap" class="table-wrap" style="margin-top:14px"><table id="knTable"><thead><tr><th>Title</th><th>Type</th><th>Content</th><th></th></tr></thead><tbody><tr><td colspan="4"><div class="skeleton" style="height:32px"></div></td></tr></tbody></table></div></div><div class="card" style="background:var(--bg-subtle)"><h3 style="margin-bottom:8px">Bulk import</h3><p class="muted xs" style="margin:0 0 8px">Paste CSV <code>title,type,content</code> per line, or JSON array. Max 50.</p><textarea id="knBulk" placeholder="Return policy,policy,Free 30-day returns..." style="min-height:88px"></textarea><div class="row" style="margin-top:8px"><button class="btn ghost small" onclick="bulkKnowledge()">Import bulk</button><input type="file" id="knBulkFile" accept=".csv,.json,.txt" style="width:auto"></div><div id="knBulkMsg"></div></div><div class="card"><h3>Search preview <span class="muted xs" style="font-weight:400">— how NOVA retrieves</span></h3><div class="row"><input id="knSearchQ" placeholder="Try: do you ship to Canada?" style="flex:1"><button class="btn ghost small" onclick="searchKnowledge()">Search</button></div><div id="knSearchResults" style="margin-top:12px"></div></div>';
+    p.innerHTML='<div class="card"><div class="card-head"><h3>Knowledge</h3><button class="btn primary small" onclick="document.getElementById(\'knTitle\')&&document.getElementById(\'knTitle\').focus()">+ Add source</button></div><p class="muted" style="margin:-8px 0 12px">Everything XEVEN knows about your business. Grounded, synced, and healthy.</p><div id="knowledgeStats" class="grid" style="margin-bottom:14px">'+skeleton(3).slice(22,-8)+'</div><div class="row"><div style="flex:1"><label>Title<input id="knTitle" placeholder="Do you deliver?"></label></div><div style="width:160px"><label>Type<select id="knType"><option value="faq">FAQ</option><option value="policy">Policy</option><option value="product">Product</option><option value="info">Info</option></select></label></div><div style="flex:0 0 auto;padding-top:18px"><button class="btn primary" onclick="addKnowledge()">Add</button></div></div><label>Content<textarea id="knContent" placeholder="Yes — free delivery over $50 within the city..."></textarea></label><div id="knMsg"></div><div id="knTableWrap" class="table-wrap" style="margin-top:14px"><table id="knTable"><thead><tr><th>Title</th><th>Type</th><th>Content</th><th></th></tr></thead><tbody><tr><td colspan="4"><div class="skeleton" style="height:32px"></div></td></tr></tbody></table></div></div><div class="card" style="background:var(--bg-subtle)"><h3 style="margin-bottom:8px">Bulk import</h3><p class="muted xs" style="margin:0 0 8px">Paste CSV <code>title,type,content</code> per line, or JSON array. Max 50.</p><textarea id="knBulk" placeholder="Return policy,policy,Free 30-day returns..." style="min-height:88px"></textarea><div class="row" style="margin-top:8px"><button class="btn ghost small" onclick="bulkKnowledge()">Import bulk</button><input type="file" id="knBulkFile" accept=".csv,.json,.txt" style="width:auto"></div><div id="knBulkMsg"></div></div><div class="card"><h3>Search preview <span class="muted xs" style="font-weight:400">— how XEVEN retrieves</span></h3><div class="row"><input id="knSearchQ" placeholder="Try: do you ship to Canada?" style="flex:1"><button class="btn ghost small" onclick="searchKnowledge()">Search</button></div><div id="knSearchResults" style="margin-top:12px"></div></div>';
     // stats
     try{
       if(!state.businessId){ throw new Error("No workspace selected"); }
@@ -204,9 +266,9 @@
       var tbody=knTableEl.querySelector("tbody");
       if(!tbody){ console.warn("knTable tbody not found"); return; }
       if(items.length===0){
-        tbody.innerHTML='<tr><td colspan="4"><div class="empty" style="margin:0;border:0"><h4>No knowledge yet.</h4><p>Add a website, document, or FAQ — NOVA answers grounded to this.</p></div></td></tr>';
+        tbody.innerHTML='<tr><td colspan="4"><div class="empty" style="margin:0;border:0"><h4>No knowledge yet.</h4><p>Add a website, document, or FAQ — XEVEN answers grounded to this.</p></div></td></tr>';
       } else {
-        tbody.innerHTML=items.map(function(k){return '<tr><td><b>'+esc(k.title)+'</b><div class="muted xs">'+esc(k.knowledge_type||"")+'</div></td><td><span class="pill" style="font-size:10px">'+esc(k.knowledge_type||"faq")+'</span></td><td style="max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc((k.content||"").slice(0,120))+'</td><td><button class="btn ghost small" onclick="deleteKnowledge(\''+k.knowledge_id+'\')">Remove</button></td></tr>'}).join("");
+        tbody.innerHTML=items.map(function(k){return '<tr><td><b>'+esc(k.title)+'</b><div class="muted xs">'+esc(k.knowledge_type||"")+'</div></td><td><span class="pill" style="font-size:10px">'+esc(k.knowledge_type||"faq")+'</span></td><td style="max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc((k.content||"").slice(0,120))+'</td><td><button class="btn ghost small" data-act="delete-knowledge" data-id="'+esc(k.knowledge_id)+'">Remove</button></td></tr>'}).join("");
       }
     }catch(e){
       var knTableEl2=$("knTable");
@@ -234,21 +296,21 @@
   window.searchKnowledge=async function(){
     var q=$("knSearchQ").value.trim(); var el=$("knSearchResults"); if(!q){el.innerHTML='<span class="muted">Enter a query</span>';return}
     el.innerHTML='<div class="skeleton" style="height:60px"></div>';
-    try{var d=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/knowledge/search?q="+encodeURIComponent(q)); if(!d.items||!d.items.length){el.innerHTML='<div class="empty"><h4>No matches</h4><p>NOVA would answer from fallback: "'+esc(q)+'"</p></div>';return} el.innerHTML=d.items.map(function(k){return '<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px;background:var(--surface)"><b>'+esc(k.title)+'</b> <span class="pill" style="font-size:10px;float:right">'+esc(k.knowledge_type||"")+'</span><div class="muted" style="margin-top:6px;font-size:13px;line-height:1.5">'+esc(k.content.slice(0,180))+'…</div><div class="muted xs" style="margin-top:6px">Score '+esc(String(k.relevanceScore||"—"))+' • Retrieved for prompt</div></div>'}).join("")}catch(e){el.innerHTML='<div class="error-state"><span>'+esc(e.message)+'</span></div>'}
+    try{var d=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/knowledge/search?q="+encodeURIComponent(q)); if(!d.items||!d.items.length){el.innerHTML='<div class="empty"><h4>No matches</h4><p>XEVEN would answer from fallback: "'+esc(q)+'"</p></div>';return} el.innerHTML=d.items.map(function(k){return '<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px;background:var(--surface)"><b>'+esc(k.title)+'</b> <span class="pill" style="font-size:10px;float:right">'+esc(k.knowledge_type||"")+'</span><div class="muted" style="margin-top:6px;font-size:13px;line-height:1.5">'+esc(k.content.slice(0,180))+'…</div><div class="muted xs" style="margin-top:6px">Score '+esc(String(k.relevanceScore||"—"))+' • Retrieved for prompt</div></div>'}).join("")}catch(e){el.innerHTML='<div class="error-state"><span>'+esc(e.message)+'</span></div>'}
   };
   // --- Memory: human-readable + real data ---
   function renderMemory(){
     var p=$("tab-memory");
     // Owner critique: Memories was duplicating Customers → now single source is Customers, this tab is config + guidance
     var mem=state.config.memory||{}, ctx=state.config.context||{};
-    var html='<div class="card"><div class="card-head"><h3>Customer Memory</h3><span class="pill">'+(mem.enabled?"On":"Off")+' • Human-readable</span></div><p class="muted" style="margin:0 0 14px">Explicit memories are user-provided (“my shoe size is 10”); inferred signals are separate. Scoped to <code class="key" style="padding:2px 6px">customer_id</code> + <code class="key" style="padding:2px 6px">business_id</code>, GDPR-ready.</p><div class="grid"><div class="kpi"><div class="n">'+(mem.enabled?"On":"Off")+'</div><div class="l">Memory</div></div><div class="kpi"><div class="n">'+(mem.maxMemories||50)+'</div><div class="l">Max / customer</div></div><div class="kpi"><div class="n">'+(ctx.maxMemories||5)+'</div><div class="l">In prompt</div></div></div><p class="muted xs" style="margin-top:10px">Live memories live in <b>Customers → View</b>. This keeps one source of truth — no duplication.</p><div class="row" style="margin-top:12px"><button class="btn primary small" onclick="document.querySelector(\'[data-tab=customers]\').click()">Open Customers</button><button class="btn ghost small" onclick="document.querySelector(\'[data-tab=agent]\').click()">Test Agent</button></div></div>';
+    var html='<div class="card"><div class="card-head"><h3>Customer Memory</h3><span class="pill">'+(mem.enabled?"On":"Off")+' • Human-readable</span></div><p class="muted" style="margin:0 0 14px">Explicit memories are user-provided (“my shoe size is 10”); inferred signals are separate. Scoped to <code class="key" style="padding:2px 6px">customer_id</code> + <code class="key" style="padding:2px 6px">business_id</code>, GDPR-ready.</p><div class="grid"><div class="kpi"><div class="n">'+(mem.enabled?"On":"Off")+'</div><div class="l">Memory</div></div><div class="kpi"><div class="n">'+(mem.maxMemories||50)+'</div><div class="l">Max / customer</div></div><div class="kpi"><div class="n">'+(ctx.maxMemories||5)+'</div><div class="l">In prompt</div></div></div><p class="muted xs" style="margin-top:10px">Live memories live in <b>Customers → View</b>. This keeps one source of truth — no duplication.</p><div class="row" style="margin-top:12px"><button class="btn primary small" data-act="go-tab" data-tab="customers">Open Customers</button><button class="btn ghost small" data-act="go-tab" data-tab="agent">Test Agent</button></div></div>';
     html+='<div class="card"><h3>How it works</h3><div class="grid" style="grid-template-columns:1fr 1fr;gap:14px"><div><b class="muted xs" style="text-transform:uppercase;letter-spacing:.06em">Explicit</b><p class="muted" style="margin:6px 0 0;line-height:1.6">Stored when field is in allow-list or user says “remember…”. <code class="key" style="padding:2px 6px">origin: explicit</code>, <code class="key" style="padding:2px 6px">source: user_request</code></p></div><div><b class="muted xs" style="text-transform:uppercase;letter-spacing:.06em">Forget</b><p class="muted" style="margin:6px 0 0;line-height:1.6">Customer says “forget my X” → deleted immediately. Admin can also erase per customer.</p></div></div><div style="margin-top:14px" class="table-wrap"><table><thead><tr><th>Field</th><th>Example</th><th>Origin</th></tr></thead><tbody><tr><td>shoe_size</td><td>10</td><td><span class="status ok">explicit</span></td></tr><tr><td>location</td><td>London</td><td><span class="status ok">explicit</span></td></tr><tr><td>preference</td><td>minimal shoes</td><td><span class="status ok">explicit</span></td></tr></tbody></table></div><p class="muted xs" style="margin-top:8px">Tip: customers can say <code class="key" style="padding:2px 6px">forget my shoe size</code> to delete instantly. Inferred signals are not memories.</p></div>';
     p.innerHTML=html;
   }
   // --- Conversations — pure, no behavior mixing ---
   async function renderBehavior(){
     var p=$("tab-behavior");
-    p.innerHTML='<div class="card"><div class="card-head"><h3>Conversations</h3><span class="pill">'+(state.config.behavior?.enabled?"Enabled":"Off")+'</span></div><p class="muted" style="margin:0 0 12px">Every chat NOVA had — grounded answers per customer. Behavior signals are per-customer under Customers.</p><div id="behaviorList"><div class="skeleton" style="height:120px"></div></div></div><div class="card"><h3>Where are behavior signals?</h3><p class="muted" style="margin:0;line-height:1.6">Page views, cart, purchases are stored per customer with TTL (page_view 7d, purchase 365d). Open <b>Customers</b> → click a customer → view their recent behavior events. This keeps conversations (what NOVA said) separate from signals (what the shopper did).</p><button class="btn ghost small" style="margin-top:10px" onclick="document.querySelector(\'[data-tab=customers]\').click()">Go to Customers</button></div>';
+    p.innerHTML='<div class="card"><div class="card-head"><h3>Conversations</h3><span class="pill">'+(state.config.behavior?.enabled?"Enabled":"Off")+'</span></div><p class="muted" style="margin:0 0 12px">Every chat XEVEN had — grounded answers per customer. Behavior signals are per-customer under Customers.</p><div id="behaviorList"><div class="skeleton" style="height:120px"></div></div></div><div class="card"><h3>Where are behavior signals?</h3><p class="muted" style="margin:0;line-height:1.6">Page views, cart, purchases are stored per customer with TTL (page_view 7d, purchase 365d). Open <b>Customers</b> → click a customer → view their recent behavior events. This keeps conversations (what XEVEN said) separate from signals (what the shopper did).</p><button class="btn ghost small" style="margin-top:10px" data-act="go-tab" data-tab="customers">Go to Customers</button></div>';
     try{
       var convRes=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/conversations");
       var convs=convRes.conversations||convRes.items||[];
@@ -285,7 +347,7 @@
     var html='<div class="table-wrap"><table><thead><tr><th>Customer</th><th>Email</th><th>Created</th><th></th></tr></thead><tbody>';
     list.forEach(function(c){
       var id=esc(c.customerId||c.id||"—"), email=esc(c.email||"—"), created=c.createdAt?new Date(c.createdAt).toLocaleDateString():"—";
-      html+='<tr><td><b>'+id+'</b></td><td>'+email+'</td><td class="muted xs">'+created+'</td><td><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn ghost small" onclick="viewCustomer(\''+id+'\')">View</button><button class="btn ghost small" style="color:var(--bad);border-color:var(--bad-border)" onclick="eraseCustomer(\''+id+'\')">Erase</button></div></td></tr>';
+      html+='<tr><td><b>'+id+'</b></td><td>'+email+'</td><td class="muted xs">'+created+'</td><td><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn ghost small" data-act="view-customer" data-id="'+esc(String(c.customerId||c.id||""))+'">View</button><button class="btn ghost small" style="color:var(--bad);border-color:var(--bad-border)" data-act="erase-customer" data-id="'+esc(String(c.customerId||c.id||""))+'">Erase</button></div></td></tr>';
     });
     html+='</tbody></table></div><div class="muted xs" style="margin-top:8px">'+list.length+' customers • <span class="mono">'+state.businessId+'</span> • Click View for memories & behavior (separate)</div>';
     el.innerHTML=html;
@@ -323,14 +385,16 @@
   };
   // --- Integration - clean, no duplication (owner: why Knowledge here? now removed) ---
   function renderIntegration(){
-    var o=location.origin, key=state.business.integrationKey||state.business.integration_key||"—";
+    var o=location.origin;
+    var pub=state.business.widgetPublicKey||state.business.widget_public_key||state.business.integrationKey||state.business.integration_key||"—";
+    var key=pub;
     var html='<div class="card"><div class="card-head"><h3>Integrations</h3><span class="status ok"><span class="dot ok"></span> Operational</span></div>';
-    html+='<p class="muted" style="margin:-6px 0 14px">Connect website, chat and tracker — each with clear status. Knowledge lives in <a href="#" onclick="document.querySelector(\'[data-tab=knowledge]\').click();return false" style="color:var(--violet-2);font-weight:600">Knowledge</a>, model in Settings.</p>';
+    html+='<p class="muted" style="margin:-6px 0 14px">Connect website, chat and tracker — each with clear status. Snippets use the <b>publishable</b> key (widget-scoped, safe to embed). The <b>secret</b> key lives in Settings and must never go into website code. Knowledge lives in <a href="#" data-act="go-tab" data-tab="knowledge" style="color:var(--violet-2);font-weight:600">Knowledge</a>, model in Settings.</p>';
     html+='<div class="grid" style="grid-template-columns:1fr 1fr;gap:16px">';
-    html+='<div style="border:1px solid var(--line);border-radius:12px;padding:18px;background:rgba(255,255,255,.03)"><div style="display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700">W</div><div><b>Chat Widget</b><div class="muted xs">Embeddable NOVA on your site</div></div><span class="spacer"></span><span class="status ok">Connected</span></div><div class="code" style="margin-top:12px;display:flex;align-items:center;gap:10px;justify-content:space-between"><span style="flex:1;word-break:break-all">&lt;script src="'+o+'/widget/nova-widget.js" data-public-key="'+esc(key)+'" defer&gt;&lt;/script&gt;</span><button class="btn ghost small" onclick="navigator.clipboard&&navigator.clipboard.writeText(\'<script src=&quot;'+o+'/widget/nova-widget.js&quot; data-public-key=&quot;'+esc(key)+'&quot; defer><\\/script>\');toast(\'Copied\')">Copy</button></div><div class="muted xs" style="margin-top:8px">Last activity: just now • '+esc(state.business.businessName)+'</div></div>';
-    html+='<div style="border:1px solid var(--line);border-radius:12px;padding:18px;background:rgba(255,255,255,.03)"><div style="display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center">◐</div><div><b>Tracker</b><div class="muted xs">Page views, product, cart, purchase</div></div><span class="spacer"></span><span class="status ok">Connected</span></div><div class="code" style="margin-top:12px;display:flex;align-items:center;gap:10px;justify-content:space-between"><span style="flex:1;word-break:break-all">&lt;script src="'+o+'/widget/nova-tracker.js" data-public-key="'+esc(key)+'"&gt;&lt;/script&gt;</span><button class="btn ghost small" onclick="navigator.clipboard&&navigator.clipboard.writeText(\'<script src=&quot;'+o+'/widget/nova-tracker.js&quot; data-public-key=&quot;'+esc(key)+'&quot;><\\/script>\');toast(\'Copied\')">Copy</button></div><div class="muted xs" style="margin-top:8px">Events: page_view (7d), product_view (30d), purchase (365d)</div></div>';
+    html+='<div style="border:1px solid var(--line);border-radius:12px;padding:18px;background:rgba(255,255,255,.03)"><div style="display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700">W</div><div><b>Chat Widget</b><div class="muted xs">Embeddable XEVEN on your site</div></div><span class="spacer"></span><span class="status ok">Connected</span></div><div class="code" style="margin-top:12px;display:flex;align-items:center;gap:10px;justify-content:space-between"><span style="flex:1;word-break:break-all">&lt;script src="'+o+'/widget/xeven-widget.js" data-public-key="'+esc(key)+'" defer&gt;&lt;/script&gt;</span><button class="btn ghost small" onclick="navigator.clipboard&&navigator.clipboard.writeText(\'<script src=&quot;'+o+'/widget/xeven-widget.js&quot; data-public-key=&quot;'+esc(key)+'&quot; defer><\\/script>\');toast(\'Copied\')">Copy</button></div><div class="muted xs" style="margin-top:8px">Last activity: just now • '+esc(state.business.businessName)+'</div></div>';
+    html+='<div style="border:1px solid var(--line);border-radius:12px;padding:18px;background:rgba(255,255,255,.03)"><div style="display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center">◐</div><div><b>Tracker</b><div class="muted xs">Page views, product, cart, purchase</div></div><span class="spacer"></span><span class="status ok">Connected</span></div><div class="code" style="margin-top:12px;display:flex;align-items:center;gap:10px;justify-content:space-between"><span style="flex:1;word-break:break-all">&lt;script src="'+o+'/widget/xeven-tracker.js" data-public-key="'+esc(key)+'"&gt;&lt;/script&gt;</span><button class="btn ghost small" onclick="navigator.clipboard&&navigator.clipboard.writeText(\'<script src=&quot;'+o+'/widget/xeven-tracker.js&quot; data-public-key=&quot;'+esc(key)+'&quot;><\\/script>\');toast(\'Copied\')">Copy</button></div><div class="muted xs" style="margin-top:8px">Events: page_view (7d), product_view (30d), purchase (365d)</div></div>';
     html+='</div></div>';
-    html+='<div class="card" style="background:var(--bg-subtle)"><h3>Need more?</h3><p class="muted" style="margin:0">Model, Knowledge and Behaviour are not duplicated here — open their dedicated sections. This tab is only for website connections.</p><div class="row" style="margin-top:10px"><button class="btn ghost small" onclick="document.querySelector(\'[data-tab=knowledge]\').click()">Knowledge →</button><button class="btn ghost small" onclick="document.querySelector(\'[data-tab=settings]\').click()">Settings →</button></div></div>';
+    html+='<div class="card" style="background:var(--bg-subtle)"><h3>Need more?</h3><p class="muted" style="margin:0">Model, Knowledge and Behaviour are not duplicated here — open their dedicated sections. This tab is only for website connections.</p><div class="row" style="margin-top:10px"><button class="btn ghost small" data-act="go-tab" data-tab="knowledge">Knowledge →</button><button class="btn ghost small" data-act="go-tab" data-tab="settings">Settings →</button></div></div>';
     $("tab-integration").innerHTML=html;
   }
   // --- Voice (AI) — Echo sidecar 24/7 ---
@@ -342,7 +406,7 @@
       var addons=[]; try{ var d=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/features"); /* flags */ }catch{}
       try{ var ad=await fetch("/api/portal/addons",{headers:{Authorization:"Bearer "+state.token}}).then(r=>r.json()).catch(()=>({addons:[]})); addons=ad.addons||[]; }catch{}
       var hasVoice = addons.some(function(a){return a.key==="voice_channel" && a.enabled}) || state.plan==="scale" || state.plan==="unlimited";
-      var html='<div class="card"><div class="card-head"><div><h3>Voice — Echo 24/7</h3><p class="muted" style="margin:4px 0 0">AI voice, phone-ready. Sidecar live with NOVA AI.</p></div><span class="status '+(hasVoice?"ok":"neutral")+'"><span class="dot '+(hasVoice?"ok":"neutral")+'"></span> '+(hasVoice?"Live 24/7":"Add-on")+'</span></div>';
+      var html='<div class="card"><div class="card-head"><div><h3>Voice — Echo 24/7</h3><p class="muted" style="margin:4px 0 0">AI voice, phone-ready. Sidecar live with XEVEN AI.</p></div><span class="status '+(hasVoice?"ok":"neutral")+'"><span class="dot '+(hasVoice?"ok":"neutral")+'"></span> '+(hasVoice?"Live 24/7":"Add-on")+'</span></div>';
       html+='<div class="row"><div><label>Greeting<input id="avGreet" value="'+esc(call.greetingTemplate||"")+'"></label></div><div><label>Handoff phone<input id="avPhone" value="'+esc(call.handoffPhone||"")+'"></label></div></div>';
       html+='<div class="row"><div><label>Handoff email<input id="avEmail" value="'+esc(call.handoffEmail||"")+'"></label></div><div><label>Language<select id="avLang"><option value="en" '+(echo.defaultLanguage==="en"?"selected":"")+'>en</option><option value="auto" '+(echo.defaultLanguage==="auto"?"selected":"")+'>auto</option><option value="es" '+(echo.defaultLanguage==="es"?"selected":"")+'>es</option><option value="fr" '+(echo.defaultLanguage==="fr"?"selected":"")+'>fr</option></select></label></div><div><label>Sidecar<input id="avSidecar" value="'+esc(echo.sidecarUrl||"http://127.0.0.1:8765")+'"></label></div></div>';
       html+='<label>Initial prompt<input id="avPrompt" value="'+esc(echo.initialPrompt||"")+'"></label>';
@@ -357,7 +421,7 @@
   }
   window.saveAdminVoice=async function(){
     var patch={call:{greetingTemplate:$("avGreet").value, handoffPhone:$("avPhone").value, handoffEmail:$("avEmail").value}, echo:{defaultLanguage:$("avLang").value, sidecarUrl:$("avSidecar").value, initialPrompt:$("avPrompt").value, enabled:true}};
-    try{ await patchConfig(patch); toast("Voice saved — Echo live 24/7 with NOVA AI"); }catch(e){ toast(e.message); }
+    try{ await patchConfig(patch); toast("Voice saved — Echo live 24/7 with XEVEN AI"); }catch(e){ toast(e.message); }
   };
   window.testAdminVoice=function(){ toast("Voice test — sidecar at "+($("avSidecar")?.value||"127.0.0.1:8765")); };
   // --- Schedule (AI) — Chrono 24/7 ---
@@ -366,7 +430,7 @@
     try{
       var cfg=state.config, chrono=cfg.chrono||{};
       var tz=chrono.timezone||"UTC", slot=chrono.slotDuration||60, buf=chrono.bufferMinutes||0, notice=chrono.minNoticeMinutes||0, seats=chrono.maxSeatsPerSlot||1, hosts=(chrono.hosts||[]).map(function(h){return h.name}).join(", ");
-      var html='<div class="card"><div class="card-head"><div><h3>Schedule — Chrono 24/7</h3><p class="muted" style="margin:4px 0 0">Business hours, slots, holidays — live with NOVA AI.</p></div><span class="status ok"><span class="dot ok"></span> Live 24/7</span></div>';
+      var html='<div class="card"><div class="card-head"><div><h3>Schedule — Chrono 24/7</h3><p class="muted" style="margin:4px 0 0">Business hours, slots, holidays — live with XEVEN AI.</p></div><span class="status ok"><span class="dot ok"></span> Live 24/7</span></div>';
       html+='<div class="row"><div><label>Timezone<input id="adTz" value="'+esc(tz)+'"></label></div><div><label>Slot (min)<input id="adSlot" type="number" value="'+slot+'"></label></div><div><label>Buffer<input id="adBuf" type="number" value="'+buf+'"></label></div><div><label>Notice<input id="adNotice" type="number" value="'+notice+'"></label></div><div><label>Seats<input id="adSeats" type="number" value="'+seats+'"></label></div></div>';
       html+='<label>Hosts<input id="adHosts" value="'+esc(hosts)+'" placeholder="Alice, Bob"></label><div id="adWeekly" style="margin-top:12px"></div><div class="row" style="margin-top:12px"><button class="btn primary" onclick="saveAdminSchedule()">Save Schedule — Chrono live 24/7</button></div></div>';
       html+='<div class="card"><h3>Live preview</h3><div id="adPreview" class="code" style="min-height:60px">Loading…</div><button class="btn ghost small" style="margin-top:8px" onclick="refreshAdminPreview()">Refresh</button></div>';
@@ -387,7 +451,7 @@
     try{ var d=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/analytics"); el.textContent=JSON.stringify({chrono:state.config.chrono},null,2).slice(0,2000); }catch(e){ el.textContent=e.message; }
     try{
       var key=state.business.integrationKey||state.business.integration_key||"";
-      var av=await fetch("/api/v1/widget/availability?days=7",{headers: key?{"x-nova-key":key}:{}}).then(function(r){return r.json()}).catch(function(){return null});
+      var av=await fetch("/api/v1/widget/availability?days=7",{headers: key?{"x-xeven-key":key}:{}}).then(function(r){return r.json()}).catch(function(){return null});
       if(av&&av.availability) $("adPreview").textContent=JSON.stringify(av.availability,null,2).slice(0,3000);
     }catch{}
   };
@@ -466,12 +530,12 @@
   async function renderPerformance(){
     var p=$("tab-performance"); if(!p) return; p.innerHTML=skeleton(3);
     try{
-      var s=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/analytics");
+      var s=await getAnalytics();
       var c=s.counts||{};
       var mpc = c.conversations ? (c.messages / c.conversations).toFixed(1) : "—";
-      var grounded = "100%"; // NOVA is knowledge-grounded by design
+      var grounded = "100%"; // XEVEN is knowledge-grounded by design
       var html='<div class="card"><div class="card-head"><h3>Performance</h3><span class="pill">Grounded • 7d</span></div>';
-      html+='<p class="muted" style="margin:0 0 14px">How well NOVA answers — grounded, concise, no hallucination. For volume see <a href="#" onclick="document.querySelector(\'[data-tab=usage]\').click();return false" style="color:var(--violet-2)">Usage</a>, for revenue see Costs.</p>';
+      html+='<p class="muted" style="margin:0 0 14px">How well XEVEN answers — grounded, concise, no hallucination. For volume see <a href="#" data-act="go-tab" data-tab="usage" style="color:var(--violet-2)">Usage</a>, for revenue see Costs.</p>';
       html+='<div class="grid" style="grid-template-columns:1fr 1fr;gap:12px"><div class="kpi"><div class="n">'+grounded+'</div><div class="l">Grounded answers</div><div class="progress" style="margin-top:8px"><i style="width:100%"></i></div><div class="muted xs" style="margin-top:4px">Knowledge-only • fallback when no match</div><canvas id="perfSpark1" style="width:100%;height:48px;margin-top:8px;display:block" height="48"></canvas></div><div class="kpi"><div class="n">'+mpc+'</div><div class="l">Msgs / conversation</div><div class="muted xs" style="margin-top:4px">Conversations <b>'+(c.conversations||0)+'</b> • Messages <b>'+(c.messages||0)+'</b></div><canvas id="perfSpark2" style="width:100%;height:48px;margin-top:8px;display:block" height="48"></canvas></div></div>';
       html+='<div class="grid" style="margin-top:12px"><div class="kpi"><div class="n">'+(c.behaviorEvents||0)+'</div><div class="l">Signals considered</div><div class="muted xs">Behavior events indexed</div></div><div class="kpi"><div class="n">'+(c.memories||0)+'</div><div class="l">Memories used</div><div class="muted xs">Explicit per customer</div></div><div class="kpi"><div class="n">'+(c.knowledgeItems||0)+'</div><div class="l">Knowledge chunks</div><div class="muted xs">Grounded source</div></div></div>';
       html+='</div>';
@@ -487,11 +551,11 @@
   async function renderUsage(){
     var p=$("tab-usage"); if(!p) return; p.innerHTML=skeleton(3);
     try{
-      var s=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/analytics");
+      var s=await getAnalytics();
       var c=s.counts||{};
       var cfg=state.config;
       var html='<div class="card"><div class="card-head"><h3>Usage</h3><span class="pill">Metered • 7d</span></div>';
-      html+='<p class="muted" style="margin:0 0 14px">Volume NOVA handled — for quality see Performance, for money see Costs.</p>';
+      html+='<p class="muted" style="margin:0 0 14px">Volume XEVEN handled — for quality see Performance, for money see Costs.</p>';
       html+='<div class="grid"><div class="kpi"><div class="n">'+(c.conversations||0)+'</div><div class="l">Conversations</div></div><div class="kpi"><div class="n">'+(c.messages||0)+'</div><div class="l">Messages</div></div><div class="kpi"><div class="n">'+(c.knowledgeItems||0)+'</div><div class="l">Knowledge chunks</div></div><div class="kpi"><div class="n">'+(c.behaviorEvents||0)+'</div><div class="l">Behavior events</div></div></div>';
       html+='<div class="grid" style="margin-top:12px"><div class="kpi"><div class="n">'+(c.customers||0)+'</div><div class="l">Customers</div></div><div class="kpi"><div class="n">'+(c.memories||0)+'</div><div class="l">Memories</div></div><div class="kpi"><div class="n">'+(cfg.behavior?.maxEvents||100)+'</div><div class="l">Max events / cust</div></div></div>';
       html+='<p class="muted xs" style="margin-top:10px">TTL: page_view 7d • product_view 30d • purchase 365d • isolated per business</p></div>';
@@ -505,13 +569,13 @@
   async function renderCosts(){
     var p=$("tab-costs"); if(!p) return; p.innerHTML=skeleton(3);
     try{
-      var s=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/analytics");
+      var s=await getAnalytics();
       var c=s.counts||{};
       var revenue=0; var purchases=0; var leads=0;
       try{ var d=await api("/api/admin/digest"); var mine=d.summary?.businesses?.find(b=>b.businessId===state.businessId); if(mine){ revenue=mine.attributedRevenueCents||0; purchases=mine.purchases||0; leads=mine.leads||0; } }catch{}
       var conv=c.conversations||0; var costPerConv = conv? ((revenue/100)/conv).toFixed(2) : "—";
       var html='<div class="card"><div class="card-head"><h3>Costs</h3><span class="pill">Revenue • 7d window</span></div>';
-      html+='<p class="muted" style="margin:0 0 14px">Money NOVA influenced — not usage volume. See Usage for volume, Performance for quality.</p>';
+      html+='<p class="muted" style="margin:0 0 14px">Money XEVEN influenced — not usage volume. See Usage for volume, Performance for quality.</p>';
       html+='<div class="grid"><div class="kpi"><div class="n">$'+(revenue/100).toFixed(2)+'</div><div class="l">Attributed revenue</div></div><div class="kpi"><div class="n">'+purchases+'</div><div class="l">Purchases</div></div><div class="kpi"><div class="n">'+leads+'</div><div class="l">Leads</div></div><div class="kpi"><div class="n">'+conv+'</div><div class="l">Conversations</div></div></div>';
       html+='<div class="grid" style="margin-top:12px"><div class="kpi"><div class="n">$'+costPerConv+'</div><div class="l">$ / conversation</div></div><div class="kpi"><div class="n">'+esc(state.config?.model?.model||state.plan||"inherit")+'</div><div class="l">Model</div></div><div class="kpi"><div class="n">'+(c.knowledgeItems||0)+'</div><div class="l">Knowledge</div></div></div>';
       html+='<p class="muted xs" style="margin-top:10px">Attribution: purchase within 7d of chat with same customer. Revenue via tracker purchase events.</p></div>';
@@ -522,7 +586,7 @@
   async function renderHealth(){
     var p=$("tab-health"); if(!p) return; p.innerHTML=skeleton(3);
     try{
-      var s=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/analytics");
+      var s=await getAnalytics();
       var c=s.counts||{}; var plan=esc(state.plan);
       var health=[
         {k:"Agent Brain",v:"Operational",s:"ok",d:"Unified • 6 patterns • "+plan+" • "+(state.config?.model?.model||"inherit")},
@@ -554,13 +618,13 @@
     html+='<div class="row" style="margin-top:16px"><button class="btn primary" onclick="saveSettings()">Save workspace</button><span class="muted xs">Instant • audit logged • no code change</span></div></div>';
     // 2 — Integration key (dedicated, no overlap with Integrations tab snippet)
     html+='<div class="card"><div class="card-head"><h3>Integration key</h3><span class="status ok"><span class="dot ok"></span> Secret</span></div>';
-    html+='<p class="muted" style="margin:-6px 0 12px">Used by widget/tracker/API (<code class="key" style="padding:2px 6px">x-nova-key</code> or <code class="key" style="padding:2px 6px">Bearer</code>). Keep secret — rotate if leaked. Integrations tab shows the install snippet.</p>';
+    html+='<p class="muted" style="margin:-6px 0 12px">Secret key for API/SDK management (<code class="key" style="padding:2px 6px">x-xeven-key</code> or <code class="key" style="padding:2px 6px">Bearer</code>). Keep secret — rotate if leaked. The website snippet uses the separate publishable key (Integrations tab).</p>';
     html+='<div class="code" style="padding:14px;word-break:break-all;background:rgba(255,255,255,.03)"><span class="mono" style="font-size:12px;word-break:break-all">'+esc(key)+'</span></div>';
     html+='<div class="row" style="margin-top:12px"><button class="btn ghost small" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+esc(key)+'\');toast(\'Key copied\')">Copy key</button><button class="btn ghost small" style="color:var(--bad);border-color:var(--bad-border)" onclick="rotateKey()">Rotate key</button><span class="muted xs" style="align-self:center">Rotating invalidates old key immediately</span></div>';
-    html+='<p class="muted xs" style="margin-top:10px">Snippet: <a href="#" onclick="document.querySelector(\'[data-tab=integration]\').click();return false" style="color:var(--violet-2)">Open Integrations →</a> to copy widget/tracker code.</p></div>';
+    html+='<p class="muted xs" style="margin-top:10px">Snippet: <a href="#" data-act="go-tab" data-tab="integration" style="color:var(--violet-2)">Open Integrations →</a> to copy widget/tracker code.</p></div>';
     // 3 — Plan & limits (read-only, no duplication of Agent/Knowledge)
     html+='<div class="card"><div class="card-head"><h3>Plan & limits</h3><span class="pill">'+esc(plan)+'</span></div>';
-    html+='<div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:12px"><div class="kpi" style="padding:14px"><div class="n" style="font-size:16px">'+esc(limits)+'</div><div class="l">Behaviour rules</div></div><div class="kpi" style="padding:14px"><div class="n" style="font-size:16px">'+(state.config.features?.knowledge?"On":"Off")+'</div><div class="l">Knowledge</div><div class="muted xs"><a href="#" onclick="document.querySelector(\'[data-tab=knowledge]\').click();return false" style="color:var(--violet-2)">Manage →</a></div></div><div class="kpi" style="padding:14px"><div class="n" style="font-size:16px">'+esc(state.config.assistant?.name||"NOVA")+'</div><div class="l">Assistant</div><div class="muted xs"><a href="#" onclick="document.querySelector(\'[data-tab=agent]\').click();return false" style="color:var(--violet-2)">Edit →</a></div></div></div>';
+    html+='<div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:12px"><div class="kpi" style="padding:14px"><div class="n" style="font-size:16px">'+esc(limits)+'</div><div class="l">Behaviour rules</div></div><div class="kpi" style="padding:14px"><div class="n" style="font-size:16px">'+(state.config.features?.knowledge?"On":"Off")+'</div><div class="l">Knowledge</div><div class="muted xs"><a href="#" data-act="go-tab" data-tab="knowledge" style="color:var(--violet-2)">Manage →</a></div></div><div class="kpi" style="padding:14px"><div class="n" style="font-size:16px">'+esc(state.config.assistant?.name||"XEVEN")+'</div><div class="l">Assistant</div><div class="muted xs"><a href="#" data-act="go-tab" data-tab="agent" style="color:var(--violet-2)">Edit →</a></div></div></div>';
     html+='<p class="muted xs" style="margin-top:10px">Unified brain has all 6 patterns on every plan. Limits are for custom behaviour rules only. Capabilities are founder-controlled — see below.</p></div>';
     // 4 — Capabilities (collapsible, not primary)
     html+='<details class="card" '+(Object.keys((state.config.features||{}).capabilities||{}).length? '':'open')+'><summary style="cursor:pointer;font-weight:700;font-size:13px;list-style:none;display:flex;align-items:center;justify-content:space-between">Capabilities <span class="pill" style="font-size:10px">'+Object.keys((state.config.features||{}).capabilities||{}).length+' flags</span></summary>';
@@ -582,12 +646,12 @@
   };
   window.rotateKey=async function(){
     if(!confirm("Rotate integration key? Old key stops working immediately.")) return;
-    try{ var r=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/rotate-key",{method:"POST"}); state.business.integrationKey=r.integrationKey||r.key; toast("Key rotated"); renderSettings();}catch(e){toast(e.message)}
+    try{ var r=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId)+"/rotate-key",{method:"POST"}); state.business.integrationKey=r.integrationKey||r.key; if(r.widgetPublicKey) state.business.widgetPublicKey=r.widgetPublicKey; toast("Secret rotated — publishable key unchanged"); renderSettings();}catch(e){toast(e.message)}
   };
   async function patchConfig(p){var d=await api("/api/admin/businesses/"+encodeURIComponent(state.businessId),{method:"PATCH",body:{config:p}});state.config=d.config;state.business=d.business}
   // --- chrome polish — repo-learned: magnetic buttons, keyboard tabs, offline banner ---
   function initChromePolish(){
-    // magnetic buttons (nova-web)
+    // magnetic buttons (xeven-web)
     document.addEventListener("mousemove", function(e){
       var btn=e.target.closest&&e.target.closest(".btn.primary");
       if(!btn) return;

@@ -90,7 +90,7 @@ test("voice: static voice client served", async (t) => {
 
     const client = await api(server.baseUrl, "GET", "/api/portal/voice/client.js");
     assert.strictEqual(client.status, 200);
-    assert.ok(client.raw.includes("NovaVoiceClient"));
+    assert.ok(client.raw.includes("XevenVoiceClient"));
 });
 
 test("voice: voice test page served", async (t) => {
@@ -99,7 +99,7 @@ test("voice: voice test page served", async (t) => {
 
     const page = await api(server.baseUrl, "GET", "/api/portal/voice/test");
     assert.strictEqual(page.status, 200);
-    assert.ok(page.raw.includes("NOVA Voice Client Test"));
+    assert.ok(page.raw.includes("XEVEN Voice Client Test"));
 });
 
 // Helper from tenant-isolation tests

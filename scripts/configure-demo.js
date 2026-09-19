@@ -1,18 +1,18 @@
 "use strict";
-// Configure NOVA Web Demo business: all 8 core skills stacked + demo knowledge.
+// Configure XEVEN Web Demo business: all 8 core skills stacked + demo knowledge.
 process.env.NODE_ENV = "development";
 const path = require("path");
-require("dotenv").config({ path: path.join("D:/nova ai", ".env") });
-const db = require("D:/nova ai/server/src/db");
+require("dotenv").config({ path: path.join("D:/xeven ai", ".env") });
+const db = require("D:/xeven ai/server/src/db");
 db.init();
-const configService = require("D:/nova ai/server/src/core/config/service");
-const knowledge = require("D:/nova ai/server/src/core/knowledge/store");
+const configService = require("D:/xeven ai/server/src/core/config/service");
+const knowledge = require("D:/xeven ai/server/src/core/knowledge/store");
 
-const BUSINESS = "nova_web_demo";
+const BUSINESS = "xeven_web_demo";
 
 const config = configService.updateConfig(BUSINESS, {
     assistant: {
-        name: "Nova",
+        name: "Xeven",
         role: "customer_support",
         roles: [
             "customer_support",
@@ -24,10 +24,10 @@ const config = configService.updateConfig(BUSINESS, {
             "general_assistant",
             "custom",
         ],
-        personality: "Friendly, concise and honest. You are Nova, the whole customer-facing team of the demo store in one assistant.",
-        welcomeMessage: "Hi! I'm Nova — support, sales, product advice and bookings in one chat. How can I help?",
+        personality: "Friendly, concise and honest. You are Xeven, the whole customer-facing team of the demo store in one assistant.",
+        welcomeMessage: "Hi! I'm Xeven — support, sales, product advice and bookings in one chat. How can I help?",
         businessDescription:
-            "NOVA Web Demo is a small online store selling tech gadgets and accessories. It also offers in-store consultation appointments that can be booked online.",
+            "XEVEN Web Demo is a small online store selling tech gadgets and accessories. It also offers in-store consultation appointments that can be booked online.",
     },
     features: { capabilities: { "booking.availability": true, "booking.create": true, "booking.list": true } },
 });

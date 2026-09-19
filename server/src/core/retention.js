@@ -79,7 +79,7 @@ async function mailExportToAdmins(business, exportData) {
     }
 
     const json = JSON.stringify(exportData, null, 2);
-    const subject = `NOVA — Business "${business.business_name}" (${business.business_id}) deactivated 15d ago — data export`;
+    const subject = `XEVEN — Business "${business.business_name}" (${business.business_id}) deactivated 15d ago — data export`;
     const text = [
         `Hi,`,
         ``,
@@ -96,7 +96,7 @@ async function mailExportToAdmins(business, exportData) {
         ``,
         `If you need to restore, re-create the business with the same business_id and re-import.`,
         ``,
-        `— NOVA retention`,
+        `— XEVEN retention`,
     ].join("\n");
 
     // Save to disk for audit (project root logs/retention)
@@ -141,7 +141,7 @@ async function mailExportToAdmins(business, exportData) {
                             auth: { user: settings.smtp_user, pass },
                         });
                         await transport.sendMail({
-                            from: `"NOVA Retention" <${settings.contact_email || settings.smtp_user}>`,
+                            from: `"XEVEN Retention" <${settings.contact_email || settings.smtp_user}>`,
                             to,
                             subject,
                             text,
@@ -160,15 +160,15 @@ async function mailExportToAdmins(business, exportData) {
             try {
                 let nodemailer = null;
                 try { nodemailer = require("nodemailer"); } catch {}
-                const sysHost = process.env.NOVA_SYSTEM_SMTP_HOST || process.env.SMTP_HOST;
-                const sysUser = process.env.NOVA_SYSTEM_SMTP_USER || process.env.SMTP_USER;
-                const sysPass = process.env.NOVA_SYSTEM_SMTP_PASS || process.env.SMTP_PASS;
-                const sysFrom = process.env.NOVA_SYSTEM_SMTP_FROM || sysUser;
+                const sysHost = process.env.XEVEN_SYSTEM_SMTP_HOST || process.env.SMTP_HOST;
+                const sysUser = process.env.XEVEN_SYSTEM_SMTP_USER || process.env.SMTP_USER;
+                const sysPass = process.env.XEVEN_SYSTEM_SMTP_PASS || process.env.SMTP_PASS;
+                const sysFrom = process.env.XEVEN_SYSTEM_SMTP_FROM || sysUser;
                 if (nodemailer && sysHost && sysUser && sysPass) {
                     const transport = nodemailer.createTransport({
                         host: sysHost,
-                        port: Number(process.env.NOVA_SYSTEM_SMTP_PORT || 587),
-                        secure: Number(process.env.NOVA_SYSTEM_SMTP_PORT) === 465,
+                        port: Number(process.env.XEVEN_SYSTEM_SMTP_PORT || 587),
+                        secure: Number(process.env.XEVEN_SYSTEM_SMTP_PORT) === 465,
                         auth: { user: sysUser, pass: sysPass },
                     });
                     await transport.sendMail({

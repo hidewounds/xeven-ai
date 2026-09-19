@@ -19,7 +19,7 @@ const SYSTEM_PROMPT_FINGERPRINTS = [
     "business instructions",
     "guidelines:",
     "factual grounding",
-    "you are nova",
+    "you are xeven",
     "as an ai assistant",
     "your role is",
     "you must not",

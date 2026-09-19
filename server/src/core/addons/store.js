@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * NOVA Add-ons — entitlements per business.
+ * XEVEN Add-ons — entitlements per business.
  * Add-ons are attachable capabilities (voice_channel, multilanguage) that
  * the business enables from their portal. They gate features at the capability
  * and route layers; Unlimited plan auto-enables everything.

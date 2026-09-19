@@ -11,11 +11,13 @@ const { badRequest } = require("../../lib/errors");
 const router = express.Router();
 
 router.use(adminAuth.requireAdmin);
+// Cookie-authed mutations require a CSRF token (Bearer requests skip it).
+router.use(adminAuth.requireAdminCsrf);
 
 // --- retention: 15-day purge for deactivated businesses --------------------
 router.get("/retention/deactivated", (req, res, next) => {
     try {
-        const adminRow = db.get().prepare(`SELECT * FROM admin_users WHERE id = ?`).get(req.nova.adminId);
+        const adminRow = db.get().prepare(`SELECT * FROM admin_users WHERE id = ?`).get(req.xeven.adminId);
         if (!adminRow.is_super) return res.status(403).json({ error: { code: "forbidden", message: "Super admin only." } });
         const cutoff = Date.now() - 15 * 24 * 60 * 60 * 1000;
         let rows;
@@ -40,7 +42,7 @@ router.get("/retention/deactivated", (req, res, next) => {
 
 router.post("/retention/purge", async (req, res, next) => {
     try {
-        const adminRow = db.get().prepare(`SELECT * FROM admin_users WHERE id = ?`).get(req.nova.adminId);
+        const adminRow = db.get().prepare(`SELECT * FROM admin_users WHERE id = ?`).get(req.xeven.adminId);
         if (!adminRow.is_super) return res.status(403).json({ error: { code: "forbidden", message: "Super admin only." } });
         const retention = require("../../core/retention");
         const result = await retention.processDeactivatedBusinesses({ now: Date.now() });
@@ -54,7 +56,7 @@ router.post("/retention/purge", async (req, res, next) => {
 
 /** List businesses this admin can access. */
 router.get("/businesses", (req, res) => {
-    const adminRow = db.get().prepare(`SELECT * FROM admin_users WHERE id = ?`).get(req.nova.adminId);
+    const adminRow = db.get().prepare(`SELECT * FROM admin_users WHERE id = ?`).get(req.xeven.adminId);
     res.json({ businesses: adminAuth.listAccessibleBusinesses(adminRow) });
 });
 
@@ -76,15 +78,15 @@ router.post("/businesses", (req, res, next) => {
             config: body.config,
         });
 
-        const adminRow = db.get().prepare(`SELECT * FROM admin_users WHERE id = ?`).get(req.nova.adminId);
+        const adminRow = db.get().prepare(`SELECT * FROM admin_users WHERE id = ?`).get(req.xeven.adminId);
         if (!adminRow.is_super) {
-            adminAuth.grantBusinessAccess(req.nova.adminId, created.business.businessId);
+            adminAuth.grantBusinessAccess(req.xeven.adminId, created.business.businessId);
         }
 
         auditStore.record({
             businessId: created.business.businessId,
             actorType: "admin",
-            actorId: req.nova.adminUid,
+            actorId: req.xeven.adminUid,
             action: "business.created",
             detail: { businessName: body.businessName },
             ip: req.ip,
@@ -101,12 +103,27 @@ router.use("/businesses/:businessId", adminAuth.loadOwnedBusiness);
 
 router.get("/businesses/:businessId", (req, res) => {
     // Unified brain — no role limits, all plans have full pattern access
-    const config = configService.getConfig(req.nova.businessId, { bypassLimit: true });
+    const config = configService.getConfig(req.xeven.businessId, { bypassLimit: true });
     const sanitized = configService.sanitizeConfig(config);
     const { PATTERN_IDS } = require("../../core/agent/brain");
     const maxRoles = null; // unified: no role cap
-    const isSuper = Boolean(req.nova && req.nova.isSuper);
-    res.json({ business: req.novaBusiness, config: sanitized, plan: req.novaBusiness.plan, maxRoles, roleKeys: PATTERN_IDS, brainPatterns: PATTERN_IDS, brain: "unified", isSuper, adminBypass: true });
+    const isSuper = Boolean(req.xeven && req.xeven.isSuper);
+    // Security posture warnings for the dashboard (default-allow CORS etc.)
+    const securityWarnings = [];
+    try {
+        const env = require("../../env");
+        if (env.isProduction && (!env.allowedOrigins || env.allowedOrigins.length === 0)) {
+            securityWarnings.push({ code: "cors-open", message: "CORS is open in production (XEVEN_ALLOWED_ORIGINS not set). Set it to your dashboard origins.", tab: "settings" });
+        }
+        if (env.isProduction && !env.adminTokenSecretFromEnv) {
+            securityWarnings.push({ code: "admin-secret-ephemeral", message: "XEVEN_ADMIN_TOKEN_SECRET is not set — admin sessions may not survive restarts.", tab: "settings" });
+        }
+        const origins = Array.isArray(sanitized.security?.allowedOrigins) ? sanitized.security.allowedOrigins : [];
+        if (env.isProduction && origins.length === 0) {
+            securityWarnings.push({ code: "widget-origins-open", message: "Widget embeds accept any domain. Set Security → Allowed origins to lock embedding to your sites.", tab: "integration" });
+        }
+    } catch {}
+    res.json({ business: req.xevenBusiness, config: sanitized, plan: req.xevenBusiness.plan, maxRoles, roleKeys: PATTERN_IDS, brainPatterns: PATTERN_IDS, brain: "unified", isSuper, adminBypass: true, securityWarnings });
 });
 
 router.patch("/businesses/:businessId", (req, res, next) => {
@@ -114,20 +131,20 @@ router.patch("/businesses/:businessId", (req, res, next) => {
         const body = req.body || {};
 
         // Plan changes are commercial decisions — super-admin only.
-        let business = req.novaBusiness;
+        let business = req.xevenBusiness;
         if (body.plan !== undefined) {
-            const adminRow = db.get().prepare(`SELECT * FROM admin_users WHERE id = ?`).get(req.nova.adminId);
+            const adminRow = db.get().prepare(`SELECT * FROM admin_users WHERE id = ?`).get(req.xeven.adminId);
             if (!adminRow.is_super) {
                 return res.status(403).json({
                     error: { code: "forbidden", message: "Only the super admin can change business plans.", requestId: req.requestId },
                 });
             }
-            business = configService.setBusinessPlan(req.nova.businessId, body.plan);
+            business = configService.setBusinessPlan(req.xeven.businessId, body.plan);
         }
 
         // Identity update.
         if (body.businessName !== undefined || body.active !== undefined) {
-            business = configService.updateBusinessIdentity(req.nova.businessId, {
+            business = configService.updateBusinessIdentity(req.xeven.businessId, {
                 businessName: body.businessName,
                 active: typeof body.active === "boolean" ? body.active : undefined,
             });
@@ -136,15 +153,15 @@ router.patch("/businesses/:businessId", (req, res, next) => {
         // Configuration update — ALL admins bypass plan caps (admin override), portals are capped
         let config;
         if (body.config && typeof body.config === "object") {
-            config = configService.updateConfig(req.nova.businessId, body.config, { bypassLimit: true });
+            config = configService.updateConfig(req.xeven.businessId, body.config, { bypassLimit: true });
         } else {
-            config = configService.getConfig(req.nova.businessId, { bypassLimit: true });
+            config = configService.getConfig(req.xeven.businessId, { bypassLimit: true });
         }
 
         auditStore.record({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             actorType: "admin",
-            actorId: req.nova.adminUid,
+            actorId: req.xeven.adminUid,
             action: "business.updated",
             detail: { fields: Object.keys(body), plan: body.plan },
             ip: req.ip,
@@ -159,11 +176,11 @@ router.patch("/businesses/:businessId", (req, res, next) => {
 /** Rotate the integration key. */
 router.post("/businesses/:businessId/rotate-key", (req, res, next) => {
     try {
-        const result = configService.rotateIntegrationKey(req.nova.businessId);
+        const result = configService.rotateIntegrationKey(req.xeven.businessId);
         auditStore.record({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             actorType: "admin",
-            actorId: req.nova.adminUid,
+            actorId: req.xeven.adminUid,
             action: "key.rotated",
             ip: req.ip,
         });
@@ -175,13 +192,13 @@ router.post("/businesses/:businessId/rotate-key", (req, res, next) => {
 
 /** Analytics for the dashboard. */
 router.get("/businesses/:businessId/analytics", (req, res) => {
-    res.json(analytics.summary(req.nova.businessId));
+    res.json(analytics.summary(req.xeven.businessId));
 });
 
 /** Audit trail for the dashboard. */
 router.get("/businesses/:businessId/audit", (req, res) => {
     const limit = Math.min(Number(req.query.limit) || 50, 200);
-    res.json({ entries: auditStore.listAudit(req.nova.businessId, { limit }) });
+    res.json({ entries: auditStore.listAudit(req.xeven.businessId, { limit }) });
 });
 
 // ---------------------------------------------------------------------------
@@ -194,22 +211,22 @@ const memoryStore = require("../../core/memory/store");
 const behaviorStore = require("../../core/behavior/store");
 
 router.get("/businesses/:businessId/knowledge", (req, res) => {
-    res.json(knowledgeStore.listKnowledge(req.nova.businessId));
+    res.json(knowledgeStore.listKnowledge(req.xeven.businessId));
 });
 
 router.post("/businesses/:businessId/knowledge", (req, res, next) => {
     try {
         const body = req.body || {};
         const item = knowledgeStore.createKnowledgeItem({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             title: body.title,
             knowledgeType: body.knowledgeType,
             content: body.content,
         });
         auditStore.record({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             actorType: "admin",
-            actorId: req.nova.adminUid,
+            actorId: req.xeven.adminUid,
             action: "knowledge.created",
             detail: { knowledgeId: item.knowledge_id },
             ip: req.ip,
@@ -222,7 +239,7 @@ router.post("/businesses/:businessId/knowledge", (req, res, next) => {
 
 router.patch("/businesses/:businessId/knowledge/:knowledgeId", (req, res, next) => {
     try {
-        const item = knowledgeStore.updateKnowledgeItem(req.nova.businessId, req.params.knowledgeId, req.body || {});
+        const item = knowledgeStore.updateKnowledgeItem(req.xeven.businessId, req.params.knowledgeId, req.body || {});
         res.json({ item });
     } catch (error) {
         next(error);
@@ -231,7 +248,7 @@ router.patch("/businesses/:businessId/knowledge/:knowledgeId", (req, res, next) 
 
 router.delete("/businesses/:businessId/knowledge/:knowledgeId", (req, res, next) => {
     try {
-        const deleted = knowledgeStore.deleteKnowledgeItem(req.nova.businessId, req.params.knowledgeId);
+        const deleted = knowledgeStore.deleteKnowledgeItem(req.xeven.businessId, req.params.knowledgeId);
         res.json({ deleted });
     } catch (error) {
         next(error);
@@ -245,20 +262,20 @@ router.delete("/businesses/:businessId/knowledge/:knowledgeId", (req, res, next)
 router.get("/businesses/:businessId/customers", (req, res) => {
     const limit = Math.min(Number(req.query.limit) || 100, 500);
     const offset = Math.max(Number(req.query.offset) || 0, 0);
-    res.json(customersStore.listCustomers(req.nova.businessId, { limit, offset }));
+    res.json(customersStore.listCustomers(req.xeven.businessId, { limit, offset }));
 });
 
 router.get("/businesses/:businessId/customers/:customerId/memories", (req, res) => {
-    res.json({ memories: memoryStore.listMemories(req.nova.businessId, req.params.customerId) });
+    res.json({ memories: memoryStore.listMemories(req.xeven.businessId, req.params.customerId) });
 });
 
 router.delete("/businesses/:businessId/customers/:customerId/memories", (req, res, next) => {
     try {
-        const deleted = memoryStore.deleteAllMemories(req.nova.businessId, req.params.customerId);
+        const deleted = memoryStore.deleteAllMemories(req.xeven.businessId, req.params.customerId);
         auditStore.record({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             actorType: "admin",
-            actorId: req.nova.adminUid,
+            actorId: req.xeven.adminUid,
             action: "memory.all_deleted",
             detail: { customerId: req.params.customerId },
             ip: req.ip,
@@ -270,16 +287,16 @@ router.delete("/businesses/:businessId/customers/:customerId/memories", (req, re
 });
 
 router.get("/businesses/:businessId/customers/:customerId/behavior", (req, res) => {
-    res.json({ events: behaviorStore.listRecentBehavior(req.nova.businessId, req.params.customerId, 100) });
+    res.json({ events: behaviorStore.listRecentBehavior(req.xeven.businessId, req.params.customerId, 100) });
 });
 
 router.delete("/businesses/:businessId/customers/:customerId", (req, res, next) => {
     try {
-        const deleted = customersStore.deleteCustomer(req.nova.businessId, req.params.customerId);
+        const deleted = customersStore.deleteCustomer(req.xeven.businessId, req.params.customerId);
         auditStore.record({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             actorType: "admin",
-            actorId: req.nova.adminUid,
+            actorId: req.xeven.adminUid,
             action: "customer.deleted",
             detail: { customerId: req.params.customerId },
             ip: req.ip,

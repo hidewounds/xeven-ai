@@ -23,31 +23,51 @@ const router = express.Router();
 
 function authenticateWidget(req) {
     const key = extractKey(req);
-    if (!key) throw unauthorized("NOVA key is required.", "key_required");
+    if (!key) throw unauthorized("XEVEN key is required.", "key_required");
 
     const business = configService.getBusinessByKey(key);
-    if (!business || !business.active) throw unauthorized("Invalid or inactive NOVA key.", "key_invalid");
+    if (!business || !business.active) throw unauthorized("Invalid or inactive XEVEN key.", "key_invalid");
 
     const config = configService.getConfig(business.business_id);
     if (config.security.widgetEnabled === false) {
-        throw unauthorized("The NOVA widget is disabled for this business.", "widget_disabled");
+        throw unauthorized("The XEVEN widget is disabled for this business.", "widget_disabled");
     }
 
-    req.nova = { principalType: "widget", businessId: business.business_id, businessName: business.business_name };
+    // Per-business embed allowlist. Empty = open-by-default (dashboard warns
+    // in production). Server-to-server calls without Origin always pass.
+    const allowed = Array.isArray(config.security?.allowedOrigins) ? config.security.allowedOrigins.filter((o) => typeof o === "string" && o.trim()) : [];
+    if (allowed.length > 0) {
+        const origin = String(req.headers.origin || "").trim();
+        const referer = String(req.headers.referer || req.headers.referrer || "").trim();
+        const hostOf = (u) => { try { return new URL(u).hostname.toLowerCase(); } catch { return ""; } };
+        const got = hostOf(origin) || hostOf(referer);
+        const ok = got && allowed.some((entry) => {
+            const e = String(entry).trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0];
+            if (!e) return false;
+            if (e.startsWith(".")) return got === e.slice(1) || got.endsWith(e);
+            return got === e;
+        });
+        if (!ok) {
+            const { AppError } = require("../../lib/errors");
+            throw new AppError(403, "cors_origin_not_allowed", "This domain is not in the business embed allowlist.");
+        }
+    }
+
+    req.xeven = { principalType: "widget", businessId: business.business_id, businessName: business.business_name };
 }
 
 router.get("/config", (req, res, next) => {
     try {
         authenticateWidget(req);
-        const fullConfig = configService.getConfig(req.nova.businessId);
-        const addons = addonsStore ? addonsStore.listAddons(req.nova.businessId) : [];
+        const fullConfig = configService.getConfig(req.xeven.businessId);
+        const addons = addonsStore ? addonsStore.listAddons(req.xeven.businessId) : [];
         const voiceEnabled = addons.find((a) => a.key === "voice_channel")?.enabled || false;
         const multiEnabled = addons.find((a) => a.key === "multilanguage")?.enabled || false;
-        const chrono = (() => { try { return require("../../core/chrono/schedule").getSchedule(req.nova.businessId); } catch { return null; } })();
-        const guide = (() => { try { return require("../../core/guide/store").getGuide(req.nova.businessId); } catch { return null; } })();
+        const chrono = (() => { try { return require("../../core/chrono/schedule").getSchedule(req.xeven.businessId); } catch { return null; } })();
+        const guide = (() => { try { return require("../../core/guide/store").getGuide(req.xeven.businessId); } catch { return null; } })();
         const theme = (() => {
             try {
-                const t = require("../../core/theme/store").getTheme(req.nova.businessId);
+                const t = require("../../core/theme/store").getTheme(req.xeven.businessId);
                 if (t && t.theme) return t.theme;
                 if (fullConfig.site?.theme) return fullConfig.site.theme;
                 if (guide && guide.theme) return guide.theme;
@@ -56,7 +76,7 @@ router.get("/config", (req, res, next) => {
         })();
         const customerBase = (() => {
             try {
-                const t = require("../../core/theme/store").getTheme(req.nova.businessId);
+                const t = require("../../core/theme/store").getTheme(req.xeven.businessId);
                 if (t && t.customerBase) return t.customerBase;
                 if (fullConfig.site?.customerBase) return fullConfig.site.customerBase;
                 if (guide && guide.customerBase) return guide.customerBase;
@@ -94,7 +114,7 @@ router.get("/config", (req, res, next) => {
 router.get("/guide", (req, res, next) => {
     try {
         authenticateWidget(req);
-        const guide = require("../../core/guide/store").getGuide(req.nova.businessId);
+        const guide = require("../../core/guide/store").getGuide(req.xeven.businessId);
         if (!guide) return res.json({ guide: null, message: "No guide. Business owner: run site analyze in Portal." });
         res.json({ guide });
     } catch (error) { next(error); }
@@ -105,9 +125,9 @@ router.get("/theme", (req, res, next) => {
     try {
         authenticateWidget(req);
         const themeData = (() => {
-            try { return require("../../core/theme/store").getTheme(req.nova.businessId); } catch { return null; }
+            try { return require("../../core/theme/store").getTheme(req.xeven.businessId); } catch { return null; }
         })();
-        const cfg = (() => { try { return require("../../core/config/service").getConfig(req.nova.businessId); } catch { return null; } })();
+        const cfg = (() => { try { return require("../../core/config/service").getConfig(req.xeven.businessId); } catch { return null; } })();
         const theme = themeData?.theme || cfg?.site?.theme || null;
         const customerBase = themeData?.customerBase || cfg?.site?.customerBase || null;
         res.json({ theme, customerBase, updatedAt: themeData?.updatedAt || cfg?.site?.lastAnalyzedAt || null });
@@ -121,7 +141,7 @@ router.get("/availability", (req, res, next) => {
         const startDate = String(req.query.startDate || req.query.date || "").trim() || undefined;
         const days = Math.min(90, Math.max(1, Number(req.query.days || 14) || 14));
         if (!chronoSlots) throw badRequest("Chrono not available yet.", "not_available");
-        const avail = chronoSlots.generateAvailability(req.nova.businessId, { startDate, days, rank: true });
+        const avail = chronoSlots.generateAvailability(req.xeven.businessId, { startDate, days, rank: true });
         // trim to customer-friendly shape
         res.json({ availability: avail });
     } catch (error) { next(error); }
@@ -132,8 +152,8 @@ router.get("/availability", (req, res, next) => {
 router.post("/transcribe", express.json({ limit: "12mb" }), async (req, res, next) => {
     try {
         authenticateWidget(req);
-        const fullConfig = configService.getConfig(req.nova.businessId);
-        const addons = addonsStore ? addonsStore.listAddons(req.nova.businessId) : [];
+        const fullConfig = configService.getConfig(req.xeven.businessId);
+        const addons = addonsStore ? addonsStore.listAddons(req.xeven.businessId) : [];
         const voiceOn = addons.find((a) => a.key === "voice_channel")?.enabled || false;
         const multiOn = addons.find((a) => a.key === "multilanguage")?.enabled || false;
         // allow transcribe if either voice or multilanguage enabled; otherwise polite refusal
@@ -162,14 +182,14 @@ router.post("/transcribe", express.json({ limit: "12mb" }), async (req, res, nex
         }
         // If no audio, return stub (for health check) — on prod, hint browser STT
         if (!body.audioBase64) {
-            const stub = echoTranscribe ? echoTranscribe.stubTranscribe({ businessId: req.nova.businessId, customerId, conversationId: body.conversationId || null, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model }) : { status: "not_available" };
+            const stub = echoTranscribe ? echoTranscribe.stubTranscribe({ businessId: req.xeven.businessId, customerId, conversationId: body.conversationId || null, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model }) : { status: "not_available" };
             if(!sidecarAvailable){
                 stub.clientFallback = "browser_stt";
                 // If OpenAI key is configured, server STT WILL work when audio is sent — this hint is only for empty health-check
                 stub.via = sidecarAvailable ? "sidecar" : (env.ai.openaiApiKey && env.ai.openaiApiKey.trim().length > 20 ? "openai" : "client");
                 if (isProd && !env.ai.openaiApiKey) stub.message = "Server STT uses browser on Vercel (no key) — using browser SpeechRecognition";
             }
-            audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { stub: true, sidecarAvailable } });
+            audit.record({ businessId: req.xeven.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { stub: true, sidecarAvailable } });
             return res.json(stub);
         }
         // 1) try sidecar first (local, fast, no key) — only if URL configured
@@ -183,8 +203,8 @@ router.post("/transcribe", express.json({ limit: "12mb" }), async (req, res, nex
                 const db = require("../../db");
                 const id = `ect_${crypto.randomHex(10)}`;
                 db.get().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-                    .run(id, req.nova.businessId, customerId, body.conversationId || null, sideRes.language || params.language || "", sideRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify(sideRes.segments?.flatMap((s) => s.words || []) || []), params.model || "tiny");
-                audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: sideRes.language, via:"sidecar" } });
+                    .run(id, req.xeven.businessId, customerId, body.conversationId || null, sideRes.language || params.language || "", sideRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", JSON.stringify(sideRes.segments?.flatMap((s) => s.words || []) || []), params.model || "tiny");
+                audit.record({ businessId: req.xeven.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: sideRes.language, via:"sidecar" } });
                 return res.json({ transcriptId: id, text: sideRes.text, language: sideRes.language, segments: sideRes.segments || [], via: "sidecar" });
             } catch (e) { console.error("sidecar transcribe failed", e.message); /* fall through to OpenAI */ }
         }
@@ -205,8 +225,8 @@ router.post("/transcribe", express.json({ limit: "12mb" }), async (req, res, nex
                     const db = require("../../db");
                     const id = `ect_${crypto.randomHex(10)}`;
                     db.get().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-                        .run(id, req.nova.businessId, customerId, body.conversationId || null, openRes.language || params.language || "", openRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", "[]", "whisper-1");
-                    audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: openRes.language, via:"openai" } });
+                        .run(id, req.xeven.businessId, customerId, body.conversationId || null, openRes.language || params.language || "", openRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", "[]", "whisper-1");
+                    audit.record({ businessId: req.xeven.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: openRes.language, via:"openai" } });
                     return res.json({ transcriptId: id, text: openRes.text, language: openRes.language || params.language, segments: [], via: "openai", provider: "openai_whisper" });
                 }
                 // OpenAI returned empty (silence) — fall through to next fallback
@@ -229,20 +249,20 @@ router.post("/transcribe", express.json({ limit: "12mb" }), async (req, res, nex
                     const db = require("../../db");
                     const id = `ect_${crypto.randomHex(10)}`;
                     db.get().prepare("INSERT INTO echo_transcripts (transcript_id, business_id, customer_id, conversation_id, language, transcript, duration_ms, created_at, initial_prompt, word_timestamps_json, model) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-                        .run(id, req.nova.businessId, customerId, body.conversationId || null, hfRes.language || params.language || "", hfRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", "[]", env.hfWhisperModel || "openai/whisper-large-v3");
-                    audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: hfRes.language, via:"huggingface" } });
+                        .run(id, req.xeven.businessId, customerId, body.conversationId || null, hfRes.language || params.language || "", hfRes.text || "", body.durationMs || 0, Date.now(), params.prompt || "", "[]", env.hfWhisperModel || "openai/whisper-large-v3");
+                    audit.record({ businessId: req.xeven.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { language: hfRes.language, via:"huggingface" } });
                     return res.json({ transcriptId: id, text: hfRes.text, language: hfRes.language || params.language, segments: [], via: "huggingface", provider: "hf_whisper" });
                 }
             } catch (e) { console.error("hf whisper failed", e.message); /* fall through */ }
         }
         // 3) Client fallback — tell widget to use browser STT (Web Speech / wasm) — Option 3, 100% guarantee, no keys needed
-        const stub2 = echoTranscribe ? echoTranscribe.stubTranscribe({ businessId: req.nova.businessId, customerId, conversationId: body.conversationId || null, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model }) : { status: "not_available" };
+        const stub2 = echoTranscribe ? echoTranscribe.stubTranscribe({ businessId: req.xeven.businessId, customerId, conversationId: body.conversationId || null, language: params.language, audioMeta, prompt: params.prompt, wordTimestamps: params.wordTimestamps, model: params.model }) : { status: "not_available" };
         stub2.clientFallback = "browser_stt";
         stub2.via = "client";
         stub2.sidecarAvailable = sidecarAvailable;
         stub2.hasOpenAIKey = hasValidKey;
         stub2.hasHfKey = hasHfKey;
-        audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { stub: true, clientFallback:true, sidecarAvailable, hasValidKey, hasHfKey } });
+        audit.record({ businessId: req.xeven.businessId, actorType: "widget", actorId: customerId, action: "echo.transcribed", detail: { stub: true, clientFallback:true, sidecarAvailable, hasValidKey, hasHfKey } });
         res.json(stub2);
     } catch (error) { next(error); }
 });
@@ -257,12 +277,12 @@ router.post("/call/handoff", express.json({ limit: "1mb" }), (req, res, next) =>
         // record handoff request as a portal-visible call row (reuse echo calls table)
         try {
             const calls = require("../../core/echo/calls");
-            calls.createCall({ businessId: req.nova.businessId, customerId, phone: body.phone || "", language: body.language || "" });
-            calls.requestHandoff(calls.listCalls(req.nova.businessId, 1)[0]?.call_id);
+            calls.createCall({ businessId: req.xeven.businessId, customerId, phone: body.phone || "", language: body.language || "" });
+            calls.requestHandoff(calls.listCalls(req.xeven.businessId, 1)[0]?.call_id);
         } catch {}
-        audit.record({ businessId: req.nova.businessId, actorType: "widget", actorId: customerId, action: "call.handoff_requested", detail: { reason } });
-        const cfg = configService.getConfig(req.nova.businessId);
-        const contact = cfg.call?.handoffPhone || cfg.call?.handoffEmail || (require("../../core/mailer").getSettings?.(req.nova.businessId)?.contact_email) || "the business team";
+        audit.record({ businessId: req.xeven.businessId, actorType: "widget", actorId: customerId, action: "call.handoff_requested", detail: { reason } });
+        const cfg = configService.getConfig(req.xeven.businessId);
+        const contact = cfg.call?.handoffPhone || cfg.call?.handoffEmail || (require("../../core/mailer").getSettings?.(req.xeven.businessId)?.contact_email) || "the business team";
         res.json({ status: "handoff_requested", contact, message: `We'll connect you with ${contact} shortly. Your request has been logged.` });
     } catch (error) { next(error); }
 });
@@ -280,7 +300,7 @@ router.post("/chat", async (req, res, next) => {
         const customerId = customers.validateCustomerId(body.customerId) || "anonymous";
 
         const result = await runChat({
-            businessId: req.nova.businessId,
+            businessId: req.xeven.businessId,
             customerInput: { id: customerId },
             messages: messages.slice(-40),
             conversationId: body.conversationId ? String(body.conversationId).slice(0, 100) : null,

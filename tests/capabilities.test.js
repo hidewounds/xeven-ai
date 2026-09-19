@@ -36,6 +36,28 @@ function seedBusiness(businessId) {
         .run(businessId, businessId, `key_${businessId}_${Math.random().toString(36).slice(2)}`, Date.now(), Date.now());
 }
 
+/**
+ * Future weekday slot at 10:00 UTC. Booking tests rotted on hardcoded
+ * September 2026 dates (business hours are Mon-Fri, max 60 days ahead),
+ * so slots are computed relative to today instead of frozen in time.
+ */
+function futureSlot(daysAhead) {
+    const d = new Date();
+    d.setUTCHours(10, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() + daysAhead);
+    let guard = 0;
+    while ((d.getUTCDay() === 0 || d.getUTCDay() === 6) && guard++ < 10) {
+        d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return d.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+const SLOT_A = futureSlot(10);
+const SLOT_A2 = futureSlot(13); // distinct slot: replaying a token elsewhere must deny
+const SLOT_B = futureSlot(11);
+const SLOT_C = futureSlot(12);
+const SLOT_C_DAY = SLOT_C.slice(0, 10);
+
 // ---------------------------------------------------------------------------
 // gate + handlers (direct)
 // ---------------------------------------------------------------------------
@@ -98,7 +120,7 @@ test("booking.create full write flow: proposal â†’ premature confirm denied
     try {
         seedBusiness("biz_flow");
         const ctx = { businessId: "biz_flow", customerId: "cust_1", conversationId: "conv_flow" };
-        const args = { service: "Haircut", datetime: "2026-09-03T10:00:00Z" };
+        const args = { service: "Haircut", datetime: SLOT_A };
 
         // 1. Proposal without confirmation.
         const proposal = await capabilities.executeCapability({
@@ -140,7 +162,7 @@ test("booking.create full write flow: proposal â†’ premature confirm denied
             ...ctx,
             config: {},
             roleDef: { capabilities: ["booking.create"] },
-            call: { tool: "booking.create", arguments: { ...args, datetime: "2026-09-04T10:00:00Z", confirm: true, token: proposal.token } },
+            call: { tool: "booking.create", arguments: { ...args, datetime: SLOT_A2, confirm: true, token: proposal.token } },
         });
         assert.strictEqual(replay.status, "denied");
 
@@ -172,7 +194,7 @@ test("booking.create rejects bad params and double-bookings", async () => {
         assert.strictEqual(invalid.code, "invalid_params");
 
         // Proper confirm cycle for slot #1.
-        const args = { service: "Massage", datetime: "2026-09-04T11:00:00Z" };
+        const args = { service: "Massage", datetime: SLOT_B };
         const proposal = await mk(args);
         require("../server/src/db").get()
             .prepare(`INSERT INTO conversation_messages (conversation_id, business_id, customer_id, role, content, created_at)
@@ -319,21 +341,21 @@ test("chat loop executes tools and grounds final answer; write needs two turns",
     const turn1 = await require("../server/src/core/chat/service").runChat({
         businessId: setup.businessId,
         customerInput: { id: "cust_loop" },
-        messages: [{ role: "user", content: "Please book a haircut on 2026-09-10 at 10:00." }],
+        messages: [{ role: "user", content: `Please book a haircut on ${SLOT_C_DAY} at 10:00.` }],
         _ai: scriptedAI([
             ({ messages }) => {
                 // Manifest must be present in the system prompt.
                 const sys = messages.find((m) => m.role === "system").content;
                 assert.ok(sys.includes("AVAILABLE ACTIONS"));
                 assert.ok(sys.includes("booking.create"));
-                return toolBlock({ tool: "booking.create", arguments: { service: "Haircut", datetime: "2026-09-10T10:00:00Z" } });
+                return toolBlock({ tool: "booking.create", arguments: { service: "Haircut", datetime: SLOT_C } });
             },
             ({ messages }) => {
                 const resultMsg = messages.filter((m) => m.role === "system" && m.content.includes("[TOOL RESULT]")).pop();
                 const outcome = JSON.parse(resultMsg.content.match(/\[TOOL RESULT\] (\{.*\})/)[1]);
                 assert.strictEqual(outcome.status, "needs_confirmation");
                 capturedToken = outcome.token;
-                return "Sure â€” I can book a Haircut on 2026-09-10 at 10:00 UTC. Shall I confirm it?";
+                return `Sure - I can book a Haircut on ${SLOT_C_DAY} at 10:00 UTC. Shall I confirm it?`;
             },
         ]),
     });
@@ -354,7 +376,7 @@ test("chat loop executes tools and grounds final answer; write needs two turns",
         _ai: scriptedAI([
             () => toolBlock({
                 tool: "booking.create",
-                arguments: { service: "Haircut", datetime: "2026-09-10T10:00:00Z", confirm: true, token: capturedToken },
+                arguments: { service: "Haircut", datetime: SLOT_C, confirm: true, token: capturedToken },
             }),
             ({ messages }) => {
                 const resultMsg = messages.filter((m) => m.role === "system" && m.content.includes("[TOOL RESULT]")).pop();

@@ -23,7 +23,7 @@ function requestContext(req, res, next) {
             path: req.path,
             status: res.statusCode,
             durationMs: Math.round(durationMs * 10) / 10,
-            businessId: req.nova?.businessId || undefined,
+            businessId: req.xeven?.businessId || undefined,
         });
     });
 
@@ -39,7 +39,7 @@ function corsOriginValidator(req, res, next) {
     if (!origin) return next(); // non-browser requests (curl, server-to-server)
 
     // Public embed surfaces must work on ANY customer domain — never block widget/tracker.
-    // These endpoints are already authenticated via x-nova-key / key in body, not origin.
+    // These endpoints are already authenticated via x-xeven-key / key in body, not origin.
     const publicEmbedPrefixes = [
         "/api/v1/widget",
         "/api/v1/behavior",
@@ -65,7 +65,7 @@ function corsOriginValidator(req, res, next) {
             const host = String(req.headers.host || "");
             const originHost = (() => { try { return new URL(origin).host; } catch { return ""; } })();
             const isSameHost = originHost && host && originHost === host;
-            const isVercelProd = origin.includes("vercel.app") || origin.includes("nova-ai") || isSameHost;
+            const isVercelProd = origin.includes("vercel.app") || origin.includes("xeven-ai") || isSameHost;
             if (isSameHost || isVercelProd) {
                 res.setHeader("Access-Control-Allow-Origin", origin);
                 res.setHeader("Vary", "Origin");
@@ -73,7 +73,7 @@ function corsOriginValidator(req, res, next) {
                 return next();
             }
             return res.status(403).json({
-                error: { code: "cors_forbidden", message: "Origin not allowed. Configure NOVA_ALLOWED_ORIGINS to allow your dashboard/API origins." },
+                error: { code: "cors_forbidden", message: "Origin not allowed. Configure XEVEN_ALLOWED_ORIGINS to allow your dashboard/API origins." },
                 requestId: req.requestId,
             });
         }
@@ -102,7 +102,7 @@ function corsOriginValidator(req, res, next) {
 function securityHeaders(req, res, next) {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
-    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     // Echo voice needs microphone on widget/portal surfaces; keep geolocation locked
     const allowMic = req.path && (req.path.startsWith("/widget") || req.path.startsWith("/portal") || req.path.startsWith("/api/v1/widget") || req.path.startsWith("/api/portal"));
     res.setHeader("Permissions-Policy", allowMic ? "camera=(), microphone=(self), geolocation=()" : "camera=(), microphone=(), geolocation=()");
@@ -138,7 +138,7 @@ function validateRequestSize(req, res, next) {
 
 const csrfTokens = new Map(); // token -> { businessId, createdAt }
 
-// Optional Redis for CSRF/rate-limit (idle until NOVA_REDIS_URL + `ioredis`/`redis` installed)
+// Optional Redis for CSRF/rate-limit (idle until XEVEN_REDIS_URL + `ioredis`/`redis` installed)
 let redisClient = null;
 let redisReady = false;
 (function initRedis() {
@@ -199,15 +199,17 @@ async function csrfProtection(req, res, next) {
     const pathOnly = url.split("?")[0];
     const isPortalMutation = pathOnly.startsWith("/api/portal") && ["POST", "PUT", "PATCH", "DELETE"].includes(req.method);
     if (!isPortalMutation) return next();
-    // Public portal auth never needs CSRF - otherwise login is blocked (chicken-egg)
+    // Public portal auth never needs CSRF - otherwise login is blocked (chicken-egg).
+    // Logout is exempt too (worst case is an attacker logging the victim out).
     if (pathOnly === "/api/portal/auth/login" || pathOnly.startsWith("/api/portal/auth/login?")) return next();
+    if (pathOnly === "/api/portal/auth/logout" || pathOnly.startsWith("/api/portal/auth/logout?")) return next();
     // Bearer token auth (admin & portal dashboard use Authorization: Bearer ...) is not CSRF-vulnerable
     // (browser cannot auto-send Authorization header cross-origin). Skip CSRF for Bearer to keep dashboard working
     // without requiring client to fetch/attach X-CSRF-Token.
     const auth = req.headers["authorization"] || req.headers["Authorization"];
     if (typeof auth === "string" && /^Bearer\s+/i.test(auth)) return next();
     const token = req.headers["x-csrf-token"] || req.body?.csrf_token;
-    const ok = token ? await validateCsrfToken(token, req.nova?.businessId) : false;
+    const ok = token ? await validateCsrfToken(token, req.xeven?.businessId) : false;
     if (!ok) {
         return res.status(403).json({
             error: { code: "csrf_invalid", message: "Invalid or missing CSRF token." },
@@ -219,10 +221,10 @@ async function csrfProtection(req, res, next) {
 
 // Endpoint to issue CSRF tokens for portal
 async function csrfIssueToken(req, res) {
-    if (!req.nova?.businessId) {
+    if (!req.xeven?.businessId) {
         return res.status(401).json({ error: { code: "unauthorized", message: "Authentication required." } });
     }
-    const token = await generateCsrfToken(req.nova.businessId);
+    const token = await generateCsrfToken(req.xeven.businessId);
     res.json({ csrf_token: token });
 }
 
@@ -241,7 +243,7 @@ setInterval(() => {
 
 function clientKey(req) {
     return (
-        req.nova?.businessId ||
+        req.xeven?.businessId ||
         `ip:${req.ip || req.socket?.remoteAddress || "unknown"}`
     );
 }
@@ -338,7 +340,7 @@ function promptInjectionGuard(req, res, next) {
 
 function notFoundHandler(req, res) {
     res.status(404).json({
-        error: { code: "not_found", message: "NOVA endpoint not found." },
+        error: { code: "not_found", message: "XEVEN endpoint not found." },
         requestId: req.requestId,
     });
 }
@@ -351,7 +353,7 @@ function errorHandler(error, req, res, next) {
 
     const log = req.log || console;
     if (safeStatus >= 500) {
-        log.error("request failed", { path: req.path, businessId: req.nova?.businessId }, error);
+        log.error("request failed", { path: req.path, businessId: req.xeven?.businessId }, error);
     } else {
         log.warn("request rejected", { path: req.path, status: safeStatus, code: error.code });
     }
@@ -361,7 +363,7 @@ function errorHandler(error, req, res, next) {
     const expose = isAppError ? error.expose : safeStatus < 500 && Boolean(error.publicMessage || error.message);
     let message =
         safeStatus === 500
-            ? "Internal NOVA server error."
+            ? "Internal XEVEN server error."
             : expose
                 ? error.publicMessage || error.message
                 : "Request failed.";

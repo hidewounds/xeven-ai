@@ -37,7 +37,7 @@ router.post(
             }
 
             const result = await runChat({
-                businessId: req.nova.businessId,
+                businessId: req.xeven.businessId,
                 customerInput: { ...customerInput, id: customerId },
                 messages,
                 conversationId: body.conversationId ? String(body.conversationId) : null,
@@ -46,7 +46,7 @@ router.post(
             });
 
             audit.record({
-                businessId: req.nova.businessId,
+                businessId: req.xeven.businessId,
                 actorType: "integration",
                 action: "chat",
                 detail: { customerId, provider: result.provider },

@@ -1,9 +1,9 @@
 "use strict";
-/* Faithful widget simulation: accumulates history exactly like nova-widget.js
+/* Faithful widget simulation: accumulates history exactly like xeven-widget.js
    (messages.push user+assistant each turn, slice(-30), conversationId reused). */
-const KEY = "nova_pk_d34227f9173f2e73d9f6c5f9e8236e35fab1578e1d4270eb4e218e2cd6a03526";
-const BASE = "http://localhost:3000";
-const H = { "Content-Type": "application/json", "x-nova-key": KEY };
+const KEY = process.env.XEVEN_WALKTHROUGH_KEY || process.env.XEVEN_PUBLISHABLE_KEY || "xeven_pk_d34227f9173f2e73d9f6c5f9e8236e35fab1578e1d4270eb4e218e2cd6a03526";
+const BASE = process.env.XEVEN_BASE_URL || process.env.XEVEN_API_BASE || "http://localhost:3000";
+const H = { "Content-Type": "application/json", "x-xeven-key": KEY };
 let failures = 0;
 
 function log(tag, text) {
@@ -91,12 +91,15 @@ async function main() {
     await expect(/consultation|bkg_|appointment/i.test(r.reply), "lists the booking");
 
     // Ground truth: the booking must exist in the DB for this visitor.
-    process.env.NOVA_DB_PATH = process.env.NOVA_DB_PATH || "D:/nova ai/database/nova.db";
-    const dbq = require("D:/nova ai/server/src/db");
+    const path = require("path");
+    const baseDir = path.join(__dirname, "..");
+    const dbEnvPath = process.env.XEVEN_DB_PATH || path.join(baseDir, "database", "xeven.db");
+    process.env.XEVEN_DB_PATH = dbEnvPath;
+    const dbq = require(path.join(baseDir, "server", "src", "db"));
     dbq.init();
     const rows = dbq.get()
         .prepare(`SELECT b.* FROM bookings b JOIN businesses bz ON bz.business_id = b.business_id
-                  WHERE bz.business_name = 'NOVA Web Demo' AND b.customer_id = ?`)
+                  WHERE bz.business_name = 'XEVEN Web Demo' AND b.customer_id = ?`)
         .all("visitor_book3");
     await expect(rows.length >= 1, "booking row exists in DB (ground truth)", "rows=" + rows.length);
 

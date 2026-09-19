@@ -1,5 +1,5 @@
 """
-NOVA Echo Sidecar — Real-time Streaming STT
+XEVEN Echo Sidecar — Real-time Streaming STT
 FastAPI + WebSocket + faster-whisper + Silero VAD
 Replaces the batch HTTP server with streaming pipeline.
 """
@@ -259,7 +259,7 @@ class StreamingTranscriber:
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     global MODEL, VAD_MODEL
-    logger.info("Starting NOVA Echo sidecar...")
+    logger.info("Starting XEVEN Echo sidecar...")
 
     # Load models
     load_asr_model(MODEL_NAME)
@@ -267,13 +267,13 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    logger.info("Shutting down NOVA Echo sidecar...")
+    logger.info("Shutting down XEVEN Echo sidecar...")
     MODEL = None
     VAD_MODEL = None
 
 
 app = FastAPI(
-    title="NOVA Echo Sidecar",
+    title="XEVEN Echo Sidecar",
     version="2.0.0",
     lifespan=lifespan,
 )
@@ -281,7 +281,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -348,15 +348,9 @@ async def transcribe_batch(
             # also try ffmpeg for any non-PCM if torchaudio failed, regardless of header
             if True:
                 import os as _os
-                ffmpeg_bin = _os.environ.get("FFMPEG_BINARY") or _os.environ.get("FFMPEG_PATH") or "ffmpeg"
-                # also try absolute winGet path if ffmpeg not in PATH
-                if ffmpeg_bin == "ffmpeg":
-                    # probe winGet ffmpeg
-                    win_ff = r"C:\Users\dhana\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-9.0.1-full_build\bin\ffmpeg.exe"
-                    try:
-                        if _os.path.exists(win_ff):
-                            ffmpeg_bin = win_ff
-                    except: pass
+                ffmpeg_bin = _os.environ.get("FFMPEG_BINARY") or _os.environ.get("FFMPEG_PATH") or _os.environ.get("FFMPEG") or "ffmpeg"
+                # No hardcoded absolute paths: rely on PATH or the env var above.
+                # On Windows, add the ffmpeg bin dir to PATH or set FFMPEG_BINARY instead.
                 proc = subprocess.run(
                     [ffmpeg_bin, "-hide_banner", "-loglevel", "error", "-i", "pipe:0", "-f", "wav", "-ac", "1", "-ar", str(SAMPLE_RATE), "-acodec", "pcm_s16le", "pipe:1"],
                     input=audio_bytes,
@@ -584,7 +578,7 @@ async def websocket_tts(websocket: WebSocket):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="NOVA Echo Sidecar")
+    parser = argparse.ArgumentParser(description="XEVEN Echo Sidecar")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--model", default=os.environ.get("ECHO_MODEL", "base"),
@@ -595,7 +589,7 @@ def main():
     global MODEL_NAME
     MODEL_NAME = args.model
 
-    logger.info(f"Starting NOVA Echo on {args.host}:{args.port} with model {MODEL_NAME}")
+    logger.info(f"Starting XEVEN Echo on {args.host}:{args.port} with model {MODEL_NAME}")
 
     uvicorn.run(
         app,

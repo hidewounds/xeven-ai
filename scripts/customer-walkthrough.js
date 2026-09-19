@@ -1,8 +1,8 @@
 "use strict";
-/* Customer simulation: exercises every NOVA widget feature end-to-end. */
-const KEY = "nova_pk_d34227f9173f2e73d9f6c5f9e8236e35fab1578e1d4270eb4e218e2cd6a03526";
-const BASE = "http://localhost:3000";
-const H = { "Content-Type": "application/json", "x-nova-key": KEY };
+/* Customer simulation: exercises every XEVEN widget feature end-to-end. */
+const KEY = process.env.XEVEN_WALKTHROUGH_KEY || process.env.XEVEN_PUBLISHABLE_KEY || "xeven_pk_d34227f9173f2e73d9f6c5f9e8236e35fab1578e1d4270eb4e218e2cd6a03526";
+const BASE = process.env.XEVEN_BASE_URL || process.env.XEVEN_API_BASE || "http://localhost:3000";
+const H = { "Content-Type": "application/json", "x-xeven-key": KEY };
 
 let failures = 0;
 
@@ -31,7 +31,7 @@ async function main() {
     // ---------- 0. widget config ----------
     const cfg = await api("GET", "/api/v1/widget/config");
     log("config", JSON.stringify(cfg.data));
-    await expect(cfg.status === 200 && cfg.data.config?.assistantName === "Nova", "widget config loads");
+    await expect(cfg.status === 200 && cfg.data.config?.assistantName === "Xeven", "widget config loads");
 
     // ---------- 1. support: grounded FAQ ----------
     const vA = "visitor_test_support";
@@ -126,7 +126,7 @@ async function main() {
     const bad = await fetch(BASE + "/api/v1/widget/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: "x", messages: [{ role: "user", content: "hi" }] }) });
     await expect(bad.status === 401, "missing key rejected 401", "status " + bad.status);
 
-    // email capture helper endpoint used by NOVA_WIDGET.captureEmail
+    // email capture helper endpoint used by XEVEN_WIDGET.captureEmail
     const patch = await fetch(BASE + "/api/v1/customers/visitor_test_lead", {
         method: "PATCH", headers: H, body: JSON.stringify({ email: "lead@corp.test", name: "Corp Lead" }),
     });

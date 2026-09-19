@@ -13,13 +13,11 @@
 const db = require("../../db").get;
 const env = require("../../env");
 const { AppError, unavailable } = require("../../lib/errors");
-const ollamaProvider = require("./ollama-provider");
 const openAIProvider = require("./openai-provider");
 const mockProvider = require("./mock-provider");
 const { MODEL_CAPABILITIES, getBestModelFor, verifyModelCapabilities } = require("./models");
 
 const PROVIDERS = {
-    ollama: ollamaProvider,
     "openai-compatible": openAIProvider,
     mock: mockProvider,
 };
@@ -185,18 +183,12 @@ function resolveProviderChain(configModel = {}, { allowEnvFallback = true } = {}
         }
     }
 
-    // 2. Local Ollama (if not primary) — disabled for cloud-only (was primary fallback)
-    // Ollama removed: cloud deployment uses openai-compatible only; keep mock as final fallback
-    // if (primaryProviderName !== "ollama" && PROVIDERS.ollama && canUseProvider("ollama")) {
-    //     fallbackProviders.push({ name: "ollama", provider: PROVIDERS.ollama });
-    // }
-
-    // 3. OpenAI-compatible (if not primary)
+    // 2. OpenAI-compatible (if not primary)
     if (primaryProviderName !== "openai-compatible" && PROVIDERS["openai-compatible"] && canUseProvider("openai-compatible")) {
         fallbackProviders.push({ name: "openai-compatible", provider: PROVIDERS["openai-compatible"] });
     }
 
-    // 4. Mock (always last)
+    // 3. Mock (always last)
     if (PROVIDERS.mock) {
         fallbackProviders.push({ name: "mock", provider: PROVIDERS.mock });
     }
@@ -215,7 +207,7 @@ function resolveModelSettings(configModel = {}) {
         provider: primary.provider,
         providerChain,
         model: configModel.model || env.ai.model,
-        baseUrl: configModel.baseUrl || (primary.provider.name === "openai-compatible" ? env.ai.openaiBaseUrl : env.ai.ollamaUrl),
+        baseUrl: configModel.baseUrl || env.ai.openaiBaseUrl,
         apiKey: configModel.apiKey || (primary.provider.name === "openai-compatible" ? env.ai.openaiApiKey : ""),
         temperature: Number.isFinite(configModel.temperature) ? configModel.temperature : env.ai.temperature,
         timeoutMs: Number.isFinite(configModel.timeoutMs) ? configModel.timeoutMs : env.ai.timeoutMs,

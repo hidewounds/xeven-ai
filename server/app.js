@@ -24,93 +24,21 @@ const adminBusinessRoutes = require("./src/routes/admin/businesses");
 const { authenticateIntegration } = require("./src/auth/integration");
 
 /**
- * Build the fully-wired NOVA express app.
+ * Build the fully-wired XEVEN express app.
  * Exported as a factory so tests can create isolated instances.
  */
 function createApp(options = {}) {
     db.init({ dbPath: options.dbPath });
-    // Seed demo business for widget key so widget never 401 on fresh Vercel /tmp DB
-    // Skip seeding in test mode - tests expect isolated empty DB for register flow
-    try {
-        if (env.nodeEnv === "test") throw new Error("skip seeding in test");
-        const conn = require("./src/db/connection");
-        const bizCount = conn.get().prepare("SELECT COUNT(*) as n FROM businesses").get()?.n || 0;
-        if (bizCount === 0) {
-            const crypto = require("./src/lib/crypto");
-            const now = Date.now();
-            const demoId = "nova_web_demo";
-            const demoKey = "nova_pk_40d32c478e27559616acfd7827347d437b1c207d3d9f1e1c0375759d81bbb6da";
-            const demoName = "NOVA Web Demo";
-            try {
-                conn.get().prepare("INSERT OR IGNORE INTO businesses (business_id, business_name, integration_key, active, plan, created_at, updated_at) VALUES (?, ?, ?, 1, 'unlimited', ?, ?)").run(demoId, demoName, demoKey, now, now);
-                const cfg = require("./src/core/config/service");
-                // ensure config exists
-                const existing = conn.get().prepare("SELECT 1 FROM business_configs WHERE business_id=?").get(demoId);
-                if (!existing) {
-                    const normalized = cfg.normalizeConfig({}, { plan: "unlimited", bypassLimit: true });
-                    conn.get().prepare("INSERT OR IGNORE INTO business_configs (business_id, config_json, created_at, updated_at) VALUES (?, ?, ?, ?)").run(demoId, JSON.stringify(normalized), now, now);
-                }
-                // ensure chrono schedule seeded via migration already, but ensure
-                require("./src/db").get();
-            } catch (e) { /* ignore seed errors */ }
-            // Ensure demo business has portal flags enabled - otherwise portal analytics/knowledge 403 -> black screen on fresh Vercel DB
-            try {
-                const flags = require("./src/core/flags/store");
-                const demoId = "nova_web_demo";
-                const existingBiz = conn.get().prepare("SELECT business_id FROM businesses WHERE business_id=?").get(demoId);
-                if (existingBiz) {
-                    flags.setFlags(demoId, {
-                        portal_enabled: true,
-                        knowledge_edit: true,
-                        edit_contact: true,
-                        edit_tone: true,
-                        view_analytics: true,
-                        view_customers: true,
-                        email_handoff: true,
-                        edit_followup: true,
-                        weekly_digest: true
-                    });
-                }
-            } catch {}
-        }
-        // Seed / ensure demo admin + portal so Vercel /tmp DB never locks you out (page reload → just 401 otherwise)
-        try {
-            const crypto = require("./src/lib/crypto");
-            const now = Date.now();
-            const demoAdmins = [
-                { email: "idk@gmail.com", pass: "Admin123!", name: "banana", isSuper: 1 },
-                { email: "admin@novaweb.test", pass: "Admin123!", name: "Admin", isSuper: 1 },
-            ];
-            for (const a of demoAdmins) {
-                const existing = conn.get().prepare("SELECT id FROM admin_users WHERE email=?").get(a.email.toLowerCase());
-                const hash = crypto.hashPassword(a.pass);
-                if (!existing) {
-                    // Deterministic UID for Vercel ephemeral /tmp DB - ensures token from one lambda validates on another
-                    const deterministicUid = "adm_" + crypto.sha256hex(a.email.toLowerCase()).slice(0, 12);
-                    conn.get().prepare("INSERT INTO admin_users (admin_uid, email, name, password_hash, is_super, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)").run(deterministicUid, a.email.toLowerCase(), a.name, hash, a.isSuper, now, now);
-                } else {
-                    // ensure password is the known demo one + active/super correct (so Vercel never 401 after local reset)
-                    conn.get().prepare("UPDATE admin_users SET password_hash=?, is_super=?, active=1, updated_at=? WHERE email=?").run(hash, a.isSuper, now, a.email.toLowerCase());
-                }
-            }
-            const demoPortal = { businessId: "nova_web_demo", email: "portal@novaweb.test", pass: "Portal123!" };
-            const pExisting = conn.get().prepare("SELECT portal_uid FROM portal_users WHERE email=? COLLATE NOCASE").get(demoPortal.email);
-            const pHash = crypto.hashPassword(demoPortal.pass);
-            if (!pExisting) {
-                const deterministicPid = "por_" + crypto.sha256hex(demoPortal.email.toLowerCase()).slice(0, 12);
-                conn.get().prepare("INSERT INTO portal_users (portal_uid, business_id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run(deterministicPid, demoPortal.businessId, demoPortal.email.toLowerCase(), pHash, now, now);
-            } else {
-                conn.get().prepare("UPDATE portal_users SET password_hash=?, active=1, updated_at=? WHERE email=? COLLATE NOCASE").run(pHash, now, demoPortal.email.toLowerCase());
-            }
-        } catch (e) { /* ignore seed errors */ }
-    } catch {}
+    // No demo seeding: first boot starts empty. Register the first admin
+    // account at /admin/ (it becomes super-admin), then create a business
+    // to receive its publishable + secret integration keys.
 
     const app = express();
     app.disable("x-powered-by");
     app.set("trust proxy", true);
 
     // Start weekly digest cron (only in production or when explicitly enabled)
-    if (env.nodeEnv === "production" || process.env.NOVA_DIGEST_CRON === "true") {
+    if (env.nodeEnv === "production" || process.env.XEVEN_DIGEST_CRON === "true") {
         startDigestCron();
     }
 
@@ -123,7 +51,7 @@ function createApp(options = {}) {
         origin: env.corsOrigin === "true" ? true : env.corsOrigin || true,
         credentials: false,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-Nova-Key", "X-CSRF-Token", "X-Request-Id"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-Xeven-Key", "X-CSRF-Token", "X-Request-Id"],
     }));
     app.use(express.json({ limit: env.maxBodyBytes }));
     app.use(express.urlencoded({ extended: false, limit: env.maxBodyBytes }));
@@ -137,7 +65,7 @@ function createApp(options = {}) {
     app.get("/api/health", (req, res) => {
         res.json({
             ok: true,
-            service: "NOVA",
+            service: "XEVEN",
             version: "1.0.0",
             environment: env.nodeEnv,
             model: env.ai.model,
@@ -207,6 +135,11 @@ function createApp(options = {}) {
     // --- static assets -------------------------------------------------------------
     const clientRoot = path.join(__dirname, "..", "client");
 
+    // COMPAT (pre-rebrand embeds): old snippet filenames redirect to the
+    // current ones. Remove once embeds migrate.
+    app.get(["/widget/nova-widget.js", "/widget/nova-tracker.js", "/widget/nova-guide.js"], (req, res) => {
+        res.redirect(301, `/widget/${req.path.split("/").pop().replace(/^nova-/, "xeven-")}`);
+    });
     app.use("/widget", express.static(path.join(clientRoot, "sdk")));
     app.use("/admin", express.static(path.join(clientRoot, "admin")));
     app.use("/portal", express.static(path.join(clientRoot, "portal")));

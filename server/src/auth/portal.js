@@ -20,11 +20,11 @@ const SLIDING_WINDOW_MS = 30 * 60 * 1000; // extend if within 30min of expiry
 
 function getTokenSecret() {
     // Prefer env secret for consistency with admin (stable across Vercel lambdas)
-    let secret = env.adminTokenSecretFromEnv || process.env.NOVA_ADMIN_TOKEN_SECRET;
+    let secret = env.adminTokenSecretFromEnv || process.env.XEVEN_ADMIN_TOKEN_SECRET;
     if (secret) return secret;
     // On Vercel, /tmp DB is ephemeral per lambda - avoid per-instance random secret which breaks cross-instance validation
     if (process.env.VERCEL) {
-        const fallbackSource = process.env.NOVA_CREDENTIAL_SECRET || "nova-vercel-fallback-secret-CHANGE-ME-via-NOVA_ADMIN_TOKEN_SECRET";
+        const fallbackSource = process.env.XEVEN_CREDENTIAL_SECRET || "xeven-vercel-fallback-secret-CHANGE-ME-via-XEVEN_ADMIN_TOKEN_SECRET";
         return libCrypto.sha256hex ? libCrypto.sha256hex(fallbackSource).slice(0, 64) : require("crypto").createHash("sha256").update(String(fallbackSource)).digest("hex");
     }
     const row = db().prepare("SELECT value FROM meta WHERE key = 'portal_token_secret'").get();
@@ -105,11 +105,37 @@ function verifyCredentials({ email, password }) {
     return row;
 }
 
+function parsePortalCookies(req) {
+    const out = {};
+    const header = req.headers["cookie"];
+    if (typeof header !== "string" || !header) return out;
+    for (const part of header.split(";")) {
+        const idx = part.indexOf("=");
+        if (idx === -1) continue;
+        const name = part.slice(0, idx).trim();
+        const value = part.slice(idx + 1).trim();
+        if (name) out[name] = decodeURIComponent(value);
+    }
+    return out;
+}
+
+const PORTAL_COOKIE = "xeven_portal_token";
+
+function setPortalCookie(res, token) {
+    const flags = [`Path=/`, `Max-Age=${12 * 60 * 60}`, "HttpOnly", "SameSite=Lax"];
+    if (env.isProduction) flags.push("Secure");
+    res.append("Set-Cookie", `${PORTAL_COOKIE}=${encodeURIComponent(token)}; ${flags.join("; ")}`);
+}
+
+function clearPortalCookie(res) {
+    res.append("Set-Cookie", `${PORTAL_COOKIE}=; Max-Age=0; HttpOnly; SameSite=Lax; Path=/`);
+}
+
 /** Express middleware: authenticates a portal user + loads flags & settings. */
 function requirePortal(req, res, next) {
     try {
         const match = String(req.headers["authorization"] || "").match(/^Bearer\s+(.+)$/i);
-        const token = match?.[1] || req.query.token || null;
+        const token = match?.[1] || req.query.token || parsePortalCookies(req)[PORTAL_COOKIE] || null;
         if (!token) throw unauthorized("Portal authentication required.", "portal_token_required");
 
         const payload = verifyPortalToken(token);
@@ -127,15 +153,15 @@ function requirePortal(req, res, next) {
             res.setHeader("X-Portal-Token-Refresh", newToken.token);
         }
 
-        req.nova = {
+        req.xeven = {
             principalType: "portal",
             portalUid: user.portal_uid,
             businessId: user.business_id,
             isSuper: false,
         };
-        req.novaPortal = publicUser(user);
-        req.novaFlags = flags.getFlags(user.business_id);
-        req.novaPortalTokenRefresh = newToken;
+        req.xevenPortal = publicUser(user);
+        req.xevenFlags = flags.getFlags(user.business_id);
+        req.xevenPortalTokenRefresh = newToken;
         next();
     } catch (error) {
         next(error);
@@ -146,7 +172,7 @@ function requirePortal(req, res, next) {
 function requireFlag(flagName) {
     return (req, res, next) => {
         try {
-            if (!req.novaFlags || req.novaFlags[flagName] !== true) {
+            if (!req.xevenFlags || req.xevenFlags[flagName] !== true) {
                 throw new AppError(403, "feature_disabled", `This capability is disabled for your business ("${flagName}").`);
             }
             next();
@@ -165,4 +191,8 @@ module.exports = {
     publicUser,
     requirePortal,
     requireFlag,
+    parsePortalCookies,
+    setPortalCookie,
+    clearPortalCookie,
+    PORTAL_COOKIE,
 };

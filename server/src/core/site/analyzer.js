@@ -15,7 +15,7 @@ async function fetchWithTimeout(url, ms = 8000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { "User-Agent": "NOVA-Analyzer/1.0" } });
+    const res = await fetch(url, { signal: ctrl.signal, headers: { "User-Agent": "XEVEN-Analyzer/1.0" } });
     if (!res.ok) throw new Error(`fetch ${res.status}`);
     return await res.text();
   } finally { clearTimeout(t); }
@@ -137,10 +137,10 @@ async function extractTheme(html, siteUrl) {
       if (best) theme.primary = best;
     }
   }
-  // fetch linked CSS for brand color if still not found (fetch nova.css)
+  // fetch linked CSS for brand color if still not found (fetch xeven.css)
   if (!theme.primary || theme.primary === "#050508") {
     try {
-      const cssUrl = new URL("/nova.css", siteUrl).toString();
+      const cssUrl = new URL("/xeven.css", siteUrl).toString();
       // try fetch css — best effort, ignore errors
       const cssText = await fetchWithTimeout(cssUrl, 4000).catch(function(){ return ""; });
       if (cssText) {
@@ -153,14 +153,14 @@ async function extractTheme(html, siteUrl) {
       }
     } catch {}
   }
-  if (!theme.primary) theme.primary = siteUrl && siteUrl.includes("nova") ? "#8b5cf6" : "#6366f1";
+  if (!theme.primary) theme.primary = siteUrl && siteUrl.includes("xeven") ? "#8b5cf6" : "#6366f1";
   // deeper UI — background, surface, text, muted, border, fonts, radius, shadow, spacing, dark/light
   const bgMatch = html.match(/body[^}]*background[^:]*:\s*([^;}\n]+)/i) || html.match(/--bg[^:]*:\s*([^;\s]+)/i);
   if (bgMatch) theme.background = bgMatch[1].trim().slice(0, 30);
   // try fetch CSS for deeper tokens (only if siteUrl available)
   let cssText = "";
   try {
-    const cssUrl = new URL("/nova.css", siteUrl).toString();
+    const cssUrl = new URL("/xeven.css", siteUrl).toString();
     cssText = await fetchWithTimeout(cssUrl, 3500).catch(function(){ return ""; }) || "";
   } catch {}
   const combined = html + "\n" + cssText;
@@ -219,7 +219,7 @@ function buildGuideSteps({ siteUrl, siteType, html }) {
     return html.toLowerCase().includes(key) || html.includes(sel.replace(/^[a-z]+\./,""));
   };
   // Step 1: welcome
-  steps.push({ id: "welcome", title: "Welcome — I'll guide you", selector: "body", description: "Hi, I'm NOVA. I'll show you around in 60 seconds.", position: "center" });
+  steps.push({ id: "welcome", title: "Welcome — I'll guide you", selector: "body", description: "Hi, I'm XEVEN. I'll show you around in 60 seconds.", position: "center" });
   if (siteType === "ecommerce") {
     // nav/products
     steps.push({ id: "products", title: "Browse what's sold", selector: has(".product") ? ".product" : (has("main") ? "main" : "body"), description: "These are the products we have live. Tap any to see details.", position: "bottom" });
@@ -227,13 +227,13 @@ function buildGuideSteps({ siteUrl, siteType, html }) {
     steps.push({ id: "cart", title: "Add to cart", selector: has("add to cart") ? "button:contains('Add to cart'), .add-to-cart, [data-add-to-cart]" : "button", description: "Click Add to cart — I'll remember your choice.", position: "top" });
     steps.push({ id: "checkout", title: "Checkout", selector: has("checkout") ? "a[href*='checkout'], a[href*='cart'], button:contains('Checkout')" : "a[href*='cart']", description: "Review cart and checkout securely.", position: "top" });
   } else if (siteType === "booking") {
-    steps.push({ id: "availability", title: "Check availability", selector: has("calendar") ? ".calendar, [data-availability], #nova-avail-toggle" : "body", description: "See live slots — updates in <1s.", position: "bottom" });
-    steps.push({ id: "book", title: "Book a slot", selector: has("book") ? "button:contains('Book'), .nova-slot" : "button", description: "Pick a time, confirm, and I'll book it with confirmation.", position: "top" });
+    steps.push({ id: "availability", title: "Check availability", selector: has("calendar") ? ".calendar, [data-availability], #xeven-avail-toggle" : "body", description: "See live slots — updates in <1s.", position: "bottom" });
+    steps.push({ id: "book", title: "Book a slot", selector: has("book") ? "button:contains('Book'), .xeven-slot" : "button", description: "Pick a time, confirm, and I'll book it with confirmation.", position: "top" });
   } else {
     steps.push({ id: "explore", title: "Explore", selector: has("nav") ? "nav" : "header", description: "Start here — I'll explain each section.", position: "bottom" });
     steps.push({ id: "cta", title: "Take action", selector: has("button") ? "button, a.btn, a[href*='contact']" : "body", description: "Ready to get started? Click the main action.", position: "top" });
   }
-  steps.push({ id: "ask", title: "Ask me anything on NOVA", selector: "#nova-widget-button, #nova-widget", description: "Guide done. Ask me any question on NOVA — I now know your site and what's sold.", position: "left" });
+  steps.push({ id: "ask", title: "Ask me anything on XEVEN", selector: "#xeven-widget-button, #xeven-widget", description: "Guide done. Ask me any question on XEVEN — I now know your site and what's sold.", position: "left" });
   // normalize selectors for overlay (fallback to body if not found)
   return steps.map((s, i) => ({ ...s, order: i+1 }));
 }
@@ -255,7 +255,7 @@ async function analyzeSite({ businessId, siteUrl }) {
   const overviewTitle = `${title || new URL(siteUrl).hostname} — overview`;
   if (!seenTitles.has(overviewTitle.toLowerCase())) {
     try {
-      const item = knowledgeStore.createKnowledgeItem({ businessId, title: overviewTitle, knowledgeType: "info", content: description.slice(0,900) || `Official site: ${siteUrl}. ${siteType} site analyzed by NOVA.` });
+      const item = knowledgeStore.createKnowledgeItem({ businessId, title: overviewTitle, knowledgeType: "info", content: description.slice(0,900) || `Official site: ${siteUrl}. ${siteType} site analyzed by XEVEN.` });
       created.push(item);
     } catch {}
   }

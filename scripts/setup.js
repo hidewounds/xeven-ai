@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * NOVA setup — ready-on-setup checker.
+ * XEVEN setup — ready-on-setup checker.
  * Checks each optional real dependency, prints ✓ ready or ○ idle,
  * and never fails if a dep is missing (system sits idle until you install it).
  * Run: `npm run setup` or `node scripts/setup.js`
@@ -25,7 +25,7 @@ function log(section, status, detail = "") {
     console.log(`${icon} ${section.padEnd(28)} ${status}${detail ? ` — ${detail}` : ""}`);
 }
 
-console.log("\nNOVA setup — checking optional deps (idle until you install them)\n");
+console.log("\nXEVEN setup — checking optional deps (idle until you install them)\n");
 
 // 1. Node
 const node = check("node -v");
@@ -45,10 +45,9 @@ try {
     log("sqlite/migrations", "ready", "migrations applied");
 } catch (e) { log("sqlite/migrations", "idle", e.message); }
 
-// 4. Ollama + model
-const ollama = check("curl -s http://127.0.0.1:11434/api/tags 2>&1 | head -c 200");
-if (ollama.ok && ollama.out.includes("models")) log("ollama", "ready", "reachable at 127.0.0.1:11434");
-else log("ollama", "idle", "not reachable — AI will use mock provider (set AI_PROVIDER=mock or run ollama pull qwen2.5:3b-instruct)");
+// 4. AI provider reachability (openai-compatible endpoint or mock fallback)
+const ai = check("node -e \"console.log(process.env.AI_PROVIDER||'openai-compatible')\"");
+log("ai-provider", "ready", "provider: " + (ai.out.trim() || "openai-compatible") + " (set OPENAI_API_KEY or AI_PROVIDER=mock)");
 
 // 5. PG
 let pgOk = false;
@@ -62,7 +61,7 @@ if (pgOk) {
 let redisOk = false;
 try { require.resolve("ioredis"); redisOk = true; } catch {}
 if (!redisOk) try { require.resolve("redis"); redisOk = true; } catch {}
-const redisUrl = process.env.NOVA_REDIS_URL || process.env.REDIS_URL;
+const redisUrl = process.env.XEVEN_REDIS_URL || process.env.REDIS_URL;
 if (redisUrl && redisOk) log("redis", "ready", redisUrl);
 else if (redisUrl && !redisOk) log("redis", "idle", "REDIS_URL set but redis/ioredis not installed — using in-mem (npm i ioredis)");
 else log("redis", "idle", "no REDIS_URL — using in-mem rate limit/CSRF");

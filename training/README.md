@@ -1,4 +1,4 @@
-# NOVA Unified Brain — RLHF Training Pipeline
+# XEVEN Unified Brain — RLHF Training Pipeline
 
 **Framework:** `rkinas/reasoning_models_how_to` — Research notes on LLM training + RLHF (PPO/DPO/GRPO/KTO)
 

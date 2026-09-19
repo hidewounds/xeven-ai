@@ -132,7 +132,7 @@ function listCustomers(businessId, { limit = 100, offset = 0 } = {}) {
     return { customers: rows.map(parseCustomer), total, limit: safeLimit, offset: safeOffset };
 }
 
-/** Delete a customer and all NOVA-owned data for that customer. */
+/** Delete a customer and all XEVEN-owned data for that customer. */
 function deleteCustomer(businessId, customerId) {
     const business = normalizeBusinessId(businessId);
     const id = String(customerId || "");

@@ -90,7 +90,7 @@ async function sendWeeklyDigests() {
             // Send email
             const result = await mailer.sendAsBusiness(biz.business_id, {
                 to: biz.digest_email,
-                subject: `NOVA Weekly Digest — ${new Date(weekStart).toISOString().slice(0, 10)}`,
+                subject: `XEVEN Weekly Digest — ${new Date(weekStart).toISOString().slice(0, 10)}`,
                 text,
             });
 
@@ -145,7 +145,7 @@ async function triggerDigest(businessId) {
     const { text } = digestText({ from: weekStart, to: Date.now() });
     const result = await mailer.sendAsBusiness(businessId, {
         to: settings.digest_email,
-        subject: `NOVA Weekly Digest — ${new Date(weekStart).toISOString().slice(0, 10)}`,
+        subject: `XEVEN Weekly Digest — ${new Date(weekStart).toISOString().slice(0, 10)}`,
         text,
     });
 

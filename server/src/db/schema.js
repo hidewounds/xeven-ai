@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Canonical NOVA schema.
+ * Canonical XEVEN schema.
  *
  * Every statement is idempotent so it can run against both fresh databases
  * and legacy development databases created by the old database.js without
@@ -294,7 +294,7 @@ const MIGRATIONS = [
                 );
 
                 -- Per-business portal settings. SMTP credentials are the BUSINESS's
-                -- own email identity — NOVA never sends from itself.
+                -- own email identity — XEVEN never sends from itself.
                 CREATE TABLE IF NOT EXISTS portal_settings (
                     business_id TEXT PRIMARY KEY,
                     contact_email TEXT DEFAULT '',
@@ -510,7 +510,7 @@ const MIGRATIONS = [
         },
     },
     {
-        name: "008_nova_addons_and_echo",
+        name: "008_xeven_addons_and_echo",
         up(db) {
             // ── ADD-ONS: voice_channel + multilanguage as portal-entitled add-ons ──
             db.exec(`
@@ -803,6 +803,25 @@ const MIGRATIONS = [
                     upd.run(h, r.business_id);
                 }
                 db.exec("CREATE INDEX IF NOT EXISTS idx_businesses_key_hash ON businesses(integration_key_hash)");
+            }
+        },
+    },
+    {
+        name: "021_widget_public_key",
+        up(db) {
+            const cols = db.prepare("PRAGMA table_info(businesses)").all().map((c) => c.name);
+            if (!cols.includes("widget_public_key")) {
+                db.exec("ALTER TABLE businesses ADD COLUMN widget_public_key TEXT");
+                // Backfill: deterministic one-way derivation from the secret key.
+                // Knowing the publishable key reveals nothing about the secret.
+                const rows = db.prepare("SELECT business_id, integration_key FROM businesses WHERE integration_key IS NOT NULL").all();
+                const crypto = require("crypto");
+                const upd = db.prepare("UPDATE businesses SET widget_public_key = ? WHERE business_id = ?");
+                for (const r of rows) {
+                    const pub = `xeven_pk_pub_${crypto.createHash("sha256").update(String(r.integration_key)).digest("hex").slice(0, 32)}`;
+                    upd.run(pub, r.business_id);
+                }
+                db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_businesses_widget_public_key ON businesses(widget_public_key)");
             }
         },
     },

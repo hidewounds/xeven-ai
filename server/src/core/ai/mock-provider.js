@@ -46,7 +46,7 @@ async function chat({ messages, model, baseUrl, apiKey: passedApiKey, temperatur
     // pure greeting — short, keep attention
     const pureGreeting = text.replace(/[!.,?]+$/g, "").trim();
     const isCrepdog = fullSystem.toLowerCase().includes("crepdog") || knowledgeSection.toLowerCase().includes("crepdog");
-    if (/^(hi|hello|hey|hola|howdy|hey there|hi there|hello there|how are you)$/i.test(pureGreeting) || /^(hi|hello|hey) nova$/i.test(pureGreeting)) {
+    if (/^(hi|hello|hey|hola|howdy|hey there|hi there|hello there|how are you)$/i.test(pureGreeting) || /^(hi|hello|hey) xeven$/i.test(pureGreeting)) {
         return { content: "Hey! How can I help?", model: "mock", usage: { promptTokens: 0, completionTokens: 0 } };
     }
     // navigation has priority — "guide me to features" must navigate, not be treated as generic "features" info
@@ -66,15 +66,15 @@ async function chat({ messages, model, baseUrl, apiKey: passedApiKey, temperatur
     }
     // short human fallbacks — handle common intents before knowledge, keep 1-2 sentences
     if (text.includes("price") || text.includes("pricing") || text.includes("plan") || text.includes("cost")) {
-        return { content: "Growth is $79/mo — 10k chats, 200 knowledge, 3 rules. Launch $29, Scale $199, Unlimited $499. All 14 days free.", model: "mock", usage: { promptTokens: 0, completionTokens: 0 } };
+        return { content: "Growth is $79/mo — 10k chats, 200 knowledge items. Launch $29, Scale $199, Custom bespoke. All 14 days free.", model: "mock", usage: { promptTokens: 0, completionTokens: 0 } };
     }
-    // crepdog-aware: "what does crepdog sell" should return crepdog catalog, not NOVA generic
+    // crepdog-aware: "what does crepdog sell" should return crepdog catalog, not XEVEN generic
     if (isCrepdog && (text.includes("what does crepdog") || text.includes("tell me about crepdog") || text.includes("crepdog crew sell"))) {
         return { content: "Crepdog Crew sells Limited Edition Sneakers & Streetwear — Jordan, Yeezy, Dunks, Apparel, Watches. Mega Drop Sale up to 60% off, instant shipping.", model: "mock", usage: { promptTokens: 0, completionTokens: 0 } };
     }
-    if (text.includes("what do you do") || text.includes("what can you do") || text.includes("tell me about nova") || (text.includes("features") && !text.includes("guide me to")) || text.includes("sell") || text.includes("what is nova")) {
+    if (text.includes("what do you do") || text.includes("what can you do") || text.includes("tell me about xeven") || (text.includes("features") && !text.includes("guide me to")) || text.includes("sell") || text.includes("what is xeven")) {
         if (isCrepdog) {
-            // for Crepdog, don't return NOVA generic for sell/features, let knowledge handle it
+            // for Crepdog, don't return XEVEN generic for sell/features, let knowledge handle it
             // fall through to knowledge
         } else {
             return { content: "I'm your AI employee — I answer 24/7 from your site, remember shoppers, and book with Chrono or talk with Echo. One snippet to go live.", model: "mock", usage: { promptTokens: 0, completionTokens: 0 } };
@@ -95,7 +95,7 @@ async function chat({ messages, model, baseUrl, apiKey: passedApiKey, temperatur
         }
         return { content: "14 days free, cancel anytime — check pricing.html or I can connect you.", model: "mock", usage: { promptTokens: 0, completionTokens: 0 } };
     }
-    // shoe handling — business-aware: Crepdog sells shoes, Nova helps stores sell
+    // shoe handling — business-aware: Crepdog sells shoes, Xeven helps stores sell
     if (text.includes("shoe") || text.includes("shoes") || text.includes("sneaker") || text.includes("sneakers")) {
         if (isCrepdog) {
             if (text.includes("under 10000") || text.includes("under 10k") || text.includes("10000")) {
@@ -133,7 +133,7 @@ async function chat({ messages, model, baseUrl, apiKey: passedApiKey, temperatur
     }
     // short human fallbacks for common intents — still grounded, not setlist
     if (text.includes("price") || text.includes("pricing") || text.includes("plan") || text.includes("cost")) {
-        return { content: "Growth is $79/mo — 10k chats, 200 knowledge, 3 rules. Launch $29, Scale $199, Unlimited $499. All 14 days free.", model: "mock", usage: { promptTokens: 0, completionTokens: 0 } };
+        return { content: "Growth is $79/mo — 10k chats, 200 knowledge items. Launch $29, Scale $199, Custom bespoke. All 14 days free.", model: "mock", usage: { promptTokens: 0, completionTokens: 0 } };
     }
     if (text.includes("what do you do") || text.includes("what can you do") || text.includes("features") || text.includes("sell")) {
         return { content: "I help your site answer 24/7, remember shoppers, and book with Chrono or talk with Echo. One snippet to go live.", model: "mock", usage: { promptTokens: 0, completionTokens: 0 } };
@@ -172,7 +172,7 @@ async function chat({ messages, model, baseUrl, apiKey: passedApiKey, temperatur
         try {
             const openAIProvider = require("./openai-provider");
             const simpleMessages = [
-                { role: "system", content: "You are Nova for NOVA website. Reply in 1-2 short, simple human sentences (max 30 words). No lists, no jargon, no hallucination — only use provided knowledge. Be warm and concise." },
+                { role: "system", content: "You are Xeven for XEVEN website. Reply in 1-2 short, simple human sentences (max 30 words). No lists, no jargon, no hallucination — only use provided knowledge. Be warm and concise." },
                 ...messages.slice(-4),
             ];
             const r = await openAIProvider.chat({ messages: simpleMessages, model: mdl, baseUrl: base, apiKey, temperature: 0.7, timeoutMs: timeoutMs || 8000 });

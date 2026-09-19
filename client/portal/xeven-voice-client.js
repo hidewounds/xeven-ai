@@ -1,13 +1,21 @@
 /**
- * NOVA Voice Client — WebRTC microphone streaming to Echo sidecar
+ * XEVEN Voice Client — WebRTC microphone streaming to Echo sidecar
  * Handles: MediaRecorder, WebSocket streaming, VAD, barge-in, TTS interruption
  */
 
 (function () {
     "use strict";
 
-    const DEFAULT_SIDECAR_WS = "ws://127.0.0.1:8765/ws/transcribe";
-    const DEFAULT_TTS_WS = "ws://127.0.0.1:8765/ws/tts";
+    // Localhost sidecar defaults apply ONLY on loopback hosts. Anywhere else
+    // the caller must pass explicit URLs (or rely on server/browser STT/TTS).
+    function isLoopbackHost() {
+        try {
+            const h = String(window.location.hostname || "").toLowerCase();
+            return h === "localhost" || h === "127.0.0.1" || h === "[::1]" || h === "::1";
+        } catch (e) { return false; }
+    }
+    const DEFAULT_SIDECAR_WS = isLoopbackHost() ? "ws://127.0.0.1:8765/ws/transcribe" : "";
+    const DEFAULT_TTS_WS = isLoopbackHost() ? "ws://127.0.0.1:8765/ws/tts" : "";
     const AUDIO_CONSTRAINTS = {
         audio: {
             channelCount: 1,
@@ -19,7 +27,7 @@
     };
     const CHUNK_INTERVAL_MS = 100; // Send audio every 100ms
 
-    class NovaVoiceClient {
+    class XevenVoiceClient {
         constructor(options = {}) {
             this.sidecarWsUrl = options.sidecarWsUrl || DEFAULT_SIDECAR_WS;
             this.ttsWsUrl = options.ttsWsUrl || DEFAULT_TTS_WS;
@@ -73,6 +81,10 @@
         async connectSidecar() {
             return new Promise((resolve, reject) => {
                 try {
+                    if (!this.sidecarWsUrl) {
+                        reject(new Error("No voice sidecar configured for this host — pass sidecarWsUrl explicitly or use server/browser speech."));
+                        return;
+                    }
                     this.sidecarWs = new WebSocket(this.sidecarWsUrl);
 
                     this.sidecarWs.onopen = () => {
@@ -386,8 +398,8 @@
 
     // Export for module systems
     if (typeof module !== "undefined" && module.exports) {
-        module.exports = { NovaVoiceClient };
+        module.exports = { XevenVoiceClient };
     } else {
-        window.NovaVoiceClient = NovaVoiceClient;
+        window.XevenVoiceClient = XevenVoiceClient;
     }
 })();

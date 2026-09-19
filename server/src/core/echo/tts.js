@@ -2,7 +2,7 @@
 
 /**
  * ECHO — Text-to-speech.
- * NOVA-side abstraction over the TTS sidecar (or local fallback).
+ * XEVEN-side abstraction over the TTS sidecar (or local fallback).
  * Supports multiple providers: Piper (local), ElevenLabs, OpenAI, etc.
  */
 
@@ -15,6 +15,9 @@ const TTS_MODELS = {
     elevenlabs: { name: "elevenlabs", provider: "elevenlabs", multilingual: true, streaming: true },
     openai: { name: "tts-1", provider: "openai-compatible", multilingual: true, streaming: true },
     openai_hd: { name: "tts-1-hd", provider: "openai-compatible", multilingual: true, streaming: true },
+    // MeloTTS (myshell-ai/MeloTTS, MIT) — local multilingual file synthesis.
+    // CPU real-time, one model per language; not a streaming engine.
+    melo: { name: "melo", provider: "melo", multilingual: true, streaming: false },
 };
 
 const TTS_VOICES = {
@@ -26,6 +29,16 @@ const TTS_VOICES = {
         fr_FR: ["gilles", "siwis"],
         es_ES: ["carlfm", "davefx"],
         fr_CA: ["gabrielle"],
+    },
+    // MeloTTS speakers (upstream myshell-ai/MeloTTS language set).
+    // Extend per upstream docs; unknown languages fall back to EN-US.
+    melo: {
+        EN: ["EN-US", "EN-BR", "EN_INDIA", "EN-AU"],
+        ES: ["ES"],
+        FR: ["FR"],
+        ZH: ["ZH"],
+        JP: ["JP"],
+        KR: ["KR"],
     },
     // ElevenLabs voices (subset)
     elevenlabs: {
@@ -81,7 +94,7 @@ async function callOpenAITTS({ text, voice, model, apiKey, baseUrl }) {
     const url = (baseUrl || process.env.OPENAI_BASE_URL || require("../../env").ai.openaiBaseUrl || "https://api.openai.com/v1").replace(/\/$/, "") + "/audio/speech";
     if (!key || key.includes("...") || key.length < 20 || key.includes("placeholder")) throw new Error("OPENAI_API_KEY missing or invalid for TTS");
     const mdl = (model && model.includes("hd")) ? "tts-1-hd" : "tts-1";
-    const v = voice && ["alloy","echo","fable","onyx","nova","shimmer"].includes(voice) ? voice : "alloy";
+    const v = voice && ["alloy","echo","fable","onyx","xeven","shimmer"].includes(voice) ? voice : "alloy";
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 15000);
     let res;
@@ -139,6 +152,41 @@ async function callSidecar({ sidecarUrl, text, params }) {
 }
 
 /**
+ * MeloTTS sidecar call (myshell-ai/MeloTTS via echo/melo-server.py).
+ * POSTs JSON, expects { audioBase64, format, durationMs, sampleRate }.
+ * Throws on any failure so the orchestrator falls through to the next
+ * provider — a missing sidecar must never break synthesis.
+ */
+async function callMeloSidecar({ sidecarUrl, text, language, speaker, speed }) {
+    if (!sidecarUrl || !String(sidecarUrl).trim() || !text || !String(text).trim()) throw new Error("sidecarUrl and text required");
+    if (/127\.0\.0\.1|localhost/.test(String(sidecarUrl)) && process.env.VERCEL) {
+        throw new Error("MeloTTS sidecar not available in serverless");
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+        const res = await fetch(`${String(sidecarUrl).replace(/\/$/, "")}/synthesize`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                text: String(text).slice(0, 5000),
+                language: language || "EN",
+                speaker_id: speaker || "",
+                speed: typeof speed === "number" ? speed : 1.0,
+            }),
+            signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `MeloTTS sidecar error ${res.status}`);
+        if (!data.audioBase64) throw new Error("MeloTTS sidecar returned no audio");
+        return data;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+/**
  * Synthesize text to speech with automatic fallback.
  */
 async function synthesize({ businessId, text, params: inputParams, config }) {
@@ -149,9 +197,41 @@ async function synthesize({ businessId, text, params: inputParams, config }) {
     const lang = params.language || "en";
     const model = params.model || "piper";
 
-    // Try sidecar first if configured and not on Vercel serverless
     const env = require("../../env");
-    const rawSidecar = (config?.ttsSidecarUrl || process.env.NOVA_TTS_SIDECAR_URL || env.echoSidecarUrl || "").trim();
+
+    // MeloTTS first when selected: local multilingual file synthesis.
+    // Any failure falls through to the standard chain below.
+    if (model === "melo") {
+        const meloUrl = (config?.meloSidecarUrl || process.env.XEVEN_MELO_SIDECAR_URL || env.meloSidecarUrl || "").trim();
+        if (meloUrl) {
+            try {
+                const upper = String(lang).toUpperCase();
+                const known = (TTS_VOICES.melo[upper] || TTS_VOICES.melo.EN).includes(params.voice || "")
+                    ? params.voice
+                    : (TTS_VOICES.melo[upper] || TTS_VOICES.melo.EN)[0];
+                const result = await callMeloSidecar({
+                    sidecarUrl: meloUrl,
+                    text: textStr,
+                    language: upper,
+                    speaker: known,
+                    speed: params.speed,
+                });
+                const crypto = require("../../lib/crypto");
+                const db = require("../../db").get();
+                try {
+                    db().prepare(
+                        "INSERT INTO tts_syntheses (synth_id, business_id, text, language, voice, model, audio_base64, format, duration_ms, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+                    ).run(crypto.randomId("tts"), businessId, textStr.slice(0, 100), lang, known || "", "melo", result.audioBase64 || "", result.format || "wav", result.durationMs || 0, Date.now());
+                } catch {}
+                return { ...result, synthId: `tts_${crypto.randomHex(10)}`, provider: "melo" };
+            } catch {
+                // fall through to the standard chain
+            }
+        }
+    }
+
+    // Try sidecar first if configured and not on Vercel serverless
+    const rawSidecar = (config?.ttsSidecarUrl || process.env.XEVEN_TTS_SIDECAR_URL || env.echoSidecarUrl || "").trim();
     const sidecarUrl = rawSidecar; // empty on Vercel means no sidecar
     if (sidecarUrl) {
         try {
@@ -211,7 +291,12 @@ function listVoices(model, language) {
         return Object.entries(TTS_VOICES.elevenlabs).map(([id, v]) => ({ id, ...v }));
     }
     if (model === "openai" || model === "openai-compatible") {
-        return ["alloy", "echo", "fable", "onyx", "nova", "shimmer"].map(v => ({ id: v, name: v, language: "en" }));
+        return ["alloy", "echo", "fable", "onyx", "xeven", "shimmer"].map(v => ({ id: v, name: v, language: "en" }));
+    }
+    if (model === "melo") {
+        const upper = String(lang).toUpperCase();
+        const ids = TTS_VOICES.melo[upper] || TTS_VOICES.melo.EN;
+        return ids.map(v => ({ id: v, name: v, language: upper }));
     }
     return [];
 }
@@ -234,6 +319,7 @@ module.exports = {
     ttsParams,
     stubSynthesize,
     callSidecar,
+    callMeloSidecar,
     synthesize,
     speak,
     listVoices,

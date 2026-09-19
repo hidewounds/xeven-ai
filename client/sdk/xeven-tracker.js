@@ -1,16 +1,16 @@
 // ============================================================
-// NOVA TRACKER — website behavioral tracking SDK
+// XEVEN TRACKER — website behavioral tracking SDK
 //
 // Usage:
-//   <script src="https://your-nova-host/widget/nova-tracker.js"
-//           data-public-key="nova_pk_xxx"
-//           data-api="https://your-nova-host"
+//   <script src="https://your-xeven-host/widget/xeven-tracker.js"
+//           data-public-key="xeven_pk_xxx"
+//           data-api="https://your-xeven-host"
 //           defer></script>
 //
-//   NOVATracker.productView({ productId: "42", productName: "Sneaker", price: 99 })
-//   NOVATracker.search({ query: "running shoes" })
-//   NOVATracker.cart({ action: "add", productId: "42" })
-//   NOVATracker.purchase({ orderId: "A1", total: 149 })
+//   XevenTracker.productView({ productId: "42", productName: "Sneaker", price: 99 })
+//   XevenTracker.search({ query: "running shoes" })
+//   XevenTracker.cart({ action: "add", productId: "42" })
+//   XevenTracker.purchase({ orderId: "A1", total: 149 })
 // ============================================================
 
 (function (global) {
@@ -48,10 +48,10 @@
 
     function getVisitorId() {
         try {
-            var id = localStorage.getItem("nova_visitor_id");
+            var id = localStorage.getItem("xeven_visitor_id");
             if (id) return id;
             id = "visitor_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-            localStorage.setItem("nova_visitor_id", id);
+            localStorage.setItem("xeven_visitor_id", id);
             return id;
         } catch (e) {
             return "anonymous";
@@ -62,9 +62,9 @@
     function identify(customerId) {
         try {
             if (customerId) {
-                sessionStorage.setItem("nova_customer_id", String(customerId));
+                sessionStorage.setItem("xeven_customer_id", String(customerId));
             } else {
-                sessionStorage.removeItem("nova_customer_id");
+                sessionStorage.removeItem("xeven_customer_id");
             }
         } catch (e) {
             /* ignore */
@@ -97,14 +97,14 @@
             at: Date.now(),
         };
         try {
-            document.dispatchEvent(new CustomEvent("nova:intent", { detail: lastIntentSignal }));
+            document.dispatchEvent(new CustomEvent("xeven:intent", { detail: lastIntentSignal }));
         } catch (e) { /* older browsers */ }
     }
 
     async function track(eventType, eventData) {
         if (!enabled) return { saved: false, reason: "tracking_disabled" };
         if (!apiKey) {
-            console.warn("NOVA Tracker: missing API key.");
+            console.warn("XEVEN Tracker: missing API key.");
             return { saved: false, reason: "missing_key" };
         }
         if (typeof eventType !== "string" || !eventType.trim()) {
@@ -116,12 +116,12 @@
 
             var response = await fetch(apiBase + apiUrl, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "x-nova-key": apiKey },
+                headers: { "Content-Type": "application/json", "x-xeven-key": apiKey },
                 body: JSON.stringify({
                     customerId:
                         (function () {
                             try {
-                                return sessionStorage.getItem("nova_customer_id");
+                                return sessionStorage.getItem("xeven_customer_id");
                             } catch (e) {
                                 return null;
                             }
@@ -138,7 +138,7 @@
                 } catch (e) {
                     /* ignore */
                 }
-                console.warn("NOVA Tracker failed:", response.status, data);
+                console.warn("XEVEN Tracker failed:", response.status, data);
                 return { saved: false, status: response.status };
             }
             return await response.json().catch(function () {
@@ -146,7 +146,7 @@
             });
         } catch (error) {
             // Tracking must never break the host website.
-            console.warn("NOVA Tracker network error:", error.message);
+            console.warn("XEVEN Tracker network error:", error.message);
             return { saved: false, error: error.message };
         }
     }
@@ -239,13 +239,13 @@
 
     function hasIdentity() {
         try {
-            return Boolean(sessionStorage.getItem("nova_customer_id"));
+            return Boolean(sessionStorage.getItem("xeven_customer_id"));
         } catch (e) {
             return false;
         }
     }
 
-    global.NOVATracker = tracker;
+    global.XevenTracker = tracker;
 
     // Auto-track a page view when configured via script attributes.
     if (currentScript && currentScript.getAttribute("data-auto-pageview") !== "false") {
@@ -260,3 +260,6 @@
         }
     }
 })(window);
+
+/* COMPAT (pre-rebrand embeds): old global keeps working. Remove once embeds migrate. */
+try { if (typeof globalThis !== "undefined" && globalThis.XevenTracker && !globalThis.NOVATracker) { globalThis.NOVATracker = globalThis.XevenTracker; } } catch (e) {}

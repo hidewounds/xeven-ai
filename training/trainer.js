@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * RLHF Trainer for NOVA Unified Brain
+ * RLHF Trainer for XEVEN Unified Brain
  * Implements DPO/PPO/GRPO based on rkinas/reasoning_models_how_to/minimal_implementation/dpo_trainer.py
  * 
  * Pipeline: SFT -> Reward Model -> RLHF (DPO/PPO/GRPO)
@@ -143,7 +143,7 @@ class PPOTrainer {
 // ---------------------------------------------------------------------------
 
 async function runPipeline({ method = "dpo", patternId = "all", epochs } = {}) {
-    console.log("=== NOVA Unified Brain Training Pipeline ===");
+    console.log("=== XEVEN Unified Brain Training Pipeline ===");
     console.log(`Method: ${method}, Pattern: ${patternId}, Base: ${config.baseModel}`);
     console.log(`Reward: taskCompletion + satisfaction + accuracy (NOT role-adherence)`);
     const stats = getTrainingStats();

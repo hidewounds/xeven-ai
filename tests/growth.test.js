@@ -115,7 +115,7 @@ test("follow-ups require config: no email → skipped; disabled → skipped", as
     // Give the customer an email via the widget capture endpoint.
     const patch = await fetch(`${server.baseUrl}/api/v1/customers/cust-withemail`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-nova-key": setup.integrationKey },
+        headers: { "Content-Type": "application/json", "x-xeven-key": setup.integrationKey },
         body: JSON.stringify({ email: "buyer@example.com", name: "Buyer" }),
     });
     assert.strictEqual(patch.status, 200);
@@ -225,7 +225,7 @@ test("portal login + strict tenant isolation + flag gating", async (t) => {
     // Tenant isolation: A's portal can NEVER see B's data.
     const bKnowledge = await fetch(`${server.baseUrl}/api/v1/knowledge`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-nova-key": bizB.integrationKey },
+        headers: { "Content-Type": "application/json", "x-xeven-key": bizB.integrationKey },
         body: JSON.stringify({ title: "B secret FAQ", content: "secret-content-b" }),
     });
     assert.ok(bKnowledge.ok);
