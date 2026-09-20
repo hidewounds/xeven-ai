@@ -1,0 +1,35 @@
+# Keeps the production domain pinned to the latest READY deployment.
+# Background: the *.vercel.app domain exists as an explicit alias (it does not
+# auto-follow new production deployments), and the app self-heals its data via
+# XEVEN_SEED_ON_BOOT — so every push must end with this pin move.
+name: pin-production-alias
+on:
+  push:
+    branches: [main]
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for this commit's deployment, then pin alias
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PROJECT_ID: prj_eQYGAM2SRqS4Xi2T8fcTlvuRm2D2
+          DOMAIN: xeven-ai-hidewounds-9658.vercel.app
+          SHA: ${{ github.sha }}
+        run: |
+          for i in $(seq 1 45); do
+            d=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?projectId=$PROJECT_ID&limit=10")
+            uid=$(echo "$d" | jq -r --arg s "$SHA" '.deployments | map(select(.meta.githubCommitSha == $s and .state == "READY")) | .[0].uid // empty')
+            echo "try $i: match=${uid:-none}"
+            if [ -n "$uid" ]; then
+              curl -s -X POST -H "Authorization: Bearer $VERCEL_TOKEN" -H "Content-Type: application/json" \
+                -d "{\"alias\":\"$DOMAIN\"}" \
+                "https://api.vercel.com/v2/deployments/$uid/aliases"
+              echo
+              echo "pinned $DOMAIN -> $uid"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "timed out waiting for READY deployment of $SHA"; exit 1
