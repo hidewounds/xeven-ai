@@ -35,7 +35,7 @@
     <span><i class="sw hold"></i>on hold — not built</span>
   </div>
 
-<svg viewBox="0 0 1200 1560" width="100%" role="img" aria-label="Xeven AI automation flowchart">
+<svg viewBox="0 0 1200 1710" width="100%" role="img" aria-label="Xeven AI automation flowchart">
 <defs>
   <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
     <path d="M0,0 L10,5 L0,10 z" fill="#5a6b7a"/>
@@ -59,7 +59,7 @@
 </style>
 
 <!-- LANES -->
-<rect class="lane" x="20" y="20" width="1160" height="1520"/>
+<rect class="lane" x="20" y="20" width="1160" height="1670"/>
 <text class="lanel" x="40" y="48">ENTRY → INGRESS → TENANCY → AUTOMATION CORE → ACTION → DATA</text>
 
 <!-- ENTRY -->
@@ -132,27 +132,35 @@
 
 <!-- DATA -->
 <line class="lnm" x1="510" y1="1132" x2="510" y2="1170" marker-end="url(#arm)"/>
-<rect class="b free" x="180" y="1170" width="660" height="72"/><text class="t" x="196" y="1196">tenant data — SQLite WAL (pg path ready)</text><text class="s" x="196" y="1214">customers · memories · behavior · knowledge · conversations · calls · transcripts · syntheses · mail log</text><text class="s" x="196" y="1230">right-to-erasure: full customer wipe (memories + behavior + chats)</text>
+<rect class="b free" x="180" y="1170" width="660" height="72"/><text class="t" x="196" y="1196">tenant data — SQLite WAL · ephemeral /tmp on Vercel</text><text class="s" x="196" y="1214">customers · memories · behavior · knowledge · conversations · calls · transcripts · syntheses · mail log</text><text class="s" x="196" y="1230">right-to-erasure: full customer wipe (memories + behavior + chats) · pg path NOT ready (single table)</text>
 
 <!-- REPLY path: short hop from stored state to action -->
 <line class="lnm" x1="820" y1="1242" x2="900" y2="1206" marker-end="url(#arm)"/>
 <rect class="b" x="880" y="1206" width="260" height="72"/><text class="t" x="896" y="1232">reply + act</text><text class="s" x="896" y="1250">chat answer · TTS audio · booking</text><text class="s" x="896" y="1266">confirmed · email sent · handoff</text>
 
+<!-- DEPLOY + RECOVERY band -->
+<rect class="b free" x="60" y="1300" width="1080" height="132"/>
+<text class="t" x="76" y="1328">DEPLOY + RECOVERY — the ephemeral-DB answer (live in production)</text>
+<text class="s" x="76" y="1350">push main → Vercel build → production deploy → pin-production-alias workflow moves the .vercel.app alias (explicit aliases never auto-follow)</text>
+<text class="s" x="76" y="1370">cold boot on empty /tmp + XEVEN_SEED_ON_BOOT=1 → db/seed.js recreates xeven_web with DETERMINISTIC keys + 30 knowledge entries + portal login</text>
+<text class="s" x="76" y="1390">widget snippet key never changes across wipes · secret/portal pinned by Vercel env · never seeds admins · warm boots are no-ops</text>
+<text class="s" x="76" y="1410">manual recovery (no code change needed): node scripts/provision-prod.js · regression proof: tests/seed.test.js · suite 127 green</text>
+
 <!-- ON HOLD band -->
-<rect class="b hold" x="60" y="1300" width="1080" height="150"/>
-<text class="t" x="76" y="1328">ON HOLD — needs money or hardware (no dead code shipped for these)</text>
-<text class="s" x="76" y="1350">telephony bridge (Jambonz MIT + SIP trunk + Linux host) → plugs PCM into the voice loop above · same calls.js lifecycle</text>
-<text class="s" x="76" y="1370">D-ID avatar (paid credits) → website demo section first, platform path later · OpenVoice cloning (GPU + GB models) → 3rd echo sidecar + tts.js entry</text>
-<text class="s" x="76" y="1390">elevenlabs (API key — plumbing live) · strix pentest in CI (LLM key + staging) · prompt-asset pipeline (paid key — marketing only)</text>
-<text class="s" x="76" y="1410">unblock order that spends least first: elevenlabs key → strix CI → Jambonz trial+trunk → D-ID credits → GPU host</text>
+<rect class="b hold" x="60" y="1450" width="1080" height="150"/>
+<text class="t" x="76" y="1478">ON HOLD — needs money or hardware (no dead code shipped for these)</text>
+<text class="s" x="76" y="1500">telephony bridge (Jambonz MIT + SIP trunk + Linux host) → plugs PCM into the voice loop above · same calls.js lifecycle</text>
+<text class="s" x="76" y="1520">D-ID avatar (paid credits) → website demo section first, platform path later · OpenVoice cloning (GPU + GB models) → 3rd echo sidecar + tts.js entry</text>
+<text class="s" x="76" y="1540">elevenlabs (API key — plumbing live) · strix pentest in CI (LLM key + staging) · prompt-asset pipeline (paid key — marketing only)</text>
+<text class="s" x="76" y="1560">unblock order that spends least first: elevenlabs key → strix CI → Jambonz trial+trunk → D-ID credits → GPU host</text>
 
 <!-- FREE band -->
-<rect class="b free" x="60" y="1470" width="1080" height="52"/>
-<text class="t" x="76" y="1492">$0 stack today:</text><text class="s" x="220" y="1492">mock/local chat · whisper/piper/melo sidecars · heuristic notes · SQLite · temp-DB tests · free-check reporter · graceful stubs everywhere a key is missing</text>
+<rect class="b free" x="60" y="1620" width="1080" height="52"/>
+<text class="t" x="76" y="1642">$0 stack today:</text><text class="s" x="220" y="1642">mock/local chat · whisper/piper/melo sidecars · heuristic notes · SQLite + self-heal seed · temp-DB tests · free-check reporter · graceful stubs everywhere a key is missing</text>
 </svg>
 
   <p class="note"><b>Reading it:</b> follow any entry box downward. Green-bordered boxes cost nothing to run; red needs a paid key (with an automatic free fallback); dashed boxes are designed seams with no code yet. The voice loop is the hub — chat, booking, notes, and (later) telephony all hang off it, which is why MeloTTS and transcript notes landed there first.</p>
-  <p class="note">Sources: <span class="mono">server/src/{routes,core}</span>, <span class="mono">echo/</span>, <span class="mono">client/sdk</span>, <span class="mono">tests/</span>. Generated for the free-mode completion pass; on-hold items intentionally have no code behind them.</p>
+  <p class="note">Sources: <span class="mono">server/src/{routes,core,db/seed.js}</span>, <span class="mono">echo/</span>, <span class="mono">client/sdk</span>, <span class="mono">tests/</span>, <span class="mono">.github/workflows/</span>. Regenerated 2026-09-20 for the durability pass (seed + alias CI); on-hold items intentionally have no code behind them. The public copy of this chart ships at <span class="mono">xeven-web/public/architecture.html</span>.</p>
 </div>
 </body>
 </html>
