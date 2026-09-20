@@ -62,8 +62,12 @@ function availability({ businessId }, params = {}) {
     const bookedCache = new Map();
     const days = [];
     const cursor = new Date(start);
-    while (days.length < 5) {
-        cursor.setUTCDate(cursor.getUTCDate() + (days.length === 0 && !params.date ? 0 : 1));
+    // NOTE: first iteration is today-inclusive only when no explicit date was
+    // given; every iteration must advance the cursor (guarded) or weekends
+    // loop forever (Sat/Sun start never pushes a day).
+    let guard = 0;
+    while (days.length < 5 && guard++ < 400) {
+        cursor.setUTCDate(cursor.getUTCDate() + (days.length === 0 && !params.date && guard === 1 ? 0 : 1));
         const dow = cursor.getUTCDay();
         if (dow === 0 || dow === 6) continue;
         const dayIso = toIsoDate(cursor);

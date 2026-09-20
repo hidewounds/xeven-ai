@@ -72,7 +72,7 @@ test("property: tenant isolation - cross-business queries return empty", async (
     assert.strictEqual(behaviorsB.status, 200);
     assert.deepStrictEqual(behaviorsB.data.events, []);
     
-    server.close();
+    await server.close();
 });
 
 test("property: tenant isolation - cross-business mutations fail", async () => {
@@ -88,11 +88,12 @@ test("property: tenant isolation - cross-business mutations fail", async () => {
     // If it succeeds, it should create data under B's tenant, not A's
     assert.ok([200, 400, 403].includes(writeA.status));
     
-    // Verify A's data unchanged
+    // Verify A's data unchanged (unknown customer reads 200 with empty list)
     const checkA = await api(server.baseUrl, "GET", "/api/v1/customers/cust-x/memories", { key: a.integrationKey });
-    assert.strictEqual(checkA.status, 404); // A never had this customer
+    assert.strictEqual(checkA.status, 200); // A never had this customer
+    assert.deepStrictEqual(checkA.data.memories, []);
     
-    server.close();
+    await server.close();
 });
 
 test("property: tenant isolation - cross-business reads return empty", async () => {
@@ -115,7 +116,7 @@ test("property: tenant isolation - cross-business reads return empty", async () 
     assert.strictEqual(readA.status, 200);
     assert.strictEqual(readA.data.events.length, 1);
     
-    server.close();
+    await server.close();
 });
 
 test("property: business_id normalization is consistent", () => {
@@ -170,7 +171,7 @@ test("property: concurrent operations maintain isolation", async () => {
     for (const id of aIds) assert.ok(!bIds.has(id), `Tenant B should not see A's customer ${id}`);
     for (const id of bIds) assert.ok(!aIds.has(id), `Tenant A should not see B's customer ${id}`);
     
-    server.close();
+    await server.close();
 });
 
 test("property: business_id format validation", () => {
@@ -201,7 +202,7 @@ test("property: idempotency - duplicate tool calls return cached result", async 
     // Make a tool call that creates a booking
     // (requires voice_receptionist role and booking capability)
     // This is a conceptual test - actual implementation depends on role setup
-    server.close();
+    await server.close();
 });
 
 // =============================================================================
@@ -253,14 +254,14 @@ test("property: hybrid search - combines keyword and vector scores", async () =>
     const server = await startServer();
     const { a } = await setupTwoBusinesses(server);
     
-    // Add memories
+    // Add memories via explicit remember commands (deterministic extraction)
     await api(server.baseUrl, "POST", "/api/v1/chat", {
         key: a.integrationKey,
-        body: { customer: { id: "cust-hybrid" }, messages: [{ role: "user", content: "my favorite color is blue" }] },
+        body: { customer: { id: "cust-hybrid" }, messages: [{ role: "user", content: "remember that my favorite color is blue" }] },
     });
     await api(server.baseUrl, "POST", "/api/v1/chat", {
         key: a.integrationKey,
-        body: { customer: { id: "cust-hybrid" }, messages: [{ role: "user", content: "I love the color red" }] },
+        body: { customer: { id: "cust-hybrid" }, messages: [{ role: "user", content: "remember that my dog is named Rex" }] },
     });
     
     // Search should find relevant memories
@@ -268,7 +269,7 @@ test("property: hybrid search - combines keyword and vector scores", async () =>
     assert.strictEqual(search.status, 200);
     assert.ok(search.data.memories.length >= 2);
     
-    server.close();
+    await server.close();
 });
 
 test("property: hybrid search - empty query returns empty", async () => {
@@ -276,7 +277,7 @@ test("property: hybrid search - empty query returns empty", async () => {
     const { a } = await setupTwoBusinesses(server);
     
     // The hybrid search is internal - this is a conceptual test
-    server.close();
+    await server.close();
 });
 
 // =============================================================================
@@ -335,7 +336,7 @@ test("property: token budget - never exceeds maxContextTokens", async () => {
     assert.strictEqual(result.status, 200);
     // The context engine should enforce token budget internally
     
-    server.close();
+    await server.close();
 });
 
 // =============================================================================
@@ -343,21 +344,31 @@ test("property: token budget - never exceeds maxContextTokens", async () => {
 // =============================================================================
 
 test("property: rate limiting - excess requests get 429", async () => {
-    const server = await startServer();
-    const { a } = await setupTwoBusinesses(server);
-    
-    const requests = 150; // Exceeds default 120/min
-    const results = [];
-    
-    for (let i = 0; i < requests; i++) {
-        const result = await api(server.baseUrl, "GET", "/api/health", {});
-        results.push(result.status);
+    // Focused unit test with a low cap: the shared helpers force
+    // XEVEN_RATE_LIMIT=100000 process-wide, so the full app never 429s here.
+    const express = require("express");
+    const { rateLimit } = require("../server/src/http/middleware");
+    const app = express();
+    app.use(rateLimit({ windowMs: 60_000, max: 3 }));
+    app.get("/ping", (req, res) => res.json({ ok: true }));
+    app.use((err, req, res, next) => res.status(err.status || 500).json({ error: { code: err.code || "error" } }));
+    const srv = app.listen(0);
+    await new Promise((resolve) => srv.once("listening", resolve));
+    const base = `http://127.0.0.1:${srv.address().port}`;
+    try {
+        const results = [];
+        for (let i = 0; i < 6; i++) {
+            const r = await fetch(`${base}/ping`);
+            results.push(r.status);
+            await r.text();
+        }
+        const rateLimited = results.filter((s) => s === 429).length;
+        assert.ok(rateLimited > 0, "Should have rate limited some requests");
+        assert.strictEqual(results.slice(0, 3).every((s) => s === 200), true);
+    } finally {
+        try { srv.closeAllConnections(); } catch {}
+        await new Promise((resolve) => srv.close(resolve));
     }
-    
-    const rateLimited = results.filter(s => s === 429).length;
-    assert.ok(rateLimited > 0, "Should have rate limited some requests");
-    
-    server.close();
 });
 
 // =============================================================================

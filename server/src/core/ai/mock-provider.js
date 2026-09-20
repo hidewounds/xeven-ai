@@ -6,8 +6,10 @@
  */
 
 async function chat({ messages, model, baseUrl, apiKey: passedApiKey, temperature, timeoutMs }) {
-    // think 1-2s like a human, not instant
-    await new Promise(function (r) { setTimeout(r, 1100 + Math.random() * 900); });
+    // think 1-2s like a human, not instant (skip when XEVEN_MOCK_NO_DELAY=1, e.g. test runs)
+    if (process.env.XEVEN_MOCK_NO_DELAY !== "1") {
+        await new Promise(function (r) { setTimeout(r, 1100 + Math.random() * 900); });
+    }
     const lastUser = [...(messages || [])].reverse().find(function (m) { return m.role === "user"; });
     const textRaw = lastUser ? String(lastUser.content) : "";
     const text = textRaw.toLowerCase().trim();

@@ -13,6 +13,7 @@ const crypto = require("crypto");
 // Isolated temp database + forced mock provider + unlimited rate for every test file.
 process.env.NODE_ENV = "test";
 process.env.AI_PROVIDER = "mock";
+process.env.XEVEN_MOCK_NO_DELAY = "1";
 process.env.XEVEN_DB_PATH = path.join(os.tmpdir(), `xeven-test-${crypto.randomBytes(6).toString("hex")}.db`);
 process.env.XEVEN_RATE_LIMIT = "100000";
 process.env.PORT = "0";
@@ -29,9 +30,17 @@ async function startServer() {
     return {
         baseUrl,
         db,
+        // NOTE: must destroy keep-alive sockets first — plain server.close()
+        // waits for idle connections forever and hangs the test runner.
+        // The killer timer guarantees resolution even if close stalls.
         close: () =>
             new Promise((resolve) => {
-                server.close(() => {
+                let done = false;
+                const killer = setTimeout(finish, 3000);
+                function finish() {
+                    if (done) return;
+                    done = true;
+                    clearTimeout(killer);
                     try {
                         db.close();
                     } catch {
@@ -43,7 +52,17 @@ async function startServer() {
                         // ignore
                     }
                     resolve();
-                });
+                }
+                try {
+                    server.closeAllConnections();
+                } catch {
+                    // older node — fall through to close()
+                }
+                try {
+                    server.close(finish);
+                } catch {
+                    finish();
+                }
             }),
     };
 }

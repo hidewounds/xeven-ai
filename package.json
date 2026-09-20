@@ -11,8 +11,8 @@
         "start": "node server/index.js",
         "dev": "node --watch server/index.js",
         "migrate": "node -e \"require('./server/src/db').init(); console.log('Migrations applied.')\"",
-        "test": "node --test \"tests/*.test.js\"",
-        "test:concurrency1": "node --test --test-concurrency=1 \"tests/*.test.js\"",
+        "test": "node --test --test-force-exit \"tests/*.test.js\"",
+        "test:concurrency1": "node --test --test-concurrency=1 --test-force-exit \"tests/*.test.js\"",
         "setup": "node scripts/setup.js",
         "setup:echo": "pip install -r echo/requirements.txt && echo \"Echo deps installed \u2014 set ECHO_SIDECAR_URL=http://127.0.0.1:8765\"",
         "roles:generate": "node scripts/generate-roles.js"

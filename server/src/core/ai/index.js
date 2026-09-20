@@ -381,13 +381,14 @@ function getCircuitBreakerStatus() {
     return status;
 }
 
-/** Reset circuit breaker (admin operation). */
+/** Reset circuit breaker (admin operation). Initializes unknown providers to closed. */
 function resetCircuitBreaker(providerName) {
-    if (circuitBreakers.has(providerName)) {
-        circuitBreakers.get(providerName).failures = 0;
-        circuitBreakers.get(providerName).state = "closed";
-        circuitBreakers.get(providerName).lastFailure = 0;
-    }
+    const cb = getCircuitBreaker(providerName);
+    cb.failures = 0;
+    cb.state = "closed";
+    cb.lastFailure = 0;
+    cb.successes = 0;
+    saveCircuitBreaker(providerName, cb);
 }
 
 module.exports = {
@@ -397,4 +398,7 @@ module.exports = {
     generate: generateWithFallback,
     getCircuitBreakerStatus,
     resetCircuitBreaker,
+    recordProviderSuccess,
+    recordProviderFailure,
+    canUseProvider,
 };

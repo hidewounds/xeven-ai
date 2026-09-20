@@ -122,6 +122,16 @@ function validateAgainstSchema(data, schema, path = "") {
                     }
                 }
             }
+            // Per-tool argument validation: a toolCall envelope carrying a known
+            // tool also enforces that tool's argument schema (e.g. booking.create
+            // requires service + datetime, rejects unknown args).
+            if (
+                value.arguments !== undefined && value.arguments !== null &&
+                typeof value.arguments === "object" && !Array.isArray(value.arguments) &&
+                typeof value.tool === "string" && TOOL_ARG_SCHEMAS[value.tool]
+            ) {
+                validate(value.arguments, TOOL_ARG_SCHEMAS[value.tool], `${p}.arguments`);
+            }
         }
 
         if (sch.type === "array" && Array.isArray(value)) {
@@ -323,6 +333,15 @@ const SCHEMAS = {
         additionalProperties: false,
     },
 };
+
+/**
+ * Per-tool argument schemas enforced inside toolCall envelopes.
+ * Keys are tool names as emitted by the model.
+ */
+const TOOL_ARG_SCHEMAS = {
+    "booking.create": null, // wired below (SCHEMAS defined above)
+};
+TOOL_ARG_SCHEMAS["booking.create"] = SCHEMAS.bookingCreate;
 
 module.exports = {
     parseStructuredOutput,
