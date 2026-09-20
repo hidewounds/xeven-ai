@@ -3,15 +3,17 @@
 /**
  * Self-healing production seed (durability fix for ephemeral /tmp SQLite).
  *
- * When XEVEN_SEED_ON_BOOT=1 and the businesses table is EMPTY (fresh wipe /
- * cold boot), this recreates the xeven_web business with DETERMINISTIC
- * credentials plus the full knowledge base, so the live widget snippet keeps
- * working with zero human intervention.
+ * When XEVEN_SEED_ON_BOOT=1, each boot ensures the baseline exists:
+ * - businesses table EMPTY  -> recreate xeven_web with DETERMINISTIC
+ *   credentials + full knowledge base (widget snippet keeps working).
+ * - admin_users table EMPTY and XEVEN_SEED_ADMIN_EMAIL/PASSWORD set ->
+ *   recreate that account (first account = super-admin), so the owner login
+ *   survives wipes with zero human intervention.
  *
  * Safety rules:
- * - NEVER runs when businesses already exist (warm instance: no-op).
- * - NEVER runs in tests (helpers do not set the flag).
- * - NEVER seeds admin accounts (first-register flow stays manual).
+ * - NEVER touches existing rows (warm instance: no-op per table).
+ * - NEVER runs in tests (helpers do not set the flag) or on postgres.
+ * - NEVER logs secrets (email local-part only).
  * - Public key defaults to the key embedded in the live xeven-web snippet.
  *   Override with XEVEN_SEED_PUBLIC_KEY (must match xeven_pk_pub_<32hex>).
  * - Secret comes from XEVEN_SEED_SECRET_KEY (xeven_pk_sec_<64hex>). If unset,
@@ -27,20 +29,24 @@ const SEED_FLAG = process.env.XEVEN_SEED_ON_BOOT === "1";
 const DEFAULT_PUBLIC_KEY = "xeven_pk_pub_2d74e3ed98639ffd4972f702ec338e93";
 const PORTAL_EMAIL = "portal@xeven.world";
 
-function shouldSeed() {
+function seedAllowed() {
     if (!SEED_FLAG) return false;
     if (String(process.env.DB_DRIVER || "").toLowerCase() === "postgres") return false;
+    return true;
+}
+
+function tableCount(table) {
     try {
         const db = require("./index").get();
-        const row = db.prepare("SELECT COUNT(*) AS n FROM businesses").get();
-        return row && row.n === 0;
+        const row = db.prepare(`SELECT COUNT(*) AS n FROM "${table}"`).get();
+        return row ? row.n : -1;
     } catch {
-        return false;
+        return -1;
     }
 }
 
-function maybeSeed() {
-    if (!shouldSeed()) return { seeded: false };
+function seedBusiness() {
+    if (tableCount("businesses") !== 0) return { seeded: false };
     const db = require("./index").get();
     const configService = require("../core/config/service");
     const { createKnowledgeItem } = require("../core/knowledge/store");
@@ -81,6 +87,29 @@ function maybeSeed() {
         console.log(`[seed] ephemeral secret issued (set XEVEN_SEED_SECRET_KEY for stability): ${secret.slice(0, 18)}...`);
     }
     return { seeded: true, knowledge: added, portal: Boolean(portal), secretGenerated };
+}
+
+function seedAdmin() {
+    if (tableCount("admin_users") !== 0) return { seeded: false };
+    const email = String(process.env.XEVEN_SEED_ADMIN_EMAIL || "").trim().toLowerCase();
+    const password = String(process.env.XEVEN_SEED_ADMIN_PASSWORD || "");
+    if (!email || password.length < 8) return { seeded: false, reason: "no-credentials" };
+    const adminAuth = require("../auth/admin");
+    const created = adminAuth.registerAdmin({ email, password });
+    const masked = email.replace(/^(.).*(@.*)$/, "$1***$2");
+    console.log(`[seed] recreated admin ${masked} super=${created.admin.isSuper}`);
+    return { seeded: true, super: created.admin.isSuper };
+}
+
+function maybeSeed() {
+    if (!seedAllowed()) return { seeded: false };
+    const business = seedBusiness();
+    const admin = seedAdmin();
+    return { seeded: business.seeded || admin.seeded, business, admin };
+}
+
+function shouldSeed() {
+    return seedAllowed() && (tableCount("businesses") === 0 || tableCount("admin_users") === 0);
 }
 
 module.exports = { maybeSeed, shouldSeed };

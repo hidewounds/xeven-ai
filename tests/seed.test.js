@@ -7,6 +7,8 @@ const assert = require("node:assert");
 process.env.XEVEN_SEED_ON_BOOT = "1";
 process.env.XEVEN_SEED_SECRET_KEY = "xeven_pk_sec_" + "a".repeat(64);
 process.env.XEVEN_SEED_PORTAL_PASSWORD = "seed-test-pass-1";
+process.env.XEVEN_SEED_ADMIN_EMAIL = "owner@test.local";
+process.env.XEVEN_SEED_ADMIN_PASSWORD = "owner-pass-123";
 // Isolated temp database (do NOT touch the real local DB).
 const os = require("os");
 const path = require("path");
@@ -28,6 +30,10 @@ test("seed: fresh database boots the xeven_web business deterministically", () =
     const portal = db.get().prepare("SELECT email FROM portal_users WHERE business_id='xeven_web'").all();
     assert.strictEqual(portal.length, 1);
     assert.strictEqual(portal[0].email, "portal@xeven.world");
+    const admins = db.get().prepare("SELECT email, is_super FROM admin_users").all();
+    assert.strictEqual(admins.length, 1);
+    assert.strictEqual(admins[0].email, "owner@test.local");
+    assert.strictEqual(admins[0].is_super, 1);
 });
 
 test("seed: warm boot never duplicates", () => {
