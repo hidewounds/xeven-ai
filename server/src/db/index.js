@@ -57,6 +57,13 @@ function init(options = {}) {
     const db = connection.connect(targetPath);
     migrate(db);
     _repository = createRepository({ driver: "sqlite" });
+    // Self-healing seed for ephemeral stores (Vercel /tmp). No-op unless
+    // XEVEN_SEED_ON_BOOT=1 and the database is empty. Never throws.
+    try {
+        require("./seed").maybeSeed();
+    } catch (err) {
+        console.warn("[db] seed skipped:", err.message);
+    }
     return _repository;
 }
 
