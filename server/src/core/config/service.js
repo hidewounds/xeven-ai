@@ -287,7 +287,7 @@ function validateConfigPatch(patch) {
     if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
         throw badRequest("Configuration must be a JSON object.");
     }
-    const allowedSections = new Set(["assistant", "model", "memory", "behavior", "context", "features", "security", "chrono", "echo", "call", "addons", "agentBehaviour", "customBehaviour", "brain"]);
+    const allowedSections = new Set(["assistant", "model", "memory", "behavior", "context", "features", "security", "chrono", "echo", "call", "addons", "agentBehaviour", "customBehaviour"]);
     for (const key of Object.keys(patch)) {
         if (!allowedSections.has(key)) {
             throw badRequest(`Unknown configuration section: ${key}`);
@@ -295,9 +295,6 @@ function validateConfigPatch(patch) {
         if (!patch[key] || typeof patch[key] !== "object" || Array.isArray(patch[key])) {
             throw badRequest(`Configuration section "${key}" must be an object.`);
         }
-    }
-    if (patch.brain && patch.brain.mode !== undefined && !["native", "shadow", "bx"].includes(patch.brain.mode)) {
-        throw badRequest('brain.mode must be one of "native", "shadow", "bx".');
     }
     if (patch.assistant && patch.assistant.role !== undefined) {
         // unknown roles are coerced during normalization; nothing to reject
