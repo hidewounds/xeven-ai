@@ -92,6 +92,13 @@ const DEFAULT_CONFIG = {
         brain: "unified", // one brain, 6 learned patterns (customer_support, sales, shopping_assistant, product_advisor, lead_qualification, general_assistant)
     },
 
+    // External shared brain (BX). native = current unified brain only;
+    // shadow = also ask BX and log (never acts); bx = BX plans, body voices.
+    // Requires BX_BASE_URL env. See server/src/core/bx/.
+    brain: {
+        mode: "native",
+    },
+
     model: {
         provider: "inherit", // openai-compatible | mock | inherit (env)
         model: "",          // empty = provider/env default

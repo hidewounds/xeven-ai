@@ -120,6 +120,15 @@ const env = Object.freeze({
         if (/^(none|disabled|off|false)$/i.test(u)) return "";
         return u;
     })(),
+
+    // BX shared brain (E:\bx serve.py). Default :8767 deliberately avoids the
+    // MeloTTS sidecar on :8766. Empty = brain integration disabled.
+    bxBaseUrl: (process.env.BX_BASE_URL || "").trim(),
+    bxApiKey: (process.env.BX_API_KEY || "").trim(),
+    bxTimeoutMs: (() => {
+        const n = Number(process.env.BX_TIMEOUT_MS || 8000);
+        return Number.isFinite(n) ? Math.min(30000, Math.max(1000, n)) : 8000;
+    })(),
 });
 
 module.exports = env;
