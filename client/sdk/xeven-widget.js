@@ -75,37 +75,37 @@
     var style = document.createElement("style");
     style.textContent = [
         "/* Fonts are loaded by the host page via <link> — no @import here (CSP + perf) */",
-        "#xeven-widget-button{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border-radius:16px;border:1px solid rgba(255,255,255,.14);cursor:pointer;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);color:#fff;font-size:22px;font-weight:800;box-shadow:0 8px 24px rgba(139,92,246,.35), inset 0 1px 0 rgba(255,255,255,.18);z-index:2147483000;display:flex;align-items:center;justify-content:center;transition:transform .22s cubic-bezier(.16,1,.3,1), box-shadow .22s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:'Space Grotesk',sans-serif}",
-        "#xeven-widget-button:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 14px 36px rgba(139,92,246,.45)}",
+        "#xeven-widget-button{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border-radius:16px;border:1px solid rgba(255,255,255,.14);cursor:pointer;background:linear-gradient(135deg,#e8b34b 0%,#b97c2a 45%,#06b6d4 100%);color:#fff;font-size:22px;font-weight:800;box-shadow:0 8px 24px rgba(232,179,75,.35), inset 0 1px 0 rgba(255,255,255,.18);z-index:2147483000;display:flex;align-items:center;justify-content:center;transition:transform .22s cubic-bezier(.16,1,.3,1), box-shadow .22s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:'Space Grotesk',sans-serif}",
+        "#xeven-widget-button:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 14px 36px rgba(232,179,75,.45)}",
         "#xeven-widget{position:fixed;right:22px;bottom:90px;width:380px;max-width:calc(100vw - 24px);height:560px;max-height:calc(100vh - 110px);display:none;flex-direction:column;background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border:1px solid rgba(255,255,255,.11);border-radius:24px;box-shadow:0 24px 64px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);overflow:hidden;z-index:2147483000;font-family:'Instrument Sans',system-ui,-apple-system,sans-serif;color:#f1f5f9}",
         "#xeven-widget.open{display:flex;animation:xevenIn .32s cubic-bezier(.16,1,.3,1)}",
         "@keyframes xevenIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}",
-        "#xeven-widget::before{content:'';position:absolute;inset:0;border-radius:24px;padding:1px;background:linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,0), rgba(139,92,246,.22));-webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.9}",
+        "#xeven-widget::before{content:'';position:absolute;inset:0;border-radius:24px;padding:1px;background:linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,0), rgba(232,179,75,.22));-webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.9}",
         "#xeven-widget-header{padding:16px 16px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.07);background:linear-gradient(180deg, rgba(255,255,255,.04), transparent);position:relative;z-index:1}",
-        "#xeven-widget-av{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:18px;box-shadow:0 4px 14px rgba(139,92,246,.35);flex-shrink:0}",
+        "#xeven-widget-av{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#e8b34b 0%,#b97c2a 45%,#06b6d4 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:18px;box-shadow:0 4px 14px rgba(232,179,75,.35);flex-shrink:0}",
         "#xeven-widget-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:#fff;line-height:1}",
         "#xeven-widget-sub{font-size:11.5px;color:#10b981;font-weight:700;display:flex;align-items:center;gap:6px;margin-top:2px}",
         "#xeven-widget-sub::before{content:'';width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 5px rgba(16,185,129,.14);animation:xevenPulse 2s infinite}",
         "@keyframes xevenPulse{0%,100%{box-shadow:0 0 0 5px rgba(16,185,129,.14)}50%{box-shadow:0 0 0 9px rgba(16,185,129,0)}}",
-        "#xeven-widget-live{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.2);padding:6px 10px;border-radius:999px;white-space:nowrap}",
+        "#xeven-widget-live{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#f2cd8a;background:rgba(232,179,75,.14);border:1px solid rgba(232,179,75,.2);padding:6px 10px;border-radius:999px;white-space:nowrap}",
         "#xeven-widget-close{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:#fff;border-radius:10px;padding:6px 9px;font-size:12px;cursor:pointer;backdrop-filter:blur(8px);transition:.2s;margin-left:4px}",
         "#xeven-widget-close:hover{background:rgba(255,255,255,.1)}",
         "#xeven-widget-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:transparent;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.14) transparent;position:relative;z-index:1}",
         "#xeven-widget-messages::-webkit-scrollbar{width:4px}#xeven-widget-messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:999px}",
         ".xeven-msg{max-width:86%;padding:12px 16px;border-radius:18px;font-size:14px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word;position:relative;backdrop-filter:blur(8px);border:1px solid transparent}",
-        ".xeven-msg.user{align-self:flex-end;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);color:#fff;border-color:rgba(255,255,255,.14);border-bottom-right-radius:6px;box-shadow:0 8px 18px rgba(139,92,246,.28)}",
+        ".xeven-msg.user{align-self:flex-end;background:linear-gradient(135deg,#e8b34b 0%,#b97c2a 45%,#06b6d4 100%);color:#fff;border-color:rgba(255,255,255,.14);border-bottom-right-radius:6px;box-shadow:0 8px 18px rgba(232,179,75,.28)}",
         ".xeven-msg.assistant{align-self:flex-start;background:rgba(255,255,255,.06);color:#f1f5f9;border-color:rgba(255,255,255,.07);border-bottom-left-radius:6px}",
         ".xeven-msg .xeven-tag{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px;opacity:.94}",
-        ".xeven-msg.assistant .xeven-tag{color:#a78bfa}.xeven-msg.user .xeven-tag{color:rgba(255,255,255,.92)}",
+        ".xeven-msg.assistant .xeven-tag{color:#f2cd8a}.xeven-msg.user .xeven-tag{color:rgba(255,255,255,.92)}",
         ".xeven-msg.xeven-loading{opacity:.6;font-size:13px;background:transparent;border:none;padding:4px 8px;color:#94a3b8;backdrop-filter:none}",
         ".xeven-msg strong{font-weight:700;color:#fff}",
         ".xeven-msg em{font-style:italic;opacity:.9}",
         "#xeven-widget-input-area{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.02);align-items:flex-end;backdrop-filter:blur(12px);position:relative;z-index:1}",
         "#xeven-widget-input{flex:1;resize:none;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);border-radius:999px;padding:10px 14px;font-size:14px;font-family:'Instrument Sans',sans-serif;outline:none;max-height:110px;color:#f1f5f9;transition:.18s}",
         "#xeven-widget-input::placeholder{color:#64748b}",
-        "#xeven-widget-input:focus{border-color:rgba(139,92,246,.35);box-shadow:0 0 0 4px rgba(139,92,246,.12);background:rgba(255,255,255,.08)}",
-        "#xeven-widget-send{width:38px;height:38px;min-width:38px;border:none;border-radius:50%;background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(139,92,246,.28);transition:.18s;flex-shrink:0}",
-        "#xeven-widget-send:hover{transform:translateY(-1px);box-shadow:0 10px 22px rgba(139,92,246,.35)}",
+        "#xeven-widget-input:focus{border-color:rgba(232,179,75,.35);box-shadow:0 0 0 4px rgba(232,179,75,.12);background:rgba(255,255,255,.08)}",
+        "#xeven-widget-send{width:38px;height:38px;min-width:38px;border:none;border-radius:50%;background:linear-gradient(135deg,#e8b34b 0%,#b97c2a 45%,#06b6d4 100%);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(232,179,75,.28);transition:.18s;flex-shrink:0}",
+        "#xeven-widget-send:hover{transform:translateY(-1px);box-shadow:0 10px 22px rgba(232,179,75,.35)}",
         "#xeven-widget-send:disabled{opacity:.5;cursor:default;transform:none}",
         "#xeven-mic{width:38px;height:38px;min-width:38px;border:1px solid rgba(255,255,255,.11);border-radius:50%;background:rgba(255,255,255,.06);color:#f1f5f9;font-size:15px;cursor:pointer;display:none;backdrop-filter:blur(8px);transition:.2s;flex-shrink:0}",
         "#xeven-mic:hover{background:rgba(255,255,255,.1)}",
@@ -116,9 +116,9 @@
         "#xeven-avail-panel{display:none;max-height:170px;overflow-y:auto;border-top:1px solid rgba(255,255,255,.07);background:rgba(15,18,33,.94);backdrop-filter:blur(16px);padding:10px;font-size:12.5px;color:#cbd5e1;position:relative;z-index:1}",
         "#xeven-avail-panel.open{display:block}",
         ".xeven-slot{display:inline-flex;align-items:center;margin:4px 4px;padding:6px 12px;border:1px solid rgba(255,255,255,.1);border-radius:999px;cursor:pointer;font-size:12.5px;font-weight:600;background:rgba(255,255,255,.06);color:#f1f5f9;backdrop-filter:blur(8px);transition:.2s}",
-        ".xeven-slot:hover{background:linear-gradient(135deg,#8b5cf6 0%,#6366f1 100%);color:#fff;border-color:transparent;transform:translateY(-1px)}",
+        ".xeven-slot:hover{background:linear-gradient(135deg,#e8b34b 0%,#b97c2a 100%);color:#fff;border-color:transparent;transform:translateY(-1px)}",
         ".xeven-chip{font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.07);color:#f1f5f9;cursor:pointer;transition:.2s;backdrop-filter:blur(8px)}",
-        ".xeven-chip:hover{background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.35);color:#fff;transform:translateY(-1px)}",
+        ".xeven-chip:hover{background:rgba(232,179,75,.18);border-color:rgba(232,179,75,.35);color:#fff;transform:translateY(-1px)}",
         "@media(max-width:500px){#xeven-widget{right:10px;left:10px;width:auto;bottom:84px;height:68vh}#xeven-widget-button{right:16px;bottom:16px;width:54px;height:54px}}"
     ].join("\n");
     document.head.appendChild(style);
@@ -146,7 +146,7 @@
             var css = "";
             // site is dark by default (xeven web #050508) — keep glass; don't override glass with flat
             // primary — button, send, av, user bubble — keep gradient core but tint if brand is distinct
-            if(primary && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(primary) && primary.toLowerCase() !== "#8b5cf6" && primary.toLowerCase() !== "#6366f1"){
+            if(primary && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(primary) && primary.toLowerCase() !== "#e8b34b" && primary.toLowerCase() !== "#b97c2a"){
                 // if site brand is not violet, blend it into widget's gradient per site
                 css += "\n#xeven-widget-button{background:"+primary+"!important;border-color:"+primary+"!important}";
                 css += "\n#xeven-widget-av{background:"+primary+"!important}";

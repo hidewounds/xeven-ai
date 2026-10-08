@@ -4,15 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XEVEN — Platform Access</title>
+    <meta name="description" content="XEVEN operator access: provision businesses, configure the unified-brain agent, monitor everything. Verified or silent.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500&display=swap');
         :root {
-            --bg:#050508; --bg2:#080a14; --surface:rgba(255,255,255,.04); --surface2:rgba(255,255,255,.06);
+            --bg:#04060a; --bg2:#070a10; --surface:rgba(255,255,255,.04); --surface2:rgba(255,255,255,.06);
             --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.11);
-            --text:#f1f5f9; --mut:#94a3b8; --mut2:#64748b;
-            --violet:#8b5cf6; --violet2:#a78bfa; --blue:#3b82f6; --cyan:#06b6d4; --green:#10b981;
-            --grad:linear-gradient(135deg,#8b5cf6 0%,#6366f1 45%,#06b6d4 100%);
+            --text:#ece7db; --mut:#9aa1a6; --mut2:#5f6a70;
+            --brass:#e8b34b; --brass2:#f2cd8a; --ice:#9fc4e8; --green:#10b981;
+            --grad:linear-gradient(135deg,#e8b34b 0%,#b97c2a 45%,#9fc4e8 100%);
             --r:22px;
         }
         * { box-sizing:border-box; margin:0; padding:0; }
@@ -20,33 +21,33 @@
         body {
             min-height:100vh; display:flex; flex-direction:column;
             background:var(--bg); color:var(--text);
-            font-family:"Instrument Sans",system-ui,sans-serif;
+            font-family:"Space Grotesk",system-ui,sans-serif;
             overflow-x:hidden; position:relative;
         }
         body::before{
-            content:""; position:fixed; inset:0; pointer-events:none; opacity:.035; z-index:9998;
+            content:""; position:fixed; inset:0; pointer-events:none; opacity:.05; z-index:9998;
             background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
         }
         .bg{
             position:fixed; inset:0; z-index:-1; pointer-events:none;
             background:
-                radial-gradient(900px 600px at 75% -10%, rgba(139,92,246,.18), transparent 60%),
-                radial-gradient(800px 500px at 10% 95%, rgba(6,182,214,.1), transparent 60%),
+                radial-gradient(900px 600px at 75% -10%, rgba(232,179,75,.12), transparent 60%),
+                radial-gradient(800px 500px at 10% 95%, rgba(159,196,232,.08), transparent 60%),
                 linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
         }
         .orb{position:fixed; border-radius:50%; filter:blur(36px); opacity:.5; pointer-events:none; mix-blend-mode:screen}
-        .orb1{width:720px;height:720px;background:radial-gradient(circle, rgba(139,92,246,.18), transparent 70%); top:-260px; right:-200px; animation:float 11s ease-in-out infinite}
-        .orb2{width:640px;height:640px;background:radial-gradient(circle, rgba(6,182,214,.12), transparent 70%); bottom:-200px; left:-180px; animation:float 13s ease-in-out infinite reverse}
+        .orb1{width:720px;height:720px;background:radial-gradient(circle, rgba(232,179,75,.12), transparent 70%); top:-260px; right:-200px; animation:float 11s ease-in-out infinite}
+        .orb2{width:640px;height:640px;background:radial-gradient(circle, rgba(159,196,232,.1), transparent 70%); bottom:-200px; left:-180px; animation:float 13s ease-in-out infinite reverse}
         @keyframes float{0%,100%{transform:translate(0,0)}50%{transform:translate(16px,-18px)}}
         header{
             display:flex; align-items:center; gap:14px;
             padding:18px clamp(20px,6vw,72px);
             border-bottom:1px solid var(--line);
-            background:rgba(5,5,8,.6); backdrop-filter:blur(20px) saturate(1.4);
+            background:rgba(4,6,10,.6); backdrop-filter:blur(20px) saturate(1.4);
             position:sticky; top:0; z-index:10;
         }
-        .brand{font-family:"Space Grotesk",sans-serif; font-size:20px; font-weight:700; letter-spacing:-.02em; display:flex; align-items:center; gap:10px}
-        .brand .dot{width:32px;height:32px;border-radius:10px;background:var(--grad);display:grid;place-items:center;font-size:14px;color:#fff;box-shadow:0 4px 14px rgba(139,92,246,.35)}
+        .brand{font-family:"Anton",sans-serif; font-size:20px; letter-spacing:.05em; display:flex; align-items:center; gap:10px}
+        .brand img{width:30px; height:30px; display:block}
         .pill{
             font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
             padding:6px 12px; border-radius:999px; border:1px solid var(--line); color:var(--mut); background:rgba(255,255,255,.04); backdrop-filter:blur(8px);
@@ -59,12 +60,12 @@
         .eyebrow{
             display:inline-flex; align-items:center; gap:8px;
             font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
-            padding:7px 14px; border-radius:999px; border:1px solid rgba(139,92,246,.22); background:rgba(139,92,246,.1); color:#c4b5fd;
+            padding:7px 14px; border-radius:999px; border:1px solid rgba(232,179,75,.25); background:rgba(232,179,75,.08); color:var(--brass2);
         }
         .hero h1{
-            font-family:"Space Grotesk",sans-serif; font-size:clamp(32px,5vw,48px); font-weight:700; line-height:.95; letter-spacing:-.03em; margin-top:18px;
+            font-family:"Anton",sans-serif; font-size:clamp(40px,6vw,64px); font-weight:400; line-height:.95; letter-spacing:.01em; margin-top:18px;
         }
-        .hero h1 b{background:linear-gradient(90deg,#fff 0%,#a5b4fc 35%,#f0abfc 65%,#fff 100%); -webkit-background-clip:text; background-clip:text; color:transparent}
+        .hero h1 b{background:linear-gradient(90deg,#fff 0%,#f2cd8a 40%,#9fc4e8 75%,#fff 100%); -webkit-background-clip:text; background-clip:text; color:transparent}
         .hero p.sub{margin:18px auto 0; max-width:580px; color:var(--mut); font-size:16px; line-height:1.65}
         .cards{
             display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; margin-top:44px; text-align:left;
@@ -77,7 +78,7 @@
         }
         a.card::before{
             content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
-            background:linear-gradient(135deg, rgba(255,255,255,.1), transparent 50%, rgba(139,92,246,.14));
+            background:linear-gradient(135deg, rgba(255,255,255,.1), transparent 50%, rgba(232,179,75,.16));
             -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             -webkit-mask-composite:xor; mask-composite:exclude; opacity:0; transition:.35s; pointer-events:none;
@@ -88,12 +89,17 @@
             width:48px; height:48px; border-radius:14px; display:grid; place-items:center;
             background:rgba(255,255,255,.06); border:1px solid var(--line); font-size:22px; margin-bottom:16px; backdrop-filter:blur(8px); transition:.35s;
         }
-        a.card:hover .icon{background:var(--grad); color:#fff; border-color:transparent; transform:rotate(-6deg) scale(1.05)}
+        a.card:hover .icon{background:var(--grad); color:#201503; border-color:transparent; transform:rotate(-6deg) scale(1.05)}
         .card h2{font-family:"Space Grotesk",sans-serif; font-size:17px; margin-bottom:6px}
         .card p{color:var(--mut); font-size:13.5px; line-height:1.6}
-        .card .go{display:inline-flex; align-items:center; gap:6px; margin-top:16px; color:var(--violet2); font-weight:700; font-size:13.5px}
+        .card .go{display:inline-flex; align-items:center; gap:6px; margin-top:16px; color:var(--brass2); font-weight:700; font-size:13.5px}
         .card .go::after{content:"→"; transition:transform .22s}
         a.card:hover .go::after{transform:translateX(4px)}
+        .tiers{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-top:18px; text-align:left}
+        .tier{border:1px solid var(--line); border-radius:16px; padding:18px; background:rgba(255,255,255,.02)}
+        .tier b{font-family:"Space Grotesk",sans-serif; font-size:15px}
+        .tier span{display:block; font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.06em; color:var(--brass2); margin-top:6px}
+        .tier p{color:var(--mut); font-size:12.5px; margin-top:8px; line-height:1.55}
         .marquee{margin-top:36px; overflow:hidden; border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:rgba(255,255,255,.02); backdrop-filter:blur(8px)}
         .marquee-track{display:flex; gap:48px; padding:14px 0; animation:marquee 28s linear infinite; white-space:nowrap}
         @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
@@ -102,36 +108,44 @@
         footer{
             padding:18px clamp(20px,6vw,72px); border-top:1px solid var(--line);
             display:flex; gap:14px; align-items:center; justify-content:space-between;
-            color:var(--mut); font-size:12.5px; background:rgba(5,5,8,.4); backdrop-filter:blur(12px);
+            color:var(--mut); font-size:12.5px; background:rgba(4,6,10,.4); backdrop-filter:blur(12px);
         }
         footer .lock{display:flex; align-items:center; gap:6px; font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.04em}
+        footer a{color:var(--brass2)}
         @media(max-width:560px){footer{flex-direction:column;gap:8px} .marquee{display:none}}
+        @media (prefers-reduced-motion: reduce){.orb,.marquee-track{animation:none}}
     </style>
 </head>
 <body>
 <div class="bg"></div><div class="orb orb1"></div><div class="orb orb2"></div>
 
 <header>
-    <div class="brand"><span class="dot">N</span> XEVEN<b>.</b></div>
+    <div class="brand"><img src="./xeven/logo-spider-light.svg" alt="XEVEN spider mark" />XEVEN</div>
     <span class="pill" id="envPill">checking…</span>
     <div class="spacer"></div>
-    <span class="pill">platform v1.0 · dark glass</span>
+    <span class="pill">unified brain · verified or silent</span>
 </header>
 
 <main>
     <section class="hero">
-        <span class="eyebrow">● Self-hosted · Glass · Grounded</span>
+        <span class="eyebrow">● Self-hosted · Unified brain · Grounded</span>
         <h1>The multi‑tenant AI agent platform<br>for <b>your business</b>, self‑hosted.</h1>
         <p class="sub">
-            XEVEN runs entirely on infrastructure you control. Glassmorphic, grounded, and fast — same design system as your live store. Authorized operators sign in below to provision businesses, configure agents, and monitor everything.
+            XEVEN runs entirely on infrastructure you control. One unified brain across six learned patterns — verified answers or silence, never invention. Authorized operators sign in below to provision businesses, configure agents, and monitor everything.
         </p>
 
         <div class="cards">
             <a class="card" href="/admin/">
                 <div class="icon">🔐</div>
                 <h2>Admin Dashboard</h2>
-                <p>Manage businesses, agent roles &amp; personality, knowledge, memory settings, customers and audit logs — all in dark glass.</p>
+                <p>Manage businesses, agent personality, knowledge, memory settings, customers and audit logs — first account becomes super-admin.</p>
                 <span class="go">Sign in</span>
+            </a>
+            <a class="card" href="https://xeven-7.vercel.app/" target="_blank" rel="noopener">
+                <div class="icon">🕷</div>
+                <h2>Public Website</h2>
+                <p>The customer-facing site: spider intro, console journey, scripted demo, plans and enquiry — the same product story.</p>
+                <span class="go">Visit site</span>
             </a>
             <a class="card" href="/api/health" target="_blank" rel="noopener">
                 <div class="icon">📈</div>
@@ -141,23 +155,30 @@
             </a>
         </div>
 
+        <div class="tiers" aria-label="Commercial plans">
+            <div class="tier"><b>Launch · $29/mo</b><span>1K CHATS · 50 KNOWLEDGE</span><p>Unified brain, no Chrono/Echo. <a href="https://xeven-7.vercel.app/plans.html">Compare on the site →</a></p></div>
+            <div class="tier"><b>Growth · $79/mo</b><span>10K CHATS · 200 KNOWLEDGE</span><p>Adds Chrono booking + Echo English voice. <a href="https://xeven-7.vercel.app/plans.html">Compare on the site →</a></p></div>
+            <div class="tier"><b>Scale · $199/mo</b><span>50K CHATS · 500 KNOWLEDGE</span><p>All add-ons + 10 custom behaviour rules. <a href="https://xeven-7.vercel.app/plans.html">Compare on the site →</a></p></div>
+            <div class="tier"><b>Custom · bespoke</b><span>UNLIMITED EVERYTHING</span><p>Unlimited rules + custom RLHF. <a href="https://xeven-7.vercel.app/contact.html">Talk to sales →</a></p></div>
+        </div>
+
         <div class="marquee">
             <div class="marquee-track">
                 <span class="brand2"><i>✦</i> One snippet</span>
-                <span class="brand2"><i>⚡</i> Grounded answers</span>
+                <span class="brand2"><i>⚡</i> Verified or silent</span>
                 <span class="brand2"><i>🧠</i> Memory</span>
-                <span class="brand2"><i>⏱️</i> Chrono &lt;1s</span>
+                <span class="brand2"><i>⏱️</i> Chrono 5:00 holds</span>
                 <span class="brand2"><i>🎙️</i> Echo voice</span>
-                <span class="brand2"><i>🛡️</i> No hallucinations</span>
+                <span class="brand2"><i>🛡️</i> Audited actions</span>
                 <span class="brand2"><i>📧</i> Your SMTP</span>
                 <span class="brand2"><i>🔒</i> Local-first</span>
                 <span class="brand2"><i>📈</i> Revenue analytics</span>
                 <span class="brand2"><i>✦</i> One snippet</span>
-                <span class="brand2"><i>⚡</i> Grounded answers</span>
+                <span class="brand2"><i>⚡</i> Verified or silent</span>
                 <span class="brand2"><i>🧠</i> Memory</span>
-                <span class="brand2"><i>⏱️</i> Chrono &lt;1s</span>
+                <span class="brand2"><i>⏱️</i> Chrono 5:00 holds</span>
                 <span class="brand2"><i>🎙️</i> Echo voice</span>
-                <span class="brand2"><i>🛡️</i> No hallucinations</span>
+                <span class="brand2"><i>🛡️</i> Audited actions</span>
                 <span class="brand2"><i>📧</i> Your SMTP</span>
                 <span class="brand2"><i>🔒</i> Local-first</span>
                 <span class="brand2"><i>📈</i> Revenue analytics</span>
@@ -167,7 +188,7 @@
 </main>
 
 <footer>
-    <span>© XEVEN — self-hosted AI agent platform · dark glass edition</span>
+    <span>© XEVEN — self-hosted AI agent platform · nothing here books, charges or sends silently · <a href="mailto:hello@xeven.world">hello@xeven.world</a></span>
     <span class="lock">🔒 Authorized access only. All actions audited.</span>
 </footer>
 
