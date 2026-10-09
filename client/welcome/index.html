@@ -95,11 +95,6 @@
         .card .go{display:inline-flex; align-items:center; gap:6px; margin-top:16px; color:var(--brass2); font-weight:700; font-size:13.5px}
         .card .go::after{content:"→"; transition:transform .22s}
         a.card:hover .go::after{transform:translateX(4px)}
-        .tiers{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-top:18px; text-align:left}
-        .tier{border:1px solid var(--line); border-radius:16px; padding:18px; background:rgba(255,255,255,.02)}
-        .tier b{font-family:"Space Grotesk",sans-serif; font-size:15px}
-        .tier span{display:block; font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.06em; color:var(--brass2); margin-top:6px}
-        .tier p{color:var(--mut); font-size:12.5px; margin-top:8px; line-height:1.55}
         .marquee{margin-top:36px; overflow:hidden; border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:rgba(255,255,255,.02); backdrop-filter:blur(8px)}
         .marquee-track{display:flex; gap:48px; padding:14px 0; animation:marquee 28s linear infinite; white-space:nowrap}
         @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
@@ -153,13 +148,6 @@
                 <p>Live health endpoint — service uptime, environment and active AI model, straight from the platform API.</p>
                 <span class="go">View status</span>
             </a>
-        </div>
-
-        <div class="tiers" aria-label="Commercial plans">
-            <div class="tier"><b>Launch · $29/mo</b><span>1K CHATS · 50 KNOWLEDGE</span><p>Unified brain, no Chrono/Echo. <a href="https://xeven-7.vercel.app/plans.html">Compare on the site →</a></p></div>
-            <div class="tier"><b>Growth · $79/mo</b><span>10K CHATS · 200 KNOWLEDGE</span><p>Adds Chrono booking + Echo English voice. <a href="https://xeven-7.vercel.app/plans.html">Compare on the site →</a></p></div>
-            <div class="tier"><b>Scale · $199/mo</b><span>50K CHATS · 500 KNOWLEDGE</span><p>All add-ons + 10 custom behaviour rules. <a href="https://xeven-7.vercel.app/plans.html">Compare on the site →</a></p></div>
-            <div class="tier"><b>Custom · bespoke</b><span>UNLIMITED EVERYTHING</span><p>Unlimited rules + custom RLHF. <a href="https://xeven-7.vercel.app/contact.html">Talk to sales →</a></p></div>
         </div>
 
         <div class="marquee">
