@@ -5,117 +5,89 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XEVEN — Platform Access</title>
     <meta name="description" content="XEVEN operator access: provision businesses, configure the unified-brain agent, monitor everything. Verified or silent.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500&display=swap');
+        @font-face{font-family:Space;src:url("./fonts/space-regular.woff") format("woff");font-style:normal;font-weight:400;font-display:swap}
+        @font-face{font-family:Space;src:url("./fonts/space-semibold.woff") format("woff");font-style:normal;font-weight:600;font-display:swap}
         :root {
-            --bg:#04060a; --bg2:#070a10; --surface:rgba(255,255,255,.04); --surface2:rgba(255,255,255,.06);
-            --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.11);
-            --text:#ece7db; --mut:#9aa1a6; --mut2:#5f6a70;
-            --brass:#e8b34b; --brass2:#f2cd8a; --ice:#9fc4e8; --green:#10b981;
-            --grad:linear-gradient(135deg,#e8b34b 0%,#b97c2a 45%,#9fc4e8 100%);
-            --r:22px;
+            --bg:#030507; --fg:#eef2f6; --mut:#a4b2c5; --faint:#64748b;
+            --line:#303e4d; --card:#0c1117;
+            --cyan:#72e8ff; --ring:#a5e2f4; --btn:#eaf1f7; --btn-ink:#0a131b;
         }
         * { box-sizing:border-box; margin:0; padding:0; }
         html{scroll-behavior:smooth}
         body {
             min-height:100vh; display:flex; flex-direction:column;
-            background:var(--bg); color:var(--text);
-            font-family:"Space Grotesk",system-ui,sans-serif;
+            background:var(--bg); color:var(--fg);
+            font-family:Space,Arial,sans-serif; font-size:16px; line-height:1.6;
             overflow-x:hidden; position:relative;
         }
         body::before{
-            content:""; position:fixed; inset:0; pointer-events:none; opacity:.05; z-index:9998;
+            content:""; position:fixed; inset:0; pointer-events:none; opacity:.035; z-index:9998;
             background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
         }
-        .bg{
-            position:fixed; inset:0; z-index:-1; pointer-events:none;
-            background:
-                radial-gradient(900px 600px at 75% -10%, rgba(232,179,75,.12), transparent 60%),
-                radial-gradient(800px 500px at 10% 95%, rgba(159,196,232,.08), transparent 60%),
-                linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
-        }
-        .orb{position:fixed; border-radius:50%; filter:blur(36px); opacity:.5; pointer-events:none; mix-blend-mode:screen}
-        .orb1{width:720px;height:720px;background:radial-gradient(circle, rgba(232,179,75,.12), transparent 70%); top:-260px; right:-200px; animation:float 11s ease-in-out infinite}
-        .orb2{width:640px;height:640px;background:radial-gradient(circle, rgba(159,196,232,.1), transparent 70%); bottom:-200px; left:-180px; animation:float 13s ease-in-out infinite reverse}
-        @keyframes float{0%,100%{transform:translate(0,0)}50%{transform:translate(16px,-18px)}}
+        ::selection{background:#bdd9e9; color:#080d13}
+        :focus-visible{outline:2px solid var(--ring); outline-offset:5px}
         header{
             display:flex; align-items:center; gap:14px;
-            padding:18px clamp(20px,6vw,72px);
-            border-bottom:1px solid var(--line);
-            background:rgba(4,6,10,.6); backdrop-filter:blur(20px) saturate(1.4);
+            padding:16px clamp(24px,6vw,104px); min-height:92px;
+            border-bottom:1px solid #8999ac18;
+            background:rgba(4,6,10,.86);
             position:sticky; top:0; z-index:10;
         }
-        .brand{font-family:"Anton",sans-serif; font-size:20px; letter-spacing:.05em; display:flex; align-items:center; gap:10px}
-        .brand img{width:30px; height:30px; display:block}
+        .brand{font-size:22px; letter-spacing:.22em; line-height:1; display:flex; align-items:center; gap:12px}
+        .brand img{width:37px; height:40px; display:block; background:#e9e9e2; padding:3px; border-radius:2px; flex-shrink:0}
         .pill{
-            font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
-            padding:6px 12px; border-radius:999px; border:1px solid var(--line); color:var(--mut); background:rgba(255,255,255,.04); backdrop-filter:blur(8px);
+            font-family:"Courier New",monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+            padding:6px 12px; border-radius:999px; border:1px solid var(--line); color:var(--mut);
         }
-        .pill.ok{color:#6ee7b7; border-color:rgba(16,185,129,.22); background:rgba(16,185,129,.1)}
-        .pill.bad{color:#fda4af; border-color:rgba(239,68,68,.22); background:rgba(239,68,68,.1)}
+        .pill.ok{color:#6ee7b7; border-color:rgba(16,185,129,.3)}
+        .pill.bad{color:#ff9ca8; border-color:rgba(239,68,68,.3)}
         .spacer{flex:1}
-        main{flex:1; display:grid; place-items:center; padding:48px clamp(20px,6vw,72px); position:relative}
+        main{flex:1; display:grid; place-items:center; padding:48px clamp(24px,6vw,104px); position:relative}
         .hero{max-width:780px; text-align:center; position:relative}
         .eyebrow{
-            display:inline-flex; align-items:center; gap:8px;
-            font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
-            padding:7px 14px; border-radius:999px; border:1px solid rgba(232,179,75,.25); background:rgba(232,179,75,.08); color:var(--brass2);
+            display:inline-flex; align-items:center; gap:16px;
+            font-family:"Courier New",monospace; font-size:12px; letter-spacing:.13em;
+            color:#afbecc; margin-bottom:28px;
         }
         .hero h1{
-            font-family:"Anton",sans-serif; font-size:clamp(40px,6vw,64px); font-weight:400; line-height:.95; letter-spacing:.01em; margin-top:18px;
+            font-weight:400; font-size:clamp(56px,5.8vw,100px); line-height:1.04;
+            letter-spacing:-.055em; margin:0 0 27px;
         }
-        .hero h1 b{background:linear-gradient(90deg,#fff 0%,#f2cd8a 40%,#9fc4e8 75%,#fff 100%); -webkit-background-clip:text; background-clip:text; color:transparent}
-        .hero p.sub{margin:18px auto 0; max-width:580px; color:var(--mut); font-size:16px; line-height:1.65}
-        .cards{
-            display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; margin-top:44px; text-align:left;
-        }
+        .hero h1 span{color:#a8b5c5}
+        .hero p.sub{margin:0 auto; max-width:330px; color:#bac4cf; font-size:16px; line-height:1.7}
+        .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; margin-top:44px; text-align:left}
         a.card{
             display:block; text-decoration:none; color:inherit;
-            background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
-            backdrop-filter:blur(16px) saturate(1.2); border:1px solid var(--line); border-radius:var(--r); padding:26px;
-            position:relative; overflow:hidden; transition:transform .35s cubic-bezier(.16,1,.3,1), border-color .35s, box-shadow .35s;
+            background:var(--card); border:1px solid var(--line); border-radius:8px; padding:26px;
+            transition:border-color .2s, background .2s;
         }
-        a.card::before{
-            content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
-            background:linear-gradient(135deg, rgba(255,255,255,.1), transparent 50%, rgba(232,179,75,.16));
-            -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite:xor; mask-composite:exclude; opacity:0; transition:.35s; pointer-events:none;
-        }
-        a.card:hover{transform:translateY(-6px); border-color:rgba(255,255,255,.12); box-shadow:0 24px 64px rgba(0,0,0,.4)}
-        a.card:hover::before{opacity:1}
+        a.card:hover{border-color:#d1e3f3; background:#182330}
         .card .icon{
-            width:48px; height:48px; border-radius:14px; display:grid; place-items:center;
-            background:rgba(255,255,255,.06); border:1px solid var(--line); font-size:22px; margin-bottom:16px; backdrop-filter:blur(8px); transition:.35s;
+            width:48px; height:48px; border-radius:8px; display:grid; place-items:center;
+            background:var(--card); border:1px solid var(--line); font-size:22px; margin-bottom:16px;
         }
-        a.card:hover .icon{background:var(--grad); color:#201503; border-color:transparent; transform:rotate(-6deg) scale(1.05)}
-        .card h2{font-family:"Space Grotesk",sans-serif; font-size:17px; margin-bottom:6px}
+        .card h2{font-weight:400; font-size:17px; margin:0 0 6px; letter-spacing:-.02em}
         .card p{color:var(--mut); font-size:13.5px; line-height:1.6}
-        .card .go{display:inline-flex; align-items:center; gap:6px; margin-top:16px; color:var(--brass2); font-weight:700; font-size:13.5px}
-        .card .go::after{content:"→"; transition:transform .22s}
-        a.card:hover .go::after{transform:translateX(4px)}
-        .marquee{margin-top:36px; overflow:hidden; border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:rgba(255,255,255,.02); backdrop-filter:blur(8px)}
+        .card .go{display:inline-flex; align-items:center; gap:12px; margin-top:16px; color:var(--fg); font-size:14px; border-bottom:1px solid #63798e; padding:10px 0; min-height:44px}
+        .marquee{margin-top:36px; overflow:hidden; border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
         .marquee-track{display:flex; gap:48px; padding:14px 0; animation:marquee 28s linear infinite; white-space:nowrap}
         @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-        .brand2{font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--mut2); display:flex; align-items:center; gap:10px}
-        .brand2 i{width:26px;height:26px;border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--line); display:grid; place-items:center; font-size:12px}
+        .brand2{font-family:"Courier New",monospace; font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--mut); display:flex; align-items:center; gap:10px}
         footer{
-            padding:18px clamp(20px,6vw,72px); border-top:1px solid var(--line);
+            padding:20px clamp(24px,6vw,104px); border-top:1px solid var(--line);
             display:flex; gap:14px; align-items:center; justify-content:space-between;
-            color:var(--mut); font-size:12.5px; background:rgba(4,6,10,.4); backdrop-filter:blur(12px);
+            color:var(--mut); font-size:12.5px;
         }
-        footer .lock{display:flex; align-items:center; gap:6px; font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.04em}
-        footer a{color:var(--brass2)}
+        footer .lock{display:flex; align-items:center; gap:6px; font-family:"Courier New",monospace; font-size:11px}
+        footer a{color:var(--fg)}
         @media(max-width:560px){footer{flex-direction:column;gap:8px} .marquee{display:none}}
-        @media (prefers-reduced-motion: reduce){.orb,.marquee-track{animation:none}}
+        @media (prefers-reduced-motion: reduce){.marquee-track{animation:none}}
     </style>
 </head>
 <body>
-<div class="bg"></div><div class="orb orb1"></div><div class="orb orb2"></div>
-
 <header>
-    <div class="brand"><img src="./xeven/logo-spider-light.svg" alt="XEVEN spider mark" />XEVEN</div>
+    <div class="brand"><img src="./xeven/logo-spider.svg" alt="XEVEN spider mark" />XEVEN</div>
     <span class="pill" id="envPill">checking…</span>
     <div class="spacer"></div>
     <span class="pill">unified brain · verified or silent</span>
@@ -124,52 +96,52 @@
 <main>
     <section class="hero">
         <span class="eyebrow">● Self-hosted · Unified brain · Grounded</span>
-        <h1>The multi‑tenant AI agent platform<br>for <b>your business</b>, self‑hosted.</h1>
+        <h1>The multi‑tenant AI agent platform<br>for <span>your business</span>, self‑hosted.</h1>
         <p class="sub">
-            XEVEN runs entirely on infrastructure you control. One unified brain across six learned patterns — verified answers or silence, never invention. Authorized operators sign in below to provision businesses, configure agents, and monitor everything.
+            XEVEN runs entirely on infrastructure you control. One unified brain across six learned patterns — verified answers or silence, never invention. Authorized operators sign in below.
         </p>
 
         <div class="cards">
             <a class="card" href="/admin/">
                 <div class="icon">🔐</div>
                 <h2>Admin Dashboard</h2>
-                <p>Manage businesses, agent personality, knowledge, memory settings, customers and audit logs — first account becomes super-admin.</p>
+                <p>Manage businesses, agent personality, knowledge, memory settings, customers and audit logs.</p>
                 <span class="go">Sign in</span>
             </a>
             <a class="card" href="https://xeven-7.vercel.app/" target="_blank" rel="noopener">
                 <div class="icon">🕷</div>
                 <h2>Public Website</h2>
-                <p>The customer-facing site: spider intro, console journey, scripted demo, plans and enquiry — the same product story.</p>
+                <p>The customer-facing site: spider intro, console journey, scripted demo, plans and enquiry.</p>
                 <span class="go">Visit site</span>
             </a>
             <a class="card" href="/api/health" target="_blank" rel="noopener">
                 <div class="icon">📈</div>
                 <h2>System Status</h2>
-                <p>Live health endpoint — service uptime, environment and active AI model, straight from the platform API.</p>
+                <p>Live health endpoint — service uptime, environment and active AI model, straight from the API.</p>
                 <span class="go">View status</span>
             </a>
         </div>
 
         <div class="marquee">
             <div class="marquee-track">
-                <span class="brand2"><i>✦</i> One snippet</span>
-                <span class="brand2"><i>⚡</i> Verified or silent</span>
-                <span class="brand2"><i>🧠</i> Memory</span>
-                <span class="brand2"><i>⏱️</i> Chrono 5:00 holds</span>
-                <span class="brand2"><i>🎙️</i> Echo voice</span>
-                <span class="brand2"><i>🛡️</i> Audited actions</span>
-                <span class="brand2"><i>📧</i> Your SMTP</span>
-                <span class="brand2"><i>🔒</i> Local-first</span>
-                <span class="brand2"><i>📈</i> Revenue analytics</span>
-                <span class="brand2"><i>✦</i> One snippet</span>
-                <span class="brand2"><i>⚡</i> Verified or silent</span>
-                <span class="brand2"><i>🧠</i> Memory</span>
-                <span class="brand2"><i>⏱️</i> Chrono 5:00 holds</span>
-                <span class="brand2"><i>🎙️</i> Echo voice</span>
-                <span class="brand2"><i>🛡️</i> Audited actions</span>
-                <span class="brand2"><i>📧</i> Your SMTP</span>
-                <span class="brand2"><i>🔒</i> Local-first</span>
-                <span class="brand2"><i>📈</i> Revenue analytics</span>
+                <span class="brand2">✦ One snippet</span>
+                <span class="brand2">⚡ Verified or silent</span>
+                <span class="brand2">🧠 Memory</span>
+                <span class="brand2">⏱️ Chrono 5:00 holds</span>
+                <span class="brand2">🎙️ Echo voice</span>
+                <span class="brand2">🛡️ Audited actions</span>
+                <span class="brand2">📧 Your SMTP</span>
+                <span class="brand2">🔒 Local-first</span>
+                <span class="brand2">📈 Revenue analytics</span>
+                <span class="brand2">✦ One snippet</span>
+                <span class="brand2">⚡ Verified or silent</span>
+                <span class="brand2">🧠 Memory</span>
+                <span class="brand2">⏱️ Chrono 5:00 holds</span>
+                <span class="brand2">🎙️ Echo voice</span>
+                <span class="brand2">🛡️ Audited actions</span>
+                <span class="brand2">📧 Your SMTP</span>
+                <span class="brand2">🔒 Local-first</span>
+                <span class="brand2">📈 Revenue analytics</span>
             </div>
         </div>
     </section>

@@ -9,13 +9,13 @@
     s.textContent=[
       "#xeven-guide-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2147482998;display:none}",
       "#xeven-guide-overlay.on{display:block}",
-      ".xeven-guide-highlight{position:absolute;border:2px solid #e8b34b;border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.55), 0 8px 32px rgba(232,179,75,.35);background:rgba(232,179,75,.08);transition:all .35s cubic-bezier(.16,1,.3,1);z-index:2147482999;pointer-events:none}",
-      "#xeven-guide-tooltip{position:absolute;z-index:2147483000;background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.92));backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.6);border-radius:14px;padding:14px 16px;max-width:320px;box-shadow:0 20px 50px rgba(0,0,0,.25);font-family:Inter,'Instrument Sans',system-ui,sans-serif;color:#111}",
-      "#xeven-guide-tooltip h4{margin:0 0 6px;font:700 14px 'Space Grotesk',sans-serif;letter-spacing:-.01em}",
-      "#xeven-guide-tooltip p{margin:0;font:400 13px/1.5 'Instrument Sans',sans-serif;color:#475569}",
+      ".xeven-guide-highlight{position:absolute;border:2px solid #72e8ff;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.55), 0 8px 32px rgba(114,232,255,.2);background:rgba(114,232,255,.08);transition:all .35s cubic-bezier(.16,1,.3,1);z-index:2147482999;pointer-events:none}",
+      "#xeven-guide-tooltip{position:absolute;z-index:2147483000;background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.92));backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.6);border-radius:14px;padding:14px 16px;max-width:320px;box-shadow:0 20px 50px rgba(0,0,0,.25);font-family:Space,Arial,sans-serif;color:#111}",
+      "#xeven-guide-tooltip h4{margin:0 0 6px;font:400 14px Space,Arial,sans-serif;letter-spacing:-.01em}",
+      "#xeven-guide-tooltip p{margin:0;font:400 13px/1.5 Space,Arial,sans-serif;color:#475569}",
       "#xeven-guide-tooltip .actions{display:flex;gap:8px;margin-top:12px;align-items:center}",
-      "#xeven-guide-tooltip button{border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 14px;font:600 13px 'Instrument Sans',sans-serif;cursor:pointer}",
-      "#xeven-guide-tooltip .primary{background:linear-gradient(135deg,#e8b34b,#b97c2a);color:#fff;border-color:transparent}",
+      "#xeven-guide-tooltip button{border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 14px;font:400 13px Space,Arial,sans-serif;cursor:pointer}",
+      "#xeven-guide-tooltip .primary{background:#eaf1f7;color:#0a131b;border-color:#eaf1f7}",
       "#xeven-guide-tooltip .muted{color:#64748b;font-size:12px;margin-left:auto}",
       "#xeven-guide-arrow{position:absolute;width:14px;height:14px;background:#fff;border-left:1px solid rgba(0,0,0,.06);border-top:1px solid rgba(0,0,0,.06);transform:rotate(45deg);z-index:2147483000;display:none}"
     ].join("\n");
