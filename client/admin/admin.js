@@ -165,7 +165,7 @@
       if(c.customers===0) attention.push({t:"No customers yet",d:"Install the snippet and XEVEN will start capturing conversations.",a:"View Integration",tab:"integration"});
       (state.securityWarnings||[]).forEach(function(w){attention.push({t:String(w.message||w.code||"Security notice").slice(0,140),d:"Security posture — review recommended.",a:"Review settings",tab:w.tab||"settings"})});
       var html='';
-      html+='<div class="card" style="background:linear-gradient(135deg, rgba(232,179,75,.08), rgba(6,182,214,.05)), rgba(255,255,255,.03)"><div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div><h2 style="font-size:18px;margin:0">'+esc(state.business.businessName)+'</h2><p class="muted" style="margin:4px 0 0">Overview — what matters today. See Health for system status, Analytics for trends.</p></div><span class="pill">'+plan+' • unified</span></div></div>';
+      html+='<div class="card" style="background:linear-gradient(135deg, rgba(159,196,232,.08), rgba(114,232,255,.05)), rgba(255,255,255,.03)"><div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div><h2 style="font-size:18px;margin:0">'+esc(state.business.businessName)+'</h2><p class="muted" style="margin:4px 0 0">Overview — what matters today. See Health for system status, Analytics for trends.</p></div><span class="pill">'+plan+' • unified</span></div></div>';
       // KPIs ONLY here — health is NOT duplicated
       html+='<div class="grid">';
       [["Conversations",c.conversations],["Customers",c.customers],["Messages",c.messages],["Memories",c.memories],["Behavior events",c.behaviorEvents],["Knowledge",c.knowledgeItems]].forEach(function(k){
@@ -201,7 +201,7 @@
       {k:"General",c:"5.2k",d:"broadly adaptive"}
     ];
     var html='';
-    html+='<div class="card" style="border-left:4px solid var(--violet);background:linear-gradient(135deg, rgba(232,179,75,.08), rgba(6,182,214,.06))"><div class="card-head"><h3>Unified Brain — 6 Learned Patterns</h3><span class="status ok"><span class="dot ok"></span> Unified • Operational</span></div>';
+    html+='<div class="card" style="border-left:4px solid var(--violet);background:linear-gradient(135deg, rgba(159,196,232,.08), rgba(114,232,255,.06))"><div class="card-head"><h3>Unified Brain — 6 Learned Patterns</h3><span class="status ok"><span class="dot ok"></span> Unified • Operational</span></div>';
     html+='<p class="muted" style="margin:-6px 0 12px;line-height:1.6">One brain, not 9 roles. Trained via RLHF — DPO/PPO/GRPO with reward: <b style="color:var(--text)">task completion + satisfaction + accuracy</b>. No role switching — XEVEN leans fluidly by situation.</p>';
     html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:4px">';
     patterns.forEach(function(pat){html+='<div style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:10px"><b style="font-size:13px">'+esc(pat.k)+'</b><div class="muted xs" style="margin-top:2px">'+esc(pat.d)+' <span style="color:var(--violet-2);font-weight:700">· '+pat.c+'</span></div></div>'});
@@ -519,9 +519,9 @@
     var step=w/(data.length-1);
     ctx.beginPath(); ctx.moveTo(0, h - pad - ((data[0]-min)/(max-min))*(h-pad*2));
     for(var i=1;i<data.length;i++){ var x=i*step, y=h - pad - ((data[i]-min)/(max-min))*(h-pad*2); ctx.lineTo(x,y); }
-    ctx.strokeStyle=color||"#e8b34b"; ctx.lineWidth=2; ctx.lineJoin="round"; ctx.lineCap="round"; ctx.stroke();
+    ctx.strokeStyle=color||"#72e8ff"; ctx.lineWidth=2; ctx.lineJoin="round"; ctx.lineCap="round"; ctx.stroke();
     // gradient fill
-    var grad=ctx.createLinearGradient(0,0,0,h); grad.addColorStop(0, (color||"#e8b34b")+"33"); grad.addColorStop(1,"transparent");
+    var grad=ctx.createLinearGradient(0,0,0,h); grad.addColorStop(0, (color||"#72e8ff")+"33"); grad.addColorStop(1,"transparent");
     ctx.lineTo(w, h); ctx.lineTo(0,h); ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
   }
   function synthSeries(seed, len){
@@ -542,9 +542,9 @@
       html+='<div class="card"><h3>Quality snapshot</h3><div class="table-wrap"><table><thead><tr><th>Signal</th><th>Value</th><th>Note</th></tr></thead><tbody><tr><td>Grounded answers</td><td><b>'+grounded+'</b></td><td class="muted xs">No hallucination — knowledge-only</td></tr><tr><td>Conversations</td><td><b>'+(c.conversations||0)+'</b></td><td class="muted xs">for context</td></tr><tr><td>Messages</td><td><b>'+(c.messages||0)+'</b></td><td class="muted xs">'+mpc+' avg / conv</td></tr><tr><td>Latency</td><td><span class="muted">not instrumented</span></td><td class="muted xs">Check server logs for P95</td></tr></tbody></table></div><canvas id="perfSpark3" style="width:100%;height:64px;margin-top:12px;display:block" height="64"></canvas><p class="muted xs" style="margin-top:8px">Sparklines are synthetic from counts — real latency needs APM.</p></div>';
       p.innerHTML=html;
       setTimeout(function(){
-        drawSparkline("perfSpark1", synthSeries(c.knowledgeItems||4, 14), "#06b6d4");
+        drawSparkline("perfSpark1", synthSeries(c.knowledgeItems||4, 14), "#72e8ff");
         drawSparkline("perfSpark2", synthSeries(c.conversations||6, 14), "#10b981");
-        drawSparkline("perfSpark3", synthSeries(c.messages||8, 14), "#e8b34b");
+        drawSparkline("perfSpark3", synthSeries(c.messages||8, 14), "#72e8ff");
       }, 30);
     }catch(e){ p.innerHTML='<div class="error-state"><span>'+esc(e.message)+'</span><button class="btn ghost small" onclick="renderPerformance()">Try again</button></div>'; }
   }
@@ -600,7 +600,7 @@
       html+='<div class="grid" style="margin-top:2px"><div class="kpi"><div class="n">~99.9%</div><div class="l">Uptime</div><div class="muted xs">Last 30d</div></div><div class="kpi"><div class="n">'+(c.knowledgeItems||0)+'</div><div class="l">Knowledge health</div><div class="muted xs">chunks • grounded</div></div><div class="kpi"><div class="n">'+(c.customers||0)+'</div><div class="l">Tenant isolation</div><div class="muted xs">scoped by business_id</div></div></div>';
       html+='<div class="card" style="margin-top:14px"><h3>Diagnostics</h3><div class="table-wrap"><table><thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead><tbody><tr><td>Config</td><td><span class="status ok">Pass</span></td><td class="muted xs">normalizeConfig • role=unified</td></tr><tr><td>Memory TTL</td><td><span class="status ok">Pass</span></td><td class="muted xs">explicit vs inferred separated</td></tr><tr><td>Behavior TTL</td><td><span class="status ok">Pass</span></td><td class="muted xs">per-event retention</td></tr><tr><td>Rate limit</td><td><span class="status ok">Pass</span></td><td class="muted xs">per business/IP</td></tr></tbody></table></div></div>';
       p.innerHTML=html;
-      setTimeout(function(){ drawSparkline("healthSpark", synthSeries(100, 20), "#e8b34b"); }, 30);
+      setTimeout(function(){ drawSparkline("healthSpark", synthSeries(100, 20), "#72e8ff"); }, 30);
     }catch(e){ p.innerHTML='<div class="error-state"><span>'+esc(e.message)+'</span><button class="btn ghost small" onclick="renderHealth()">Try again</button></div>'; }
   }
   function renderSettings(){

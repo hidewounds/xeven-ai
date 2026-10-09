@@ -50,8 +50,8 @@
     if(max===min){max+=1;min-=1;} var step=w/(data.length-1);
     ctx.beginPath(); ctx.moveTo(0, h-pad-((data[0]-min)/(max-min))*(h-pad*2));
     for(var i=1;i<data.length;i++){ var x=i*step, y=h-pad-((data[i]-min)/(max-min))*(h-pad*2); ctx.lineTo(x,y); }
-    ctx.strokeStyle=color||"#e8b34b"; ctx.lineWidth=2; ctx.lineJoin="round"; ctx.lineCap="round"; ctx.stroke();
-    var grad=ctx.createLinearGradient(0,0,0,h); grad.addColorStop(0,(color||"#e8b34b")+"33"); grad.addColorStop(1,"transparent");
+    ctx.strokeStyle=color||"#72e8ff"; ctx.lineWidth=2; ctx.lineJoin="round"; ctx.lineCap="round"; ctx.stroke();
+    var grad=ctx.createLinearGradient(0,0,0,h); grad.addColorStop(0,(color||"#72e8ff")+"33"); grad.addColorStop(1,"transparent");
     ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
   }
   function synthSeriesPortal(seed,len){ var out=[], v=seed||8; for(var i=0;i<len;i++){ v=Math.max(1, v+(Math.random()-0.48)*(seed*0.18||2)); out.push(Math.round(v)); } return out; }
@@ -246,7 +246,7 @@
         html+='<div class="card"><h3>Recent activity</h3><p class="muted xs">Conversations feed unavailable.</p></div>';
       }
       pane.innerHTML=html;
-      setTimeout(function(){ drawSparklinePortal("portalOverviewSpark", synthSeriesPortal(convCount||4, 18), "#e8b34b"); }, 40);
+      setTimeout(function(){ drawSparklinePortal("portalOverviewSpark", synthSeriesPortal(convCount||4, 18), "#72e8ff"); }, 40);
     }catch(e){ pane.innerHTML=errorState(e.message, "loadOverview()"); }
   }
   // --- Agent ---
