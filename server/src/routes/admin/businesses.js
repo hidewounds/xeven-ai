@@ -6,6 +6,7 @@ const configService = require("../../core/config/service");
 const analytics = require("../../core/analytics/service");
 const auditStore = require("../../core/audit/store");
 const db = require("../../db");
+const conversations = require("../../core/conversations/store");
 const { badRequest } = require("../../lib/errors");
 
 const router = express.Router();
@@ -124,6 +125,12 @@ router.get("/businesses/:businessId", (req, res) => {
         }
     } catch {}
     res.json({ business: req.xevenBusiness, config: sanitized, plan: req.xevenBusiness.plan, maxRoles, roleKeys: PATTERN_IDS, brainPatterns: PATTERN_IDS, brain: "unified", isSuper, adminBypass: true, securityWarnings });
+});
+
+/** Conversation threads for a business (admin mirror of the portal route). */
+router.get("/businesses/:businessId/conversations", (req, res) => {
+    const result = conversations.listConversations(req.xeven.businessId);
+    res.json({ conversations: result.conversations, total: result.total });
 });
 
 router.patch("/businesses/:businessId", (req, res, next) => {

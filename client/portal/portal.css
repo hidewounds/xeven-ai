@@ -269,6 +269,8 @@ td .row{flex-wrap:nowrap;gap:8px !important}
 @media(max-width:980px){
   .content table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .crumbs{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .crumbs>*{flex-shrink:0}
+  .crumbs>*:last-child{overflow:hidden;text-overflow:ellipsis;min-width:0}
   .topbar .pill{display:none}
   input,select,textarea{font-size:16px}
   .toast{max-width:calc(100vw - 24px)}
