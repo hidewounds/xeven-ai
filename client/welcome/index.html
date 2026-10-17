@@ -15,11 +15,11 @@
         @font-face{font-family:Space;src:url("./fonts/space-semibold.woff") format("woff");font-style:normal;font-weight:600;font-display:swap}
         :root {
             --bg:#030507; --fg:#eef2f6; --mut:#a4b2c5; --faint:#64748b;
-            --line:#303e4d; --card:#0c1117;
+            --line:#263340; --card:#0c1117;
             --cyan:#72e8ff; --ring:#a5e2f4; --btn:#eaf1f7; --btn-ink:#0a131b;
         }
         * { box-sizing:border-box; margin:0; padding:0; }
-        html{scroll-behavior:smooth}
+        html{scroll-behavior:smooth; overflow-x:clip}
         body {
             min-height:100vh; display:flex; flex-direction:column;
             background:var(--bg); color:var(--fg);
@@ -34,59 +34,90 @@
         :focus-visible{outline:2px solid var(--ring); outline-offset:5px}
         header{
             display:flex; align-items:center; gap:14px;
-            padding:16px clamp(24px,6vw,104px); min-height:92px;
+            padding:16px clamp(24px,6vw,104px); min-height:88px;
             border-bottom:1px solid #8999ac18;
             background:rgba(4,6,10,.86);
             position:sticky; top:0; z-index:10;
+            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
         }
         .brand{font-size:22px; letter-spacing:.22em; line-height:1; display:flex; align-items:center; gap:12px}
         .brand img{width:40px; height:40px; display:block; flex-shrink:0}
         .pill{
             font-family:"Courier New",monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase;
-            padding:6px 12px; border-radius:999px; border:1px solid var(--line); color:var(--mut);
+            padding:6px 12px; border-radius:999px; border:1px solid var(--line); color:var(--mut); white-space:nowrap;
         }
         .pill.ok{color:#6ee7b7; border-color:rgba(16,185,129,.3)}
         .pill.bad{color:#ff9ca8; border-color:rgba(239,68,68,.3)}
         .spacer{flex:1}
-        main{flex:1; display:grid; place-items:center; padding:48px clamp(24px,6vw,104px); position:relative}
-        .hero{max-width:780px; text-align:center; position:relative}
+        main{flex:1; display:grid; place-items:center; padding:56px clamp(24px,6vw,104px); position:relative}
+        .hero{max-width:900px; text-align:center; position:relative}
+        .hero::before{
+            content:""; position:absolute; top:-160px; left:0; right:0; margin:0 auto;
+            width:min(680px,100%); height:360px; pointer-events:none; z-index:-1;
+            background:radial-gradient(closest-side, rgba(114,232,255,.14), transparent 72%);
+        }
         .eyebrow{
-            display:inline-flex; align-items:center; gap:16px;
+            display:inline-flex; align-items:center; gap:12px;
             font-family:"Courier New",monospace; font-size:12px; letter-spacing:.13em;
-            color:#afbecc; margin-bottom:28px;
+            color:#afbecc; margin-bottom:30px;
         }
+        .eyebrow i{width:7px; height:7px; border-radius:50%; background:var(--cyan); box-shadow:0 0 12px rgba(114,232,255,.8)}
         .hero h1{
-            font-weight:400; font-size:clamp(56px,5.8vw,100px); line-height:1.04;
-            letter-spacing:-.055em; margin:0 0 27px;
+            font-weight:400; font-size:clamp(52px,5.8vw,96px); line-height:1.05;
+            letter-spacing:-.055em; margin:0 0 26px;
+            background:linear-gradient(180deg,#f4f8fb 62%,#b9c8d8);
+            -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
         }
-        .hero h1 span{color:#a8b5c5}
-        .hero p.sub{margin:0 auto; max-width:330px; color:#bac4cf; font-size:16px; line-height:1.7}
-        .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; margin-top:44px; text-align:left}
+        .hero h1 span{-webkit-text-fill-color:#a8b5c5}
+        .hero p.sub{margin:0 auto; max-width:430px; color:#b9c3ce; font-size:15.5px; line-height:1.75}
+        .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-top:48px; text-align:left}
         a.card{
             display:block; text-decoration:none; color:inherit;
-            background:var(--card); border:1px solid var(--line); border-radius:8px; padding:26px;
-            transition:border-color .2s, background .2s;
+            background:linear-gradient(180deg,#0e141b,#090e14);
+            border:1px solid var(--line); border-radius:8px; padding:26px;
+            transition:border-color .25s cubic-bezier(.16,1,.3,1), transform .25s cubic-bezier(.16,1,.3,1), box-shadow .25s;
         }
-        a.card:hover{border-color:#d1e3f3; background:#182330}
+        a.card:hover{
+            border-color:rgba(114,232,255,.5); transform:translateY(-2px);
+            box-shadow:0 14px 34px rgba(0,0,0,.45), 0 0 0 1px rgba(114,232,255,.12), inset 0 1px 0 rgba(255,255,255,.05);
+        }
         .card .icon{
-            width:48px; height:48px; border-radius:8px; display:grid; place-items:center;
-            background:var(--card); border:1px solid var(--line); font-size:22px; margin-bottom:16px;
+            width:44px; height:44px; border-radius:8px; display:grid; place-items:center;
+            background:#0a0f15; border:1px solid var(--line); margin-bottom:18px;
         }
-        .card h2{font-weight:400; font-size:17px; margin:0 0 6px; letter-spacing:-.02em}
-        .card p{color:var(--mut); font-size:13.5px; line-height:1.6}
-        .card .go{display:inline-flex; align-items:center; gap:12px; margin-top:16px; color:var(--fg); font-size:14px; border-bottom:1px solid #63798e; padding:10px 0; min-height:44px}
-        .marquee{margin-top:36px; overflow:hidden; border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
-        .marquee-track{display:flex; gap:48px; padding:14px 0; animation:marquee 28s linear infinite; white-space:nowrap}
+        .card .icon svg{width:21px; height:21px; stroke:var(--cyan); fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round}
+        .card .icon img{width:24px; height:26px; display:block}
+        .card .kicker{
+            display:block; font-family:"Courier New",monospace; font-size:10.5px;
+            letter-spacing:.16em; text-transform:uppercase; color:#6f8296; margin-bottom:8px;
+        }
+        .card h2{font-weight:400; font-size:17px; margin:0 0 8px; letter-spacing:-.02em; color:var(--fg)}
+        .card p{color:var(--mut); font-size:13.5px; line-height:1.65}
+        .card .go{
+            display:inline-flex; align-items:center; gap:10px; margin-top:18px;
+            color:#eaf1f7; font-size:14px; border-bottom:1px solid rgba(114,232,255,.35);
+            padding:8px 0; min-height:44px;
+        }
+        .card .go .arr{font-style:normal; color:var(--cyan); transition:transform .25s cubic-bezier(.16,1,.3,1)}
+        a.card:hover .go .arr{transform:translateX(4px)}
+        .marquee{
+            margin-top:44px; overflow:hidden;
+            border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+            -webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);
+            mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);
+        }
+        .marquee-track{display:flex; gap:44px; padding:14px 0; animation:marquee 30s linear infinite; white-space:nowrap}
         @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-        .brand2{font-family:"Courier New",monospace; font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--mut); display:flex; align-items:center; gap:10px}
+        .brand2{font-family:"Courier New",monospace; font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:#7d8ea1; display:flex; align-items:center; gap:12px}
+        .brand2::before{content:"✦"; color:#4d6076; font-size:9px}
         footer{
             padding:20px clamp(24px,6vw,104px); border-top:1px solid var(--line);
             display:flex; gap:14px; align-items:center; justify-content:space-between;
             color:var(--mut); font-size:12.5px;
         }
-        footer .lock{display:flex; align-items:center; gap:6px; font-family:"Courier New",monospace; font-size:11px}
+        footer .lock{display:flex; align-items:center; gap:8px; font-family:"Courier New",monospace; font-size:11px; color:#7d8ea1; text-transform:uppercase; letter-spacing:.08em}
         footer a{color:var(--fg)}
-        @media(max-width:560px){footer{flex-direction:column;gap:8px} .marquee{display:none}}
+        @media(max-width:560px){footer{flex-direction:column;gap:8px;text-align:center} .marquee{display:none} .hide-m{display:none} .eyebrow i{display:none}}
         @media (prefers-reduced-motion: reduce){.marquee-track{animation:none}}
     </style>
 </head>
@@ -95,12 +126,12 @@
     <div class="brand"><img src="./xeven/logo-spider-light.svg" alt="" aria-hidden="true" />XEVEN</div>
     <span class="pill" id="envPill">checking…</span>
     <div class="spacer"></div>
-    <span class="pill">unified brain · verified or silent</span>
+    <span class="pill hide-m">unified brain · verified or silent</span>
 </header>
 
 <main>
     <section class="hero">
-        <span class="eyebrow">● Self-hosted · Unified brain · Grounded</span>
+        <span class="eyebrow"><i></i>Self-hosted · Unified brain · Grounded</span>
         <h1>The multi‑tenant AI agent platform<br>for <span>your business</span>, self‑hosted.</h1>
         <p class="sub">
             XEVEN runs entirely on infrastructure you control. One unified brain across six learned patterns — verified answers or silence, never invention. Authorized operators sign in below.
@@ -108,45 +139,39 @@
 
         <div class="cards">
             <a class="card" href="/admin/">
-                <div class="icon">🔐</div>
+                <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="9.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/><circle cx="12" cy="15" r="1.4"/></svg></div>
+                <span class="kicker">Control plane</span>
                 <h2>Admin Dashboard</h2>
-                <p>Manage businesses, agent personality, knowledge, memory settings, customers and audit logs.</p>
-                <span class="go">Sign in</span>
+                <p>Provision businesses, tune the unified brain, manage knowledge, memory, customers and audit.</p>
+                <span class="go">Sign in <i class="arr">→</i></span>
             </a>
-            <a class="card" href="https://xeven-7.vercel.app/" target="_blank" rel="noopener">
-                <div class="icon">🕷</div>
+            <a class="card" href="https://xeven-web.vercel.app/" target="_blank" rel="noopener">
+                <div class="icon"><img src="./xeven/logo-spider-light.svg" alt="" aria-hidden="true" /></div>
+                <span class="kicker">Public face</span>
                 <h2>Public Website</h2>
-                <p>The customer-facing site: spider intro, console journey, scripted demo, plans and enquiry.</p>
-                <span class="go">Visit site</span>
+                <p>The customer-facing site — spider intro, console journey, live demo and enquiry.</p>
+                <span class="go">Visit site <i class="arr">→</i></span>
             </a>
             <a class="card" href="/api/health" target="_blank" rel="noopener">
-                <div class="icon">📈</div>
+                <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2.5-6 4 12 2.5-6h5"/></svg></div>
+                <span class="kicker">Telemetry</span>
                 <h2>System Status</h2>
-                <p>Live health endpoint — service uptime, environment and active AI model, straight from the API.</p>
-                <span class="go">View status</span>
+                <p id="statusLine">Live health endpoint — uptime, environment and the active model.</p>
+                <span class="go">View status <i class="arr">→</i></span>
             </a>
         </div>
 
         <div class="marquee">
             <div class="marquee-track">
-                <span class="brand2">✦ One snippet</span>
-                <span class="brand2">⚡ Verified or silent</span>
-                <span class="brand2">🧠 Memory</span>
-                <span class="brand2">⏱️ Chrono 5:00 holds</span>
-                <span class="brand2">🎙️ Echo voice</span>
-                <span class="brand2">🛡️ Audited actions</span>
-                <span class="brand2">📧 Your SMTP</span>
-                <span class="brand2">🔒 Local-first</span>
-                <span class="brand2">📈 Revenue analytics</span>
-                <span class="brand2">✦ One snippet</span>
-                <span class="brand2">⚡ Verified or silent</span>
-                <span class="brand2">🧠 Memory</span>
-                <span class="brand2">⏱️ Chrono 5:00 holds</span>
-                <span class="brand2">🎙️ Echo voice</span>
-                <span class="brand2">🛡️ Audited actions</span>
-                <span class="brand2">📧 Your SMTP</span>
-                <span class="brand2">🔒 Local-first</span>
-                <span class="brand2">📈 Revenue analytics</span>
+                <span class="brand2">One snippet</span>
+                <span class="brand2">Verified or silent</span>
+                <span class="brand2">Memory</span>
+                <span class="brand2">Chrono 5:00 holds</span>
+                <span class="brand2">Echo voice</span>
+                <span class="brand2">Audited actions</span>
+                <span class="brand2">Your SMTP</span>
+                <span class="brand2">Local-first</span>
+                <span class="brand2">Revenue analytics</span>
             </div>
         </div>
     </section>
@@ -154,7 +179,7 @@
 
 <footer>
     <span>© XEVEN — self-hosted AI agent platform · nothing here books, charges or sends silently · <a href="mailto:hello@xeven.world">hello@xeven.world</a></span>
-    <span class="lock">🔒 Authorized access only. All actions audited.</span>
+    <span class="lock">Authorized access only · all actions audited</span>
 </footer>
 
 <script>
@@ -163,6 +188,8 @@
         if (h && h.ok) {
             pill.textContent = "online · " + (h.environment || "unknown") + " · model " + (h.model || "?");
             pill.className = "pill ok";
+            var st = document.getElementById("statusLine");
+            if (st) st.textContent = "All systems normal · " + (h.environment || "unknown") + " · model " + (h.model || "?");
         } else {
             pill.textContent = "degraded";
             pill.className = "pill bad";
