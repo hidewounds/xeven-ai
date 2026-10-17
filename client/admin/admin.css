@@ -251,3 +251,18 @@ td .row{flex-wrap:nowrap;gap:8px !important}
   .grid{gap:12px}
   .row{gap:12px}
 }
+
+/* ===== Phone usability hardening (<=980px) — no desktop impact ===== */
+@media(max-width:980px){
+  .content table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .crumbs{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .topbar .pill{display:none}
+  input,select,textarea{font-size:16px}
+  .toast{max-width:calc(100vw - 24px)}
+  .sidebar{width:min(82vw,280px)}
+  .auth-main{padding:24px 16px}
+  .auth-card{box-sizing:border-box;width:100%;max-width:400px}
+}
+@media(max-width:640px){
+  .content{padding:16px 12px 28px}
+}

@@ -1087,3 +1087,14 @@
   $("sidebarClose")?.addEventListener("click", ()=> $("sidebar")?.classList.remove("open"));
   document.addEventListener("click", e=>{ const s=$("sidebar"); if(innerWidth<=980 && s?.classList.contains("open") && !s.contains(e.target) && e.target!==$("sidebarOpen")) s.classList.remove("open"); });
 })();
+
+/* Phone: close the nav drawer when a section is tapped */
+(function(){
+  document.addEventListener("click", function(e){
+    var n = e.target && e.target.closest ? e.target.closest(".nav-item") : null;
+    if (n && window.innerWidth <= 980) {
+      var s = document.getElementById("sidebar");
+      if (s) s.classList.remove("open");
+    }
+  });
+})();

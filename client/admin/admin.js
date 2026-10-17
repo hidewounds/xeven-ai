@@ -685,3 +685,14 @@
   document.readyState==="loading" ? document.addEventListener("DOMContentLoaded", initChromePolish) : initChromePolish();
   (async function boot(){if(!state.token) return; try{await enterDashboard()}catch(e){if(e.status!==401) console.warn(e.message)}})();
 })();
+
+/* Phone: close the nav drawer when a section is tapped */
+(function(){
+  document.addEventListener("click", function(e){
+    var n = e.target && e.target.closest ? e.target.closest(".nav-item") : null;
+    if (n && window.innerWidth <= 980) {
+      var s = document.getElementById("sidebar");
+      if (s) s.classList.remove("open");
+    }
+  });
+})();
