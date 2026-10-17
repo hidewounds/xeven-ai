@@ -7,7 +7,7 @@
  */
 const crypto = require("crypto");
 
-const BASE = process.env.PROD_BASE || "https://xeven-ai-hidewounds-9658.vercel.app";
+const BASE = process.env.PROD_BASE || "https://xeven-ai.vercel.app";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASS = process.env.ADMIN_PASS;
 if (!ADMIN_EMAIL || !ADMIN_PASS) {

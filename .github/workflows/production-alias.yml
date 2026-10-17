@@ -15,7 +15,7 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           PROJECT_ID: prj_eQYGAM2SRqS4Xi2T8fcTlvuRm2D2
-          DOMAINS: "xeven-ai.vercel.app xeven-ai-hidewounds-9658.vercel.app"
+          DOMAINS: "xeven-ai.vercel.app"
           SHA: ${{ github.sha }}
         run: |
           for i in $(seq 1 45); do
