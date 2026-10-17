@@ -1,0 +1,13 @@
+﻿{
+  "name": "XEVEN",
+  "short_name": "XEVEN",
+  "icons": [
+    {"src": "./favicon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "./favicon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "./favicon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "background_color": "#030507",
+  "theme_color": "#030507",
+  "display": "standalone",
+  "start_url": "./"
+}
